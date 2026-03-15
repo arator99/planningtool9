@@ -6,9 +6,8 @@ WORKDIR /app
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Kopieer broncode en CHANGELOG
+# Kopieer broncode (CHANGELOG.md zit al in backend/)
 COPY backend/ .
-COPY CHANGELOG.md .
 
 # Poort
 EXPOSE 8000

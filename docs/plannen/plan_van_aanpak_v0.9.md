@@ -902,8 +902,8 @@ Je kan bestaande bcrypt-hashes niet proactief omzetten zonder de plaintext. Opti
 - [x] `docker-compose.yml` aanmaken (app + PostgreSQL 16 + named volumes)
 - [x] `.env.example` documenteren
 - [x] Versie ophogen naar 0.9.0, nieuw CHANGELOG.md starten
-- [ ] Lokaal testen: `docker compose up --build`
-- [ ] Alembic migraties verifiëren
+- [x] Lokaal testen: `docker compose up --build`
+- [x] Alembic migraties verifiëren
 - [x] Alembic deployment-patroon instellen: **init-container** in `docker-compose.yml` voert `alembic upgrade head` uit vóór de app-container start (geen manuele stap, geen downtime-risico)
 
 **Stijlsysteem:**

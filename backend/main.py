@@ -12,7 +12,8 @@ from starlette.responses import Response as StarletteResponse
 
 from api.dependencies import haal_huidige_gebruiker, haal_csrf_token, haal_db
 from api.rate_limiter import limiter
-from api.routers import auth, health, gebruikers, planning, verlof, shiftcodes, hr, notities, rapporten, account, help, werkposten, competenties, logboek, instellingen, groepen
+from api.routers import auth, health, gebruikers, planning, verlof, shiftcodes, hr, notities, rapporten, account, help, werkposten, competenties, logboek, groepen
+from api.routers import instellingen as instellingen_router
 from services.notitie_service import NotitieService
 from services.verlof_service import VerlofService
 from services.planning_service import PlanningService
@@ -157,7 +158,7 @@ app.include_router(help.router)
 app.include_router(werkposten.router)
 app.include_router(competenties.router)
 app.include_router(logboek.router)
-app.include_router(instellingen.router)
+app.include_router(instellingen_router.router)
 app.include_router(groepen.router)
 
 
