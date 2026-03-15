@@ -7,6 +7,13 @@ Webgebaseerde planningsapp voor een bedrijf met ~10 productielocaties verdeeld o
 **Strategie:** `code_v07/src/services/` = **primaire bron** voor businesslogica (port naar SQLAlchemy + FastAPI). `code_v08/backend/` = **infrastructuurreferentie** (Docker, Alembic, JWT-auth, FastAPI-patronen).
 **Volledige plan:** `docs/plannen/plan_van_aanpak_v0.9.md`
 
+## Werkwijze — plannen en voortgang
+
+- Plannen die taken bevatten gebruiken **Markdown-checkboxes** (`- [ ]` / `- [x]`)
+- **Vink taken af zodra ze afgewerkt zijn** — update `docs/plannen/plan_van_aanpak_v0.9.md` direct na voltooiing, niet achteraf in bulk
+- Gebruik `- [x]` voor volledig afgeronde taken; laat `- [ ]` staan voor deels gedaan of nog te doen
+- Huidige voortgang: **Fase 0 grotendeels afgerond** (zie plan voor openstaande items)
+
 ---
 
 ## Tech stack

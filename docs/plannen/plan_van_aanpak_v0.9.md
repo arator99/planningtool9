@@ -898,29 +898,29 @@ Je kan bestaande bcrypt-hashes niet proactief omzetten zonder de plaintext. Opti
 **Doel:** Werkend FastAPI-geraamte op PostgreSQL, met stijlsysteem en i18n als fundament
 
 **Basissetup:**
-- [ ] `backend/` map opbouwen: FastAPI-structuur gebaseerd op v0.8 patronen (NIET kopiëren — overnemen wat relevant is: `main.py`, `database.py`, `config.py`, `api/dependencies.py`, auth-middleware)
-- [ ] `docker-compose.yml` aanmaken (app + PostgreSQL 16 + named volumes)
-- [ ] `.env.example` documenteren
-- [ ] Versie ophogen naar 0.9.0, nieuw CHANGELOG.md starten
+- [x] `backend/` map opbouwen: FastAPI-structuur gebaseerd op v0.8 patronen
+- [x] `docker-compose.yml` aanmaken (app + PostgreSQL 16 + named volumes)
+- [x] `.env.example` documenteren
+- [x] Versie ophogen naar 0.9.0, nieuw CHANGELOG.md starten
 - [ ] Lokaal testen: `docker compose up --build`
 - [ ] Alembic migraties verifiëren
-- [ ] Alembic deployment-patroon instellen: **init-container** in `docker-compose.yml` voert `alembic upgrade head` uit vóór de app-container start (geen manuele stap, geen downtime-risico)
+- [x] Alembic deployment-patroon instellen: **init-container** in `docker-compose.yml` voert `alembic upgrade head` uit vóór de app-container start (geen manuele stap, geen downtime-risico)
 
 **Stijlsysteem:**
-- [ ] `backend/static/css/theme.css` aanmaken met CSS custom properties (light + dark, zie Stijlsysteem-sectie)
-- [ ] `backend/templates/layouts/base.html` aanpassen:
+- [x] `backend/static/css/theme.css` aanmaken met CSS custom properties (light + dark, zie Stijlsysteem-sectie)
+- [x] `backend/templates/layouts/base.html` aanpassen:
   - Inline `tailwind.config` script met semantische kleuraliassen
   - Theme-init snippet in `<head>` (zet `html.dark` vóór render op basis van cookie `thema`)
   - Tailwind CDN laden ná config
   - `theme.css` linken
-- [ ] `backend/templates/components/` map aanmaken met basiscomponenten:
+- [x] `backend/templates/components/` map aanmaken met basiscomponenten:
   - `knop.html` (primair / secundair / gevaar variant)
   - `kaart.html`
   - `formulier_veld.html`
   - `badge.html`
   - `alert.html`
 - [ ] Theme-toggle knop in navbar (POST naar `/account/thema`, slaat op in `Gebruiker.thema`)
-- [ ] `Gebruiker.thema` veld toevoegen aan model (`light | dark | systeem`, default `systeem`)
+- [x] `Gebruiker.thema` veld toevoegen aan model (`light | dark | systeem`, default `systeem`) + Alembic migratie 002
 
 **i18n controle:**
 - [ ] Bestaande v0.8 i18n-mechanisme verifiëren (werkt `_()` in templates?)
@@ -928,13 +928,13 @@ Je kan bestaande bcrypt-hashes niet proactief omzetten zonder de plaintext. Opti
 - [ ] Regel vastleggen in `CONTRIBUTING.md`: nooit hardcoded tekst, altijd vertaalsleutel
 
 **Secrets & dependencies:**
-- [ ] `.env.example` aanmaken met alle verplichte variabelen (placeholder-waarden)
-- [ ] `.env` toevoegen aan `.gitignore`
-- [ ] `secrets/` map toevoegen aan `.gitignore`
+- [x] `.env.example` aanmaken met alle verplichte variabelen (placeholder-waarden)
+- [x] `.env` toevoegen aan `.gitignore`
+- [x] `secrets/` map toevoegen aan `.gitignore`
 - [ ] `pip freeze > requirements.txt` uitvoeren na setup
 - [ ] Scannen van v0.8 code op hardcoded secrets → verwijderen
-- [ ] `passlib` verwijderen uit requirements, vervangen door `argon2-cffi` + `bcrypt` (read-only voor migratie)
-- [ ] `AuthService.verifieer_wachtwoord()` herschrijven met argon2 + bcrypt legacy-pad
+- [x] `passlib` verwijderen uit requirements, vervangen door `argon2-cffi` + `bcrypt` (read-only voor migratie)
+- [x] `AuthService.verifieer_wachtwoord()` herschrijven met argon2 + bcrypt legacy-pad
 
 **Verificatie:** `http://localhost:8000/health` → `{"status": "ok"}`, login werkt, light/dark toggle werkt, geen secrets in git
 
