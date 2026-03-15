@@ -1,0 +1,80 @@
+{% extends "layouts/app.html" %}
+{% set actief_menu = "competenties" %}
+
+{% block titel %}{% if bewerk_modus %}{{ t("competentie.naam") }} bewerken{% else %}{{ t("competentie.nieuw") }}{% endif %} — Planning Tool{% endblock %}
+
+{% block inhoud %}
+<div class="max-w-lg mx-auto">
+    <div class="flex items-center gap-3 mb-6">
+        <a href="/competenties" class="p-2 rounded-lg border transition-colors"
+           style="border-color: var(--rand); color: var(--tekst-secundair); background: var(--achtergrond-widget);">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+        </a>
+        <h1 class="text-xl font-bold" style="color: var(--tekst);">
+            {% if bewerk_modus %}{{ comp.naam }}{% else %}{{ t("competentie.nieuw") }}{% endif %}
+        </h1>
+    </div>
+
+    {% if request.query_params.get('fout') %}
+    <div class="mb-4 px-4 py-2.5 rounded-lg text-sm" style="background: var(--msg-fout-bg); color: var(--fout);">
+        {{ t("fout." + request.query_params.get('fout')) }}
+    </div>
+    {% endif %}
+
+    <div class="rounded-xl shadow-sm border p-6" style="border-color: var(--rand); background: var(--achtergrond-widget);">
+        <form method="post"
+              action="{% if bewerk_modus %}/competenties/{{ comp.id }}/bewerk{% else %}/competenties/nieuw{% endif %}"
+              class="space-y-4">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+            <div>
+                <label class="block text-sm font-medium mb-1" style="color: var(--tekst);">
+                    {{ t("competentie.naam") }} <span style="color: var(--fout);">*</span>
+                </label>
+                <input type="text" name="naam" required
+                       value="{{ comp.naam if bewerk_modus else '' }}"
+                       class="w-full text-sm rounded-lg border px-3 py-2 outline-none focus:ring-2 focus:ring-blue-300"
+                       style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);"
+                       placeholder="Bijv. Heftruck, EHBO, Kassa...">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-1" style="color: var(--tekst);">
+                    {{ t("competentie.categorie") }} <span class="text-xs font-normal" style="color: var(--tekst-secundair);">({{ t("algemeen.optioneel") }})</span>
+                </label>
+                <input type="text" name="categorie"
+                       value="{{ comp.categorie or '' if bewerk_modus else '' }}"
+                       class="w-full text-sm rounded-lg border px-3 py-2 outline-none focus:ring-2 focus:ring-blue-300"
+                       style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);"
+                       placeholder="Bijv. Technisch, Veiligheid, Logistiek...">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-1" style="color: var(--tekst);">
+                    {{ t("competentie.beschrijving") }} <span class="text-xs font-normal" style="color: var(--tekst-secundair);">({{ t("algemeen.optioneel") }})</span>
+                </label>
+                <textarea name="beschrijving" rows="2"
+                          class="w-full text-sm rounded-lg border px-3 py-2 outline-none focus:ring-2 focus:ring-blue-300"
+                          style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">{{ comp.beschrijving or '' if bewerk_modus else '' }}</textarea>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-2">
+                <a href="/competenties"
+                   class="text-sm px-4 py-2 rounded-lg border transition-colors"
+                   style="border-color: var(--rand); color: var(--tekst-secundair);">
+                    {{ t("algemeen.annuleer") }}
+                </a>
+                <button type="submit"
+                        class="text-sm font-medium text-white px-6 py-2 rounded-lg transition-colors"
+                        style="background: var(--primair);"
+                        onmouseover="this.style.background='var(--primair-hover)'"
+                        onmouseout="this.style.background='var(--primair)'">
+                    {% if bewerk_modus %}{{ t("algemeen.opslaan") }}{% else %}{{ t("algemeen.aanmaken") }}{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

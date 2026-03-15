@@ -1,0 +1,272 @@
+{% extends "layouts/app.html" %}
+{% set actief_menu = "verlof" %}
+
+{% block titel %}Verlof — Planning Tool{% endblock %}
+
+{% block inhoud %}
+
+<div class="flex items-center justify-between mb-4">
+    <h1 class="text-xl font-bold" style="color: var(--tekst);">
+        {% if is_behandelaar %}Verlofaanvragen{% else %}Mijn verlof{% endif %}
+    </h1>
+    <div class="flex items-center gap-2">
+    {% if is_behandelaar %}
+    <a href="/verlof/overzicht"
+       class="text-sm font-medium px-4 py-1.5 rounded-lg border transition-colors"
+       style="border-color: var(--rand); color: var(--tekst); background: var(--achtergrond-widget);">
+        Maand overzicht
+    </a>
+    <a href="/verlof/saldo"
+       class="text-sm font-medium px-4 py-1.5 rounded-lg border transition-colors"
+       style="border-color: var(--rand); color: var(--tekst); background: var(--achtergrond-widget);">
+        Saldo beheer
+    </a>
+    {% endif %}
+    <a href="/verlof/nieuw"
+       class="text-sm font-medium text-white px-4 py-1.5 rounded-lg transition-colors"
+       style="background: var(--primair);"
+       onmouseover="this.style.background='var(--primair-hover)'"
+       onmouseout="this.style.background='var(--primair)'">
+        + Nieuwe aanvraag
+    </a>
+    </div>
+</div>
+
+<!-- Status filter tabs -->
+<div class="flex gap-1 mb-4 border-b" style="border-color: var(--rand);">
+    {% set tabs = [("alle", "Alle"), ("pending", "In behandeling"), ("goedgekeurd", "Goedgekeurd"), ("geweigerd", "Geweigerd")] %}
+    {% for tab_key, tab_label in tabs %}
+    <a href="/verlof?status_filter={{ tab_key }}"
+       class="text-sm font-medium px-4 py-2 border-b-2 transition-colors"
+       style="{% if status_filter == tab_key %}border-color: var(--primair); color: var(--primair);{% else %}border-color: transparent; color: var(--tekst-secundair);{% endif %}">
+        {{ tab_label }}
+        {% if aantallen[tab_key] %}
+        <span class="ml-1 text-xs opacity-70">({{ aantallen[tab_key] }})</span>
+        {% endif %}
+    </a>
+    {% endfor %}
+</div>
+
+{% if bericht %}
+<div class="mb-4 px-4 py-2.5 rounded-lg text-sm font-medium" style="background: var(--msg-succes-bg); color: var(--succes);">
+    {{ bericht }}
+</div>
+{% endif %}
+{% if fout %}
+<div class="mb-4 px-4 py-2.5 rounded-lg text-sm font-medium" style="background: var(--msg-fout-bg); color: var(--fout);">
+    {{ fout }}
+</div>
+{% endif %}
+
+<!-- Bulk goedkeuren form (hidden, gevuld door JS) -->
+{% if is_behandelaar %}
+<form id="bulk-form" method="post" action="/verlof/bulk-goedkeuren">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+</form>
+<div id="bulk-toolbar" class="hidden mb-3 items-center gap-3 px-4 py-2 rounded-lg"
+     style="background: var(--msg-info-bg);">
+    <span id="bulk-teller" class="text-sm" style="color: var(--tekst);">0 geselecteerd</span>
+    <button type="button" onclick="bulkGoedkeuren()"
+            class="text-sm font-medium px-3 py-1 rounded-lg text-white transition-colors"
+            style="background: var(--succes);">
+        Bulk goedkeuren
+    </button>
+    <button type="button" onclick="deselecteerAlles()"
+            class="text-sm px-3 py-1 rounded-lg border transition-colors"
+            style="border-color: var(--rand); color: var(--tekst-secundair);">
+        Deselecteer alles
+    </button>
+</div>
+{% endif %}
+
+{% if aanvragen %}
+<div class="rounded-xl shadow-sm border overflow-hidden" style="border-color: var(--rand); background: var(--achtergrond-widget);">
+    <table class="w-full text-sm border-collapse">
+        <thead>
+            <tr style="background: var(--grid-header); border-bottom: 1px solid var(--rand);">
+                {% if is_behandelaar %}
+                <th class="px-4 py-2.5 w-8">
+                    <input type="checkbox" id="selecteer-alles" onchange="wisselAlles(this)"
+                           class="rounded cursor-pointer">
+                </th>
+                <th class="text-left px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">Medewerker</th>
+                {% endif %}
+                <th class="text-left px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">Periode</th>
+                <th class="text-center px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">Dagen</th>
+                <th class="text-left px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">Opmerking</th>
+                <th class="text-center px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">Status</th>
+                <th class="text-left px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">Behandeld</th>
+                <th class="px-4 py-2.5"></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for a in aanvragen %}
+            <tr class="border-b" style="border-color: var(--rand);">
+                {% if is_behandelaar %}
+                <td class="px-4 py-2.5 w-8">
+                    {% if a.status == 'pending' %}
+                    <input type="checkbox" class="aanvraag-checkbox rounded cursor-pointer"
+                           value="{{ a.id }}" onchange="updateBulkToolbar()">
+                    {% endif %}
+                </td>
+                <td class="px-4 py-2.5 font-medium" style="color: var(--tekst);">
+                    {{ a.gebruiker.volledige_naam or a.gebruiker.gebruikersnaam }}
+                    {% if a.ingediend_door and a.ingediend_door != a.gebruiker_id %}
+                    <span class="text-xs ml-1" style="color: var(--tekst-secundair);">(door {{ a.indiener.gebruikersnaam }})</span>
+                    {% endif %}
+                </td>
+                {% endif %}
+                <td class="px-4 py-2.5 tabular-nums" style="color: var(--tekst);">
+                    {{ a.start_datum.strftime('%d/%m/%Y') }}
+                    {% if a.start_datum != a.eind_datum %}– {{ a.eind_datum.strftime('%d/%m/%Y') }}{% endif %}
+                </td>
+                <td class="px-4 py-2.5 text-center tabular-nums" style="color: var(--tekst);">{{ a.aantal_dagen }}</td>
+                <td class="px-4 py-2.5 max-w-xs truncate" style="color: var(--tekst-secundair);">{{ a.opmerking or '—' }}</td>
+                <td class="px-4 py-2.5 text-center">
+                    {% if a.status == 'pending' %}
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
+                        <span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>In behandeling
+                    </span>
+                    {% elif a.status == 'goedgekeurd' %}
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                        <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>Goedgekeurd
+                    </span>
+                    {% else %}
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                        <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>Geweigerd
+                    </span>
+                    {% endif %}
+                </td>
+                <td class="px-4 py-2.5 text-xs" style="color: var(--tekst-secundair);">
+                    {% if a.behandeld_op %}
+                        {{ a.behandeld_op.strftime('%d/%m/%Y') }}
+                        {% if a.reden_weigering %}
+                        <div class="text-red-500 mt-0.5 truncate max-w-[160px]" title="{{ a.reden_weigering }}">{{ a.reden_weigering }}</div>
+                        {% endif %}
+                    {% else %}—{% endif %}
+                </td>
+                <td class="px-4 py-2.5 text-right whitespace-nowrap">
+                    {% if is_behandelaar and a.status == 'pending' %}
+                    <!-- Goedkeuren -->
+                    <form method="post" action="/verlof/{{ a.id }}/goedkeuren" class="inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <input type="hidden" name="code_term" value="">
+                        <button type="submit"
+                                class="text-xs font-medium px-2.5 py-1 rounded-md bg-green-100 text-green-700 hover:bg-green-200 transition-colors mr-1">
+                            Goedkeuren
+                        </button>
+                    </form>
+                    <!-- Weigeren -->
+                    <button type="button"
+                            onclick="toonWeigerDialog({{ a.id }})"
+                            class="text-xs font-medium px-2.5 py-1 rounded-md bg-red-100 text-red-700 hover:bg-red-200 transition-colors">
+                        Weigeren
+                    </button>
+                    {% elif a.status == 'pending' and a.gebruiker_id == gebruiker.id %}
+                    <!-- Eigen pending: intrekken -->
+                    <form method="post" action="/verlof/{{ a.id }}/verwijder" class="inline"
+                          onsubmit="return confirm('Aanvraag verwijderen?')">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit"
+                                class="text-xs font-medium px-2.5 py-1 rounded-md hover:bg-red-50 text-red-500 transition-colors">
+                            Intrekken
+                        </button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% else %}
+<div class="rounded-xl border p-12 text-center" style="border-color: var(--rand); background: var(--achtergrond-widget); color: var(--tekst-secundair);">
+    <p class="text-lg font-medium mb-1">Geen verlofaanvragen</p>
+    <p class="text-sm">
+        <a href="/verlof/nieuw" class="hover:underline" style="color: var(--primair);">Dien een nieuwe aanvraag in</a>.
+    </p>
+</div>
+{% endif %}
+
+<!-- Weiger dialog -->
+<div id="weiger-dialog" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40">
+    <div class="rounded-xl shadow-xl p-6 w-full max-w-md" style="background: var(--achtergrond-widget);">
+        <h2 class="text-base font-semibold mb-3" style="color: var(--tekst);">Aanvraag weigeren</h2>
+        <form id="weiger-form" method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <label class="block text-sm font-medium mb-1" style="color: var(--tekst);">Reden (verplicht)</label>
+            <textarea name="reden" rows="3" required
+                      class="w-full text-sm rounded-lg border px-3 py-2 outline-none focus:ring-2"
+                      style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);
+                             focus:ring-color: var(--primair);"
+                      placeholder="Geef een reden op..."></textarea>
+            <div class="flex justify-end gap-2 mt-4">
+                <button type="button" onclick="sluitWeigerDialog()"
+                        class="text-sm px-4 py-1.5 rounded-lg border transition-colors"
+                        style="border-color: var(--rand); color: var(--tekst-secundair);">
+                    Annuleer
+                </button>
+                <button type="submit"
+                        class="text-sm font-medium px-4 py-1.5 rounded-lg text-white transition-colors bg-red-600 hover:bg-red-700">
+                    Weigeren
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function updateBulkToolbar() {
+    const checked = document.querySelectorAll('.aanvraag-checkbox:checked');
+    const toolbar = document.getElementById('bulk-toolbar');
+    if (!toolbar) return;
+    if (checked.length > 0) {
+        toolbar.classList.remove('hidden');
+        toolbar.classList.add('flex');
+        document.getElementById('bulk-teller').textContent = checked.length + ' geselecteerd';
+    } else {
+        toolbar.classList.add('hidden');
+        toolbar.classList.remove('flex');
+    }
+}
+
+function wisselAlles(cb) {
+    document.querySelectorAll('.aanvraag-checkbox').forEach(c => { c.checked = cb.checked; });
+    updateBulkToolbar();
+}
+
+function deselecteerAlles() {
+    document.querySelectorAll('.aanvraag-checkbox').forEach(c => { c.checked = false; });
+    const sa = document.getElementById('selecteer-alles');
+    if (sa) sa.checked = false;
+    updateBulkToolbar();
+}
+
+function bulkGoedkeuren() {
+    const form = document.getElementById('bulk-form');
+    form.querySelectorAll('input[name="aanvraag_ids"]').forEach(e => e.remove());
+    document.querySelectorAll('.aanvraag-checkbox:checked').forEach(cb => {
+        const inp = document.createElement('input');
+        inp.type = 'hidden';
+        inp.name = 'aanvraag_ids';
+        inp.value = cb.value;
+        form.appendChild(inp);
+    });
+    form.submit();
+}
+
+function toonWeigerDialog(id) {
+    document.getElementById('weiger-form').action = '/verlof/' + id + '/weigeren';
+    const d = document.getElementById('weiger-dialog');
+    d.classList.remove('hidden');
+    d.classList.add('flex');
+}
+function sluitWeigerDialog() {
+    const d = document.getElementById('weiger-dialog');
+    d.classList.add('hidden');
+    d.classList.remove('flex');
+}
+</script>
+
+{% endblock %}

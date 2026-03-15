@@ -1,0 +1,21 @@
+{#
+  Kaart component
+  Parameters:
+    titel   — optionele kaarttitel
+    klasse  — extra CSS-klassen op de wrapper
+  Gebruik:
+    {% call kaart(titel="Mijn kaart") %}
+      <p>Inhoud hier</p>
+    {% endcall %}
+  Of als macro via include met caller-block.
+#}
+<div class="bg-oppervlak border border-rand rounded-lg shadow-sm {{ klasse | default('') }}">
+  {% if titel %}
+    <div class="px-4 py-3 border-b border-rand">
+      <h3 class="text-sm font-semibold text-tekst">{{ titel }}</h3>
+    </div>
+  {% endif %}
+  <div class="p-4">
+    {{ inhoud | safe }}
+  </div>
+</div>

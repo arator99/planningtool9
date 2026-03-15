@@ -1,0 +1,49 @@
+{% extends "layouts/app.html" %}
+{% set actief_menu = "gebruikers" %}
+
+{% block titel %}Wachtwoord reset — Planning Tool{% endblock %}
+
+{% block inhoud %}
+<div class="mb-6">
+    <a href="/beheer/gebruikers" class="text-sm text-blue-600 hover:text-blue-800">&larr; Terug naar overzicht</a>
+    <h1 class="text-2xl font-bold text-gray-800 mt-2">
+        Wachtwoord resetten — {{ bewerkt_gebruiker.volledige_naam or bewerkt_gebruiker.gebruikersnaam }}
+    </h1>
+</div>
+
+{% if fout %}
+<div class="mb-5 px-4 py-3 rounded-lg text-sm bg-red-50 border border-red-200 text-red-700">
+    {{ fout }}
+</div>
+{% endif %}
+
+<div class="bg-white rounded-xl shadow-sm p-6 max-w-md">
+    <form method="post" action="/beheer/gebruikers/{{ bewerkt_gebruiker.id }}/wachtwoord" class="space-y-5">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+                Nieuw wachtwoord <span class="text-red-500">*</span>
+            </label>
+            <input type="password" name="nieuw_wachtwoord" required autofocus
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+                          focus:outline-none focus:ring-2 focus:ring-blue-500"
+                   placeholder="Min. 8 tekens, hoofdletter, cijfer, speciaal teken">
+            <p class="text-xs text-gray-400 mt-1">
+                Minimaal 8 tekens met een hoofdletter, kleine letter, cijfer en speciaal teken.
+            </p>
+        </div>
+        <div class="flex gap-3">
+            <button type="submit"
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-medium
+                           px-5 py-2 rounded-lg text-sm transition-colors duration-150">
+                Wachtwoord resetten
+            </button>
+            <a href="/beheer/gebruikers"
+               class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium
+                      px-5 py-2 rounded-lg text-sm transition-colors duration-150">
+                Annuleer
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

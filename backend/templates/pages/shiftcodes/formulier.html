@@ -1,0 +1,127 @@
+{% extends "layouts/app.html" %}
+{% set actief_menu = "shiftcodes" %}
+{% set bewerk_modus = sc is not none %}
+
+{% block titel %}{% if bewerk_modus %}{{ sc.code }} bewerken{% else %}Nieuwe shiftcode{% endif %} — Planning Tool{% endblock %}
+
+{% block inhoud %}
+
+<div class="max-w-lg mx-auto">
+    <div class="flex items-center gap-3 mb-6">
+        <a href="/shiftcodes" class="p-2 rounded-lg border transition-colors"
+           style="border-color: var(--rand); color: var(--tekst-secundair); background: var(--achtergrond-widget);">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+        </a>
+        <h1 class="text-xl font-bold" style="color: var(--tekst);">
+            {% if bewerk_modus %}{{ sc.code }} bewerken{% else %}Nieuwe shiftcode{% endif %}
+        </h1>
+    </div>
+
+    {% if request.query_params.get('fout') %}
+    <div class="mb-4 px-4 py-2.5 rounded-lg text-sm" style="background: var(--msg-fout-bg); color: var(--fout);">
+        {{ request.query_params.get('fout') }}
+    </div>
+    {% endif %}
+
+    <div class="rounded-xl shadow-sm border p-6 space-y-4" style="border-color: var(--rand); background: var(--achtergrond-widget);">
+        <form method="post" action="/shiftcodes/{% if bewerk_modus %}{{ sc.id }}/bewerk{% else %}nieuw{% endif %}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+            {% if not bewerk_modus %}
+            <div>
+                <label class="block text-sm font-medium mb-1" style="color: var(--tekst);">Code <span class="text-red-500">*</span></label>
+                <input type="text" name="code" required maxlength="20"
+                       class="w-full text-sm rounded-lg border px-3 py-2 uppercase outline-none focus:ring-2 focus:ring-blue-300"
+                       style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);"
+                       placeholder="bijv. D1, N, RXW">
+            </div>
+            {% else %}
+            <div class="text-sm font-medium px-3 py-2 rounded-lg" style="background: var(--achtergrond-alt); color: var(--tekst);">
+                Code: <span class="font-bold">{{ sc.code }}</span> <span class="text-xs" style="color: var(--tekst-secundair);">(niet wijzigbaar)</span>
+            </div>
+            {% endif %}
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1" style="color: var(--tekst);">Shift type</label>
+                    <select name="shift_type"
+                            class="w-full text-sm rounded-lg border px-3 py-2 outline-none"
+                            style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
+                        <option value="">— geen —</option>
+                        {% for st in shift_types %}
+                        <option value="{{ st }}" {% if bewerk_modus and sc.shift_type == st %}selected{% endif %}>{{ st }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1" style="color: var(--tekst);">Dag type</label>
+                    <select name="dag_type"
+                            class="w-full text-sm rounded-lg border px-3 py-2 outline-none"
+                            style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
+                        <option value="">— geen —</option>
+                        {% for dt in dag_types %}
+                        <option value="{{ dt }}" {% if bewerk_modus and sc.dag_type == dt %}selected{% endif %}>{{ dt }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1" style="color: var(--tekst);">Startuur</label>
+                    <input type="time" name="start_uur"
+                           value="{{ sc.start_uur if bewerk_modus and sc.start_uur else '' }}"
+                           class="w-full text-sm rounded-lg border px-3 py-2 outline-none focus:ring-2 focus:ring-blue-300"
+                           style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1" style="color: var(--tekst);">Einduur</label>
+                    <input type="time" name="eind_uur"
+                           value="{{ sc.eind_uur if bewerk_modus and sc.eind_uur else '' }}"
+                           class="w-full text-sm rounded-lg border px-3 py-2 outline-none focus:ring-2 focus:ring-blue-300"
+                           style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-1" style="color: var(--tekst);">Werkpost</label>
+                <select name="werkpost_id"
+                        class="w-full text-sm rounded-lg border px-3 py-2 outline-none"
+                        style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
+                    <option value="">— geen —</option>
+                    {% for wp in werkposten %}
+                    <option value="{{ wp.id }}" {% if bewerk_modus and sc.werkpost_id == wp.id %}selected{% endif %}>{{ wp.naam }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <input type="checkbox" name="is_kritisch" id="is_kritisch" value="true"
+                       {% if bewerk_modus and sc.is_kritisch %}checked{% endif %}
+                       class="rounded">
+                <label for="is_kritisch" class="text-sm" style="color: var(--tekst);">
+                    Kritische shift <span class="text-xs" style="color: var(--tekst-secundair);">(HR-overtreding vereist goedkeuring)</span>
+                </label>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-2">
+                <a href="/shiftcodes"
+                   class="text-sm px-4 py-2 rounded-lg border transition-colors"
+                   style="border-color: var(--rand); color: var(--tekst-secundair);">
+                    Annuleer
+                </a>
+                <button type="submit"
+                        class="text-sm font-medium text-white px-6 py-2 rounded-lg transition-colors"
+                        style="background: var(--primair);"
+                        onmouseover="this.style.background='var(--primair-hover)'"
+                        onmouseout="this.style.background='var(--primair)'">
+                    {% if bewerk_modus %}Opslaan{% else %}Aanmaken{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,308 @@
+import logging
+
+from fastapi import APIRouter, Depends, Form, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
+from sqlalchemy.orm import Session
+from typing import Optional
+
+from i18n import maak_vertaler
+from api.dependencies import haal_db, vereiste_rol, haal_csrf_token, verifieer_csrf
+from api.sjablonen import sjablonen
+from models.gebruiker import Gebruiker
+from models.groep import Groep, GebruikerGroep
+from services.gebruiker_service import GebruikerService
+from services.competentie_service import CompetentieService
+from models.audit_log import AuditLog
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/beheer/gebruikers", tags=["gebruikersbeheer"])
+
+
+def _log(db: Session, gebruiker_id: int, groep_id: int, actie: str, doel_id: int | None = None) -> None:
+    try:
+        db.add(AuditLog(gebruiker_id=gebruiker_id, groep_id=groep_id, actie=actie,
+                        doel_type="Gebruiker", doel_id=doel_id))
+        db.commit()
+    except Exception as exc:
+        logger.warning("Audit log mislukt (%s): %s", actie, exc)
+
+
+def _context(request: Request, gebruiker: Gebruiker, **extra) -> dict:
+    """Basiscontext voor app layout templates."""
+    return {"request": request, "gebruiker": gebruiker, "t": maak_vertaler(gebruiker.taal if gebruiker else "nl"), **extra}
+
+
+# ------------------------------------------------------------------ #
+# Overzicht                                                            #
+# ------------------------------------------------------------------ #
+
+@router.get("", response_class=HTMLResponse)
+def toon_lijst(
+    request: Request,
+    zoek: str = "",
+    rol: str = "",
+    status: str = "actief",
+    melding: Optional[str] = None,
+    fout: Optional[str] = None,
+    gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
+    db: Session = Depends(haal_db),
+    csrf_token: str = Depends(haal_csrf_token),
+):
+    svc = GebruikerService(db)
+    gebruikers = svc.haal_gefilterd(gebruiker.groep_id, zoek=zoek, rol=rol, status=status)
+    totaal_actief = len(svc.haal_actieve_medewerkers(gebruiker.groep_id))
+    melding_type = "fout" if fout else "ok"
+    return sjablonen.TemplateResponse(
+        "pages/gebruikers/lijst.html",
+        _context(request, gebruiker,
+                 gebruikers=gebruikers,
+                 totaal_actief=totaal_actief,
+                 zoek=zoek,
+                 rol=rol,
+                 status=status,
+                 melding=fout or melding,
+                 melding_type=melding_type,
+                 csrf_token=csrf_token),
+    )
+
+
+# ------------------------------------------------------------------ #
+# Aanmaken                                                             #
+# ------------------------------------------------------------------ #
+
+@router.get("/nieuw", response_class=HTMLResponse)
+def toon_formulier_nieuw(
+    request: Request,
+    gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
+    csrf_token: str = Depends(haal_csrf_token),
+):
+    return sjablonen.TemplateResponse(
+        "pages/gebruikers/formulier.html",
+        _context(request, gebruiker, bewerk_modus=False, invoer={}, fout=None, csrf_token=csrf_token),
+    )
+
+
+@router.post("/nieuw")
+def verwerk_aanmaken(
+    request: Request,
+    gebruikersnaam: str = Form(...),
+    wachtwoord: str = Form(...),
+    volledige_naam: str = Form(...),
+    voornaam: str = Form(""),
+    achternaam: str = Form(""),
+    rol: str = Form(...),
+    startweek_typedienst: Optional[str] = Form(None),
+    is_reserve: Optional[str] = Form(None),
+    gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
+    db: Session = Depends(haal_db),
+    _csrf: None = Depends(verifieer_csrf),
+):
+    startweek = int(startweek_typedienst) if startweek_typedienst else None
+    invoer = {
+        "gebruikersnaam": gebruikersnaam, "volledige_naam": volledige_naam,
+        "voornaam": voornaam, "achternaam": achternaam, "rol": rol,
+        "startweek_typedienst": startweek_typedienst, "is_reserve": is_reserve,
+    }
+    try:
+        GebruikerService(db).maak_aan(
+            groep_id=gebruiker.groep_id,
+            gebruikersnaam=gebruikersnaam,
+            wachtwoord=wachtwoord,
+            volledige_naam=volledige_naam,
+            rol=rol,
+            voornaam=voornaam or None,
+            achternaam=achternaam or None,
+            is_reserve=bool(is_reserve),
+            startweek_typedienst=startweek,
+        )
+    except ValueError as fout:
+        return sjablonen.TemplateResponse(
+            "pages/gebruikers/formulier.html",
+            _context(request, gebruiker, bewerk_modus=False, invoer=invoer, fout=str(fout)),
+            status_code=422,
+        )
+    return RedirectResponse(
+        url=f"/beheer/gebruikers?melding={gebruikersnaam}+aangemaakt", status_code=303
+    )
+
+
+# ------------------------------------------------------------------ #
+# Bewerken                                                             #
+# ------------------------------------------------------------------ #
+
+@router.get("/{gebruiker_id}/bewerk", response_class=HTMLResponse)
+def toon_formulier_bewerk(
+    request: Request,
+    gebruiker_id: int,
+    gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
+    db: Session = Depends(haal_db),
+    csrf_token: str = Depends(haal_csrf_token),
+):
+    bewerkt = GebruikerService(db).haal_op_id(gebruiker_id, gebruiker.groep_id)
+    if not bewerkt:
+        return RedirectResponse(url="/beheer/gebruikers?fout=Gebruiker+niet+gevonden", status_code=303)
+    comp_svc = CompetentieService(db)
+    alle_competenties = comp_svc.haal_alle(gebruiker.groep_id)
+    gekoppelde_ids = {k.competentie_id for k in comp_svc.haal_koppelingen(bewerkt.id)}
+
+    alle_groepen = db.query(Groep).filter(Groep.is_actief == True).order_by(Groep.naam).all()
+    groep_koppelingen = {
+        k.groep_id: k
+        for k in db.query(GebruikerGroep).filter(GebruikerGroep.gebruiker_id == bewerkt.id).all()
+    }
+
+    return sjablonen.TemplateResponse(
+        "pages/gebruikers/formulier.html",
+        _context(request, gebruiker, bewerk_modus=True, bewerkt_gebruiker=bewerkt,
+                 invoer={}, fout=None, csrf_token=csrf_token,
+                 alle_competenties=alle_competenties,
+                 gekoppelde_ids=gekoppelde_ids,
+                 alle_groepen=alle_groepen,
+                 groep_koppelingen=groep_koppelingen),
+    )
+
+
+@router.post("/{gebruiker_id}/bewerk")
+def verwerk_bewerken(
+    request: Request,
+    gebruiker_id: int,
+    gebruikersnaam: str = Form(...),
+    volledige_naam: str = Form(...),
+    voornaam: str = Form(""),
+    achternaam: str = Form(""),
+    rol: str = Form(...),
+    startweek_typedienst: Optional[str] = Form(None),
+    is_reserve: Optional[str] = Form(None),
+    competentie_ids: list[int] = Form(default=[]),
+    gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
+    db: Session = Depends(haal_db),
+    _csrf: None = Depends(verifieer_csrf),
+):
+    service = GebruikerService(db)
+    bewerkt = service.haal_op_id(gebruiker_id, gebruiker.groep_id)
+    if not bewerkt:
+        return RedirectResponse(url="/beheer/gebruikers?fout=Gebruiker+niet+gevonden", status_code=303)
+
+    startweek = int(startweek_typedienst) if startweek_typedienst else None
+    invoer = {
+        "gebruikersnaam": gebruikersnaam, "volledige_naam": volledige_naam,
+        "voornaam": voornaam, "achternaam": achternaam, "rol": rol,
+        "startweek_typedienst": startweek_typedienst, "is_reserve": is_reserve,
+    }
+    try:
+        service.bewerk(
+            gebruiker_id=gebruiker_id,
+            groep_id=gebruiker.groep_id,
+            gebruikersnaam=gebruikersnaam,
+            volledige_naam=volledige_naam,
+            rol=rol,
+            voornaam=voornaam or None,
+            achternaam=achternaam or None,
+            is_reserve=bool(is_reserve),
+            startweek_typedienst=startweek,
+        )
+    except ValueError as fout:
+        comp_svc = CompetentieService(db)
+        return sjablonen.TemplateResponse(
+            "pages/gebruikers/formulier.html",
+            _context(request, gebruiker, bewerk_modus=True, bewerkt_gebruiker=bewerkt,
+                     invoer=invoer, fout=str(fout),
+                     alle_competenties=comp_svc.haal_alle(gebruiker.groep_id),
+                     gekoppelde_ids=set(competentie_ids)),
+            status_code=422,
+        )
+
+    CompetentieService(db).stel_koppelingen_in(
+        gebruiker_id=gebruiker_id,
+        groep_id=gebruiker.groep_id,
+        competentie_ids=competentie_ids,
+        niveaus={},
+        geldig_tot={},
+    )
+    return RedirectResponse(
+        url=f"/beheer/gebruikers?melding={volledige_naam}+opgeslagen", status_code=303
+    )
+
+
+# ------------------------------------------------------------------ #
+# Activeer / Deactiveer                                                #
+# ------------------------------------------------------------------ #
+
+@router.post("/{gebruiker_id}/deactiveer")
+def deactiveer(
+    gebruiker_id: int,
+    gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
+    db: Session = Depends(haal_db),
+    _csrf: None = Depends(verifieer_csrf),
+):
+    try:
+        GebruikerService(db).deactiveer(gebruiker_id, gebruiker.groep_id, uitvoerder_id=gebruiker.id)
+    except ValueError as fout:
+        logger.warning("Deactiveer gebruiker %s mislukt: %s", gebruiker_id, fout)
+        return RedirectResponse(url="/beheer/gebruikers?fout=actie_mislukt", status_code=303)
+    _log(db, gebruiker.id, gebruiker.groep_id, "gebruiker.deactiveren", gebruiker_id)
+    return RedirectResponse(url="/beheer/gebruikers?melding=Gebruiker+gedeactiveerd", status_code=303)
+
+
+@router.post("/{gebruiker_id}/activeer")
+def activeer(
+    gebruiker_id: int,
+    gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
+    db: Session = Depends(haal_db),
+    _csrf: None = Depends(verifieer_csrf),
+):
+    try:
+        GebruikerService(db).activeer(gebruiker_id, gebruiker.groep_id)
+    except ValueError as fout:
+        logger.warning("Activeer gebruiker %s mislukt: %s", gebruiker_id, fout)
+        return RedirectResponse(url="/beheer/gebruikers?fout=actie_mislukt", status_code=303)
+    _log(db, gebruiker.id, gebruiker.groep_id, "gebruiker.activeren", gebruiker_id)
+    return RedirectResponse(url="/beheer/gebruikers?melding=Gebruiker+geactiveerd", status_code=303)
+
+
+# ------------------------------------------------------------------ #
+# Wachtwoord reset                                                     #
+# ------------------------------------------------------------------ #
+
+@router.get("/{gebruiker_id}/wachtwoord", response_class=HTMLResponse)
+def toon_wachtwoord_formulier(
+    request: Request,
+    gebruiker_id: int,
+    gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
+    db: Session = Depends(haal_db),
+    csrf_token: str = Depends(haal_csrf_token),
+):
+    bewerkt = GebruikerService(db).haal_op_id(gebruiker_id, gebruiker.groep_id)
+    if not bewerkt:
+        return RedirectResponse(url="/beheer/gebruikers?fout=Gebruiker+niet+gevonden", status_code=303)
+    return sjablonen.TemplateResponse(
+        "pages/gebruikers/wachtwoord.html",
+        _context(request, gebruiker, bewerkt_gebruiker=bewerkt, fout=None, csrf_token=csrf_token),
+    )
+
+
+@router.post("/{gebruiker_id}/wachtwoord")
+def verwerk_wachtwoord_reset(
+    request: Request,
+    gebruiker_id: int,
+    nieuw_wachtwoord: str = Form(...),
+    gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
+    db: Session = Depends(haal_db),
+    _csrf: None = Depends(verifieer_csrf),
+):
+    service = GebruikerService(db)
+    bewerkt = service.haal_op_id(gebruiker_id, gebruiker.groep_id)
+    if not bewerkt:
+        return RedirectResponse(url="/beheer/gebruikers?fout=Gebruiker+niet+gevonden", status_code=303)
+    try:
+        service.reset_wachtwoord(gebruiker_id, gebruiker.groep_id, nieuw_wachtwoord)
+    except ValueError as fout:
+        return sjablonen.TemplateResponse(
+            "pages/gebruikers/wachtwoord.html",
+            _context(request, gebruiker, bewerkt_gebruiker=bewerkt, fout=str(fout)),
+            status_code=422,
+        )
+    return RedirectResponse(
+        url="/beheer/gebruikers?melding=Wachtwoord+succesvol+gereset", status_code=303
+    )

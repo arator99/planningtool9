@@ -1,0 +1,295 @@
+{% extends "layouts/app.html" %}
+{% set actief_menu = "verlof_saldo" %}
+
+{% block titel %}Verlof saldo beheer — Planning Tool{% endblock %}
+
+{% block inhoud %}
+
+<div class="flex items-center justify-between mb-6">
+    <div class="flex items-center gap-3">
+        <a href="/verlof" class="p-2 rounded-lg border transition-colors"
+           style="border-color: var(--rand); color: var(--tekst-secundair); background: var(--achtergrond-widget);">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+        </a>
+        <h1 class="text-xl font-bold" style="color: var(--tekst);">Verlof saldo beheer</h1>
+    </div>
+
+    <!-- Jaar selector -->
+    <div class="flex items-center gap-2">
+        <form method="get" action="/verlof/saldo" class="flex items-center gap-2">
+            <select name="jaar" onchange="this.form.submit()"
+                    class="text-sm rounded-lg border px-3 py-1.5 outline-none"
+                    style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
+                {% for j in jaren %}
+                <option value="{{ j }}" {% if j == jaar %}selected{% endif %}>{{ j }}</option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+</div>
+
+{% if bericht %}
+<div class="mb-4 px-4 py-2.5 rounded-lg text-sm font-medium" style="background: var(--msg-succes-bg); color: var(--succes);">{{ bericht }}</div>
+{% endif %}
+{% if fout %}
+<div class="mb-4 px-4 py-2.5 rounded-lg text-sm font-medium" style="background: var(--msg-fout-bg); color: var(--fout);">{{ fout }}</div>
+{% endif %}
+
+<!-- Acties balk -->
+<div class="flex gap-3 mb-5">
+    <!-- Jaar overdracht -->
+    <button type="button" onclick="toonOverdrachtDialog()"
+            class="text-sm font-medium px-4 py-1.5 rounded-lg border transition-colors"
+            style="border-color: var(--rand); color: var(--tekst); background: var(--achtergrond-widget);">
+        Jaar overdracht uitvoeren
+    </button>
+    <!-- 1-mei verval -->
+    <button type="button" onclick="toonVervalDialog()"
+            class="text-sm font-medium px-4 py-1.5 rounded-lg border transition-colors"
+            style="border-color: var(--rand); color: var(--tekst); background: var(--achtergrond-widget);">
+        1-mei verval verwerken
+    </button>
+</div>
+
+<!-- Saldo tabel -->
+{% if saldi %}
+<div class="rounded-xl shadow-sm border overflow-x-auto" style="border-color: var(--rand); background: var(--achtergrond-widget);">
+    <table class="w-full text-sm border-collapse">
+        <thead>
+            <tr style="background: var(--grid-header); border-bottom: 1px solid var(--rand);">
+                <th class="text-left px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">Medewerker</th>
+                <th class="text-center px-3 py-2.5 font-medium" style="color: var(--tekst-secundair);">VV recht</th>
+                <th class="text-center px-3 py-2.5 font-medium" style="color: var(--tekst-secundair);">VV overgedr.</th>
+                <th class="text-center px-3 py-2.5 font-medium" style="color: var(--tekst-secundair);">VV opgenomen</th>
+                <th class="text-center px-3 py-2.5 font-medium" style="color: var(--tekst-secundair);">VV resterend</th>
+                <th class="text-center px-3 py-2.5 font-medium" style="color: var(--tekst-secundair);">KD recht</th>
+                <th class="text-center px-3 py-2.5 font-medium" style="color: var(--tekst-secundair);">KD overgedr.</th>
+                <th class="text-center px-3 py-2.5 font-medium" style="color: var(--tekst-secundair);">KD opgenomen</th>
+                <th class="text-center px-3 py-2.5 font-medium" style="color: var(--tekst-secundair);">KD resterend</th>
+                <th class="px-3 py-2.5"></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in saldi %}
+            <tr class="border-b" style="border-color: var(--rand);">
+                <td class="px-4 py-2.5 font-medium" style="color: var(--tekst);">{{ s.naam }}</td>
+                <td class="px-3 py-2.5 text-center tabular-nums" style="color: var(--tekst);">{{ s.verlof_totaal }}</td>
+                <td class="px-3 py-2.5 text-center tabular-nums" style="color: var(--tekst-secundair);">{{ s.verlof_overgedragen }}</td>
+                <td class="px-3 py-2.5 text-center tabular-nums" style="color: var(--tekst-secundair);">{{ s.vv_opgenomen }}</td>
+                <td class="px-3 py-2.5 text-center tabular-nums font-semibold {% if s.vv_restant < 0 %}text-red-500{% endif %}" style="{% if s.vv_restant >= 0 %}color: var(--succes);{% endif %}">
+                    {{ s.vv_restant }}
+                </td>
+                <td class="px-3 py-2.5 text-center tabular-nums" style="color: var(--tekst);">{{ s.kd_totaal }}</td>
+                <td class="px-3 py-2.5 text-center tabular-nums" style="color: var(--tekst-secundair);">{{ s.kd_overgedragen }}</td>
+                <td class="px-3 py-2.5 text-center tabular-nums" style="color: var(--tekst-secundair);">{{ s.kd_opgenomen }}</td>
+                <td class="px-3 py-2.5 text-center tabular-nums font-semibold {% if s.kd_restant < 0 %}text-red-500{% endif %}" style="{% if s.kd_restant >= 0 %}color: var(--succes);{% endif %}">
+                    {{ s.kd_restant }}
+                </td>
+                <td class="px-3 py-2.5 text-right">
+                    <button type="button"
+                            onclick="toonCorrectieDialog({{ s.gebruiker_id }}, '{{ s.naam }}', {{ s.verlof_totaal }}, {{ s.verlof_overgedragen }}, {{ s.kd_totaal }}, {{ s.kd_overgedragen }})"
+                            class="text-xs font-medium px-2.5 py-1 rounded-md transition-colors"
+                            style="background: var(--achtergrond-alt); color: var(--tekst);">
+                        Aanpassen
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="rounded-xl border p-12 text-center" style="border-color: var(--rand); background: var(--achtergrond-widget); color: var(--tekst-secundair);">
+    <p class="text-lg font-medium mb-1">Geen medewerkers gevonden</p>
+</div>
+{% endif %}
+
+
+<!-- Correctie dialog -->
+<div id="correctie-dialog" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40">
+    <div class="rounded-xl shadow-xl p-6 w-full max-w-md" style="background: var(--achtergrond-widget);">
+        <h2 class="text-base font-semibold mb-1" style="color: var(--tekst);">Saldo aanpassen</h2>
+        <p id="correctie-naam" class="text-sm mb-4" style="color: var(--tekst-secundair);"></p>
+        <form method="post" action="/verlof/saldo/aanpassen" class="space-y-3">
+            <input type="hidden" name="gebruiker_id" id="correctie-gebruiker-id">
+            <input type="hidden" name="jaar" value="{{ jaar }}">
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-medium mb-1" style="color: var(--tekst);">Veld</label>
+                    <select name="veld" id="correctie-veld" onchange="updateHuidigeWaarde()"
+                            class="w-full text-sm rounded-lg border px-3 py-2 outline-none"
+                            style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
+                        <option value="verlof_totaal">VV Recht</option>
+                        <option value="verlof_overgedragen">VV Overgedragen</option>
+                        <option value="kd_totaal">KD Recht</option>
+                        <option value="kd_overgedragen">KD Overgedragen</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium mb-1" style="color: var(--tekst);">
+                        Nieuwe waarde <span id="huidige-waarde-label" class="font-normal" style="color: var(--tekst-secundair);"></span>
+                    </label>
+                    <input type="number" name="nieuwe_waarde" id="correctie-waarde" min="0" required
+                           class="w-full text-sm rounded-lg border px-3 py-2 outline-none focus:ring-2"
+                           style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-medium mb-1" style="color: var(--tekst);">Reden (min. 10 tekens)</label>
+                <textarea name="reden" rows="2" required minlength="10"
+                          class="w-full text-sm rounded-lg border px-3 py-2 outline-none focus:ring-2"
+                          style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);"
+                          placeholder="Bijv. correctie na verlofregeling, handmatige aanpassing..."></textarea>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-1">
+                <button type="button" onclick="sluitCorrectieDialog()"
+                        class="text-sm px-4 py-1.5 rounded-lg border transition-colors"
+                        style="border-color: var(--rand); color: var(--tekst-secundair);">
+                    Annuleer
+                </button>
+                <button type="submit"
+                        class="text-sm font-medium text-white px-4 py-1.5 rounded-lg transition-colors"
+                        style="background: var(--primair);"
+                        onmouseover="this.style.background='var(--primair-hover)'"
+                        onmouseout="this.style.background='var(--primair)'">
+                    Opslaan
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- Jaar overdracht dialog -->
+<div id="overdracht-dialog" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40">
+    <div class="rounded-xl shadow-xl p-6 w-full max-w-sm" style="background: var(--achtergrond-widget);">
+        <h2 class="text-base font-semibold mb-1" style="color: var(--tekst);">Jaar overdracht</h2>
+        <p class="text-sm mb-4" style="color: var(--tekst-secundair);">
+            Draagt VV- en KD-restanten over naar het volgende jaar. VV: alle dagen. KD: max 35 dagen.
+        </p>
+        <form method="post" action="/verlof/saldo/jaar-overdracht" class="space-y-3">
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-medium mb-1" style="color: var(--tekst);">Van jaar</label>
+                    <select name="van_jaar"
+                            class="w-full text-sm rounded-lg border px-3 py-2 outline-none"
+                            style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
+                        {% for j in jaren %}
+                        <option value="{{ j }}" {% if j == jaar %}selected{% endif %}>{{ j }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium mb-1" style="color: var(--tekst);">Naar jaar</label>
+                    <select name="naar_jaar"
+                            class="w-full text-sm rounded-lg border px-3 py-2 outline-none"
+                            style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
+                        {% for j in jaren %}
+                        <option value="{{ j }}" {% if j == jaar + 1 %}selected{% endif %}>{{ j }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-1">
+                <button type="button" onclick="sluitOverdrachtDialog()"
+                        class="text-sm px-4 py-1.5 rounded-lg border transition-colors"
+                        style="border-color: var(--rand); color: var(--tekst-secundair);">
+                    Annuleer
+                </button>
+                <button type="submit"
+                        class="text-sm font-medium text-white px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 transition-colors"
+                        onclick="return confirm('Jaar overdracht uitvoeren voor alle medewerkers?')">
+                    Uitvoeren
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- 1-mei verval dialog -->
+<div id="verval-dialog" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40">
+    <div class="rounded-xl shadow-xl p-6 w-full max-w-sm" style="background: var(--achtergrond-widget);">
+        <h2 class="text-base font-semibold mb-1" style="color: var(--tekst);">1-mei verval</h2>
+        <p class="text-sm mb-4" style="color: var(--tekst-secundair);">
+            Alle overgedragen VV-dagen voor dit jaar worden op 0 gezet. Niet omkeerbaar.
+        </p>
+        <form method="post" action="/verlof/saldo/1-mei-verval" class="space-y-3">
+            <input type="hidden" name="jaar" value="{{ jaar }}">
+            <div class="flex justify-end gap-2">
+                <button type="button" onclick="sluitVervalDialog()"
+                        class="text-sm px-4 py-1.5 rounded-lg border transition-colors"
+                        style="border-color: var(--rand); color: var(--tekst-secundair);">
+                    Annuleer
+                </button>
+                <button type="submit"
+                        class="text-sm font-medium text-white px-4 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 transition-colors"
+                        onclick="return confirm('1-mei verval verwerken voor {{ jaar }}? Dit is niet omkeerbaar.')">
+                    Verwerken
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<script>
+// Saldo data per gebruiker voor het correctie dialog
+const saldoData = {};
+
+function toonCorrectieDialog(gebruikerId, naam, vvRecht, vvOver, kdRecht, kdOver) {
+    saldoData.vv = { verlof_totaal: vvRecht, verlof_overgedragen: vvOver };
+    saldoData.kd = { kd_totaal: kdRecht, kd_overgedragen: kdOver };
+
+    document.getElementById('correctie-gebruiker-id').value = gebruikerId;
+    document.getElementById('correctie-naam').textContent = naam;
+    updateHuidigeWaarde();
+
+    const d = document.getElementById('correctie-dialog');
+    d.classList.remove('hidden');
+    d.classList.add('flex');
+}
+
+function updateHuidigeWaarde() {
+    const veld = document.getElementById('correctie-veld').value;
+    const waarden = { ...saldoData.vv, ...saldoData.kd };
+    const huidige = waarden[veld] ?? 0;
+    document.getElementById('huidige-waarde-label').textContent = `(huidig: ${huidige})`;
+    document.getElementById('correctie-waarde').value = huidige;
+}
+
+function sluitCorrectieDialog() {
+    const d = document.getElementById('correctie-dialog');
+    d.classList.add('hidden');
+    d.classList.remove('flex');
+}
+
+function toonOverdrachtDialog() {
+    const d = document.getElementById('overdracht-dialog');
+    d.classList.remove('hidden');
+    d.classList.add('flex');
+}
+function sluitOverdrachtDialog() {
+    const d = document.getElementById('overdracht-dialog');
+    d.classList.add('hidden');
+    d.classList.remove('flex');
+}
+
+function toonVervalDialog() {
+    const d = document.getElementById('verval-dialog');
+    d.classList.remove('hidden');
+    d.classList.add('flex');
+}
+function sluitVervalDialog() {
+    const d = document.getElementById('verval-dialog');
+    d.classList.add('hidden');
+    d.classList.remove('flex');
+}
+</script>
+
+{% endblock %}

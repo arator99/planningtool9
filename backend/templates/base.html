@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="{{ huidige_taal | default('nl') }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block titel %}Planningtool{% endblock %}</title>
+
+    {# ── Theme-init: zet dark-class VOOR Tailwind laadt om flash te voorkomen ── #}
+    <script>
+        (function () {
+            var voorkeur = "{{ huidige_gebruiker.thema | default('systeem') }}";
+            if (voorkeur === 'dark' ||
+                (voorkeur === 'systeem' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
+
+    {# ── Tailwind config met semantische kleuraliassen ── #}
+    <script>
+        tailwind = {
+            config: {
+                darkMode: 'class',
+                theme: {
+                    extend: {
+                        colors: {
+                            primair:            'var(--kleur-primair)',
+                            'primair-hover':    'var(--kleur-primair-hover)',
+                            'primair-zacht':    'var(--kleur-primair-zacht)',
+                            'primair-tekst':    'var(--kleur-primair-tekst)',
+                            achtergrond:        'var(--kleur-achtergrond)',
+                            oppervlak:          'var(--kleur-oppervlak)',
+                            'oppervlak-hover':  'var(--kleur-oppervlak-hover)',
+                            rand:               'var(--kleur-rand)',
+                            'rand-sterk':       'var(--kleur-rand-sterk)',
+                            tekst:              'var(--kleur-tekst)',
+                            'tekst-zacht':      'var(--kleur-tekst-zacht)',
+                            succes:             'var(--kleur-succes)',
+                            'succes-zacht':     'var(--kleur-succes-zacht)',
+                            gevaar:             'var(--kleur-gevaar)',
+                            'gevaar-zacht':     'var(--kleur-gevaar-zacht)',
+                            waarschuwing:       'var(--kleur-waarschuwing)',
+                            'waarschuwing-zacht':'var(--kleur-waarschuwing-zacht)',
+                            info:               'var(--kleur-info)',
+                            'info-zacht':       'var(--kleur-info-zacht)',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    {# ── Tailwind CDN (laadt NA de config hierboven) ── #}
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    {# ── Thema CSS (custom properties) ── #}
+    <link rel="stylesheet" href="/static/css/theme.css">
+
+    {# ── HTMX ── #}
+    <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
+
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-achtergrond text-tekst min-h-screen transition-colors duration-200">
+    {% block inhoud %}{% endblock %}
+</body>
+</html>

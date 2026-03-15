@@ -1,0 +1,28 @@
+{# HTMX fragment: shifts van een reserve over alle groepen voor de geselecteerde maand #}
+<div class="text-xs">
+    <p class="font-medium mb-2" style="color: var(--tekst);">
+        {{ reserve.volledige_naam or reserve.gebruikersnaam }} — {{ jaar }}/{{ '%02d' % maand }}
+    </p>
+    {% if bezetting %}
+    <table class="w-full border-collapse">
+        <thead>
+            <tr style="border-bottom: 1px solid var(--rand);">
+                <th class="text-left py-1 pr-3 font-medium" style="color: var(--tekst-secundair);">Datum</th>
+                <th class="text-left py-1 pr-3 font-medium" style="color: var(--tekst-secundair);">Shift</th>
+                <th class="text-left py-1 font-medium" style="color: var(--tekst-secundair);">Ingepland door</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in bezetting %}
+            <tr style="border-bottom: 1px solid var(--rand);">
+                <td class="py-1 pr-3 tabular-nums" style="color: var(--tekst);">{{ r.datum.strftime('%d/%m') }}</td>
+                <td class="py-1 pr-3 font-mono font-bold" style="color: var(--tekst);">{{ r.shift_code }}</td>
+                <td class="py-1" style="color: var(--tekst-secundair);">{{ r.groep_naam }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color: var(--tekst-secundair);">Geen shifts gepland deze maand.</p>
+    {% endif %}
+</div>

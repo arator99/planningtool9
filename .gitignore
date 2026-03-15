@@ -1,0 +1,48 @@
+# Omgevingsvariabelen — nooit in git
+.env
+.env.local
+.env.production
+
+# Docker secrets
+secrets/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# Database
+*.db
+*.sqlite3
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Alembic
+# (migraties zitten WEL in git, maar niet de tijdelijke bestanden)
+
+# Static uploads (als die er ooit komen)
+backend/static/uploads/
+
+# Referentiecodebases — lokaal bewaren, niet in git
+code_v07/
+code_v08/

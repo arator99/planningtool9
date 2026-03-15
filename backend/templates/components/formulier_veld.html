@@ -1,0 +1,68 @@
+{#
+  Formulierveld component
+  Parameters:
+    naam      — name/id attribuut (verplicht)
+    label     — zichtbaar label (verplicht)
+    type      — 'text' (default) | 'email' | 'password' | 'date' | 'select' | 'textarea'
+    waarde    — huidige waarde
+    fout      — foutmelding string (toont rode rand + tekst)
+    verplicht — bool (default False)
+    opties    — lijst van {'waarde': ..., 'label': ...} voor select
+    klasse    — extra CSS-klassen op de input
+    extra     — extra HTML-attributen als string
+#}
+{% set _type = type | default('text') %}
+{% set _input_klassen = 'w-full rounded-md border px-3 py-2 text-sm bg-oppervlak text-tekst
+                         placeholder:text-tekst-placeholder
+                         focus:outline-none focus:ring-2 focus:ring-primair focus:border-primair
+                         disabled:opacity-50 disabled:cursor-not-allowed transition-colors' %}
+{% if fout %}
+  {% set _border = 'border-gevaar' %}
+{% else %}
+  {% set _border = 'border-rand' %}
+{% endif %}
+
+<div class="flex flex-col gap-1">
+  <label for="{{ naam }}" class="text-sm font-medium text-tekst">
+    {{ label }}
+    {% if verplicht %}<span class="text-gevaar ml-0.5">*</span>{% endif %}
+  </label>
+
+  {% if _type == 'textarea' %}
+    <textarea
+      id="{{ naam }}" name="{{ naam }}"
+      class="{{ _input_klassen }} {{ _border }} {{ klasse | default('') }}"
+      rows="3"
+      {% if verplicht %}required{% endif %}
+      {{ extra | default('') | safe }}
+    >{{ waarde | default('') }}</textarea>
+
+  {% elif _type == 'select' %}
+    <select
+      id="{{ naam }}" name="{{ naam }}"
+      class="{{ _input_klassen }} {{ _border }} {{ klasse | default('') }}"
+      {% if verplicht %}required{% endif %}
+      {{ extra | default('') | safe }}
+    >
+      {% for optie in opties | default([]) %}
+        <option value="{{ optie.waarde }}" {% if optie.waarde == waarde %}selected{% endif %}>
+          {{ optie.label }}
+        </option>
+      {% endfor %}
+    </select>
+
+  {% else %}
+    <input
+      type="{{ _type }}"
+      id="{{ naam }}" name="{{ naam }}"
+      value="{{ waarde | default('') }}"
+      class="{{ _input_klassen }} {{ _border }} {{ klasse | default('') }}"
+      {% if verplicht %}required{% endif %}
+      {{ extra | default('') | safe }}
+    >
+  {% endif %}
+
+  {% if fout %}
+    <p class="text-xs text-gevaar">{{ fout }}</p>
+  {% endif %}
+</div>

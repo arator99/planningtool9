@@ -1,0 +1,94 @@
+{% extends "layouts/app.html" %}
+{% set actief_menu = "rapporten" %}
+
+{% block titel %}{{ t("rapport.overrides") }} — Planning Tool{% endblock %}
+
+{% block inhoud %}
+
+<div class="flex items-center justify-between mb-6">
+    <div class="flex items-center gap-3">
+        <a href="/rapporten" class="text-sm" style="color: var(--tekst-secundair);">&larr; {{ t("rapport.titel") }}</a>
+        <span style="color: var(--rand);">/</span>
+        <h1 class="text-xl font-bold" style="color: var(--tekst);">{{ t("rapport.overrides") }}</h1>
+    </div>
+</div>
+
+<!-- Filter balk -->
+<div class="flex items-center gap-3 mb-6 p-4 rounded-xl border"
+     style="border-color: var(--rand); background: var(--achtergrond-widget);">
+    <form method="get" action="/rapporten/overrides" class="flex items-center gap-3 flex-wrap">
+        <label class="text-sm font-medium" style="color: var(--tekst);">{{ t("algemeen.maand") }}</label>
+        <select name="maand"
+                class="text-sm rounded-lg border px-3 py-1.5 outline-none"
+                style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
+            {% for nr, naam in maand_namen.items() %}
+            <option value="{{ nr }}" {% if nr == geselecteerd_maand %}selected{% endif %}>{{ naam }}</option>
+            {% endfor %}
+        </select>
+        <select name="jaar"
+                class="text-sm rounded-lg border px-3 py-1.5 outline-none"
+                style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
+            {% for j in jaren %}
+            <option value="{{ j }}" {% if j == geselecteerd_jaar %}selected{% endif %}>{{ j }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit"
+                class="text-sm font-medium px-4 py-1.5 rounded-lg text-white"
+                style="background: var(--primair);"
+                onmouseover="this.style.background='var(--primair-hover)'"
+                onmouseout="this.style.background='var(--primair)'">
+            {{ t("algemeen.tonen") }}
+        </button>
+    </form>
+</div>
+
+<p class="text-xs mb-4" style="color: var(--tekst-secundair);">
+    Alle goedgekeurde afwijkingen van CRITICAL HR-regels voor {{ maand_namen[geselecteerd_maand] }} {{ geselecteerd_jaar }}.
+</p>
+
+<!-- Overrides tabel -->
+{% if overrides %}
+<div class="rounded-xl shadow-sm border overflow-x-auto" style="border-color: var(--rand); background: var(--achtergrond-widget);">
+    <table class="w-full text-sm border-collapse">
+        <thead>
+            <tr style="background: var(--grid-header); border-bottom: 1px solid var(--rand);">
+                <th class="text-left px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">{{ t("algemeen.datum") }}</th>
+                <th class="text-left px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">{{ t("balans.medewerker") }}</th>
+                <th class="text-left px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">Shift</th>
+                <th class="text-left px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">Regel</th>
+                <th class="text-left px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">Overtreding</th>
+                <th class="text-left px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">Reden afwijking</th>
+                <th class="text-left px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">Goedgekeurd door</th>
+                <th class="text-left px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">Op</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for o in overrides %}
+            <tr class="border-b" style="border-color: var(--rand);">
+                <td class="px-4 py-2.5 tabular-nums" style="color: var(--tekst);">
+                    {{ o.datum.strftime('%d/%m/%Y') }}
+                </td>
+                <td class="px-4 py-2.5 font-medium" style="color: var(--tekst);">{{ o.medewerker_naam }}</td>
+                <td class="px-4 py-2.5 font-mono font-bold text-xs" style="color: var(--primair);">{{ o.shift_code or '—' }}</td>
+                <td class="px-4 py-2.5 font-mono text-xs" style="color: var(--tekst-secundair);">{{ o.regel_code }}</td>
+                <td class="px-4 py-2.5 max-w-xs text-xs" style="color: var(--tekst-secundair);">{{ o.overtreding_bericht }}</td>
+                <td class="px-4 py-2.5 max-w-xs text-xs" style="color: var(--tekst);">{{ o.reden_afwijking }}</td>
+                <td class="px-4 py-2.5 text-xs" style="color: var(--tekst-secundair);">{{ o.goedgekeurd_door_naam }}</td>
+                <td class="px-4 py-2.5 tabular-nums text-xs" style="color: var(--tekst-secundair);">
+                    {{ o.goedgekeurd_op.strftime('%d/%m/%Y') if o.goedgekeurd_op else '—' }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<p class="mt-2 text-xs" style="color: var(--tekst-secundair);">{{ overrides | length }} override(s)</p>
+{% else %}
+<div class="rounded-xl border p-12 text-center"
+     style="border-color: var(--rand); background: var(--achtergrond-widget); color: var(--tekst-secundair);">
+    <p class="text-lg font-medium mb-1">Geen overrides</p>
+    <p class="text-sm">Er zijn geen goedgekeurde afwijkingen voor {{ maand_namen[geselecteerd_maand] }} {{ geselecteerd_jaar }}.</p>
+</div>
+{% endif %}
+
+{% endblock %}

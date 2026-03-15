@@ -1,0 +1,32 @@
+{#
+  Knop component
+  Parameters:
+    label     — tekst op de knop (verplicht)
+    variant   — 'primair' (default) | 'secundair' | 'gevaar' | 'ghost'
+    type      — 'button' (default) | 'submit'
+    disabled  — bool (default False)
+    extra     — extra HTML-attributen als string (bijv. hx-post="/..." hx-target="#...")
+    klasse    — extra CSS-klassen
+#}
+{% set _variant = variant | default('primair') %}
+{% set _type = type | default('button') %}
+
+{% if _variant == 'primair' %}
+  {% set _klassen = 'bg-primair hover:bg-primair-hover text-primair-tekst' %}
+{% elif _variant == 'secundair' %}
+  {% set _klassen = 'bg-oppervlak hover:bg-oppervlak-hover text-tekst border border-rand' %}
+{% elif _variant == 'gevaar' %}
+  {% set _klassen = 'bg-gevaar hover:opacity-90 text-white' %}
+{% elif _variant == 'ghost' %}
+  {% set _klassen = 'bg-transparent hover:bg-oppervlak-hover text-tekst' %}
+{% endif %}
+
+<button
+  type="{{ _type }}"
+  {% if disabled %}disabled{% endif %}
+  class="inline-flex items-center justify-center px-4 py-2 rounded-md text-sm font-medium
+         transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-primair focus:ring-offset-2
+         disabled:opacity-50 disabled:cursor-not-allowed
+         {{ _klassen }} {{ klasse | default('') }}"
+  {{ extra | default('') | safe }}
+>{{ label }}</button>

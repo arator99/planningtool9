@@ -1,0 +1,79 @@
+/* Planningtool v0.9 — Centraal thema
+ * Alle kleuren worden hier gedefinieerd als CSS custom properties.
+ * Templates gebruiken NOOIT hardcoded Tailwind-kleurcodes (bg-white, text-gray-900, ...).
+ * Gebruik altijd de semantische aliassen: bg-oppervlak, text-tekst, bg-primair, ...
+ */
+
+:root {
+  /* Primair — bedrijfsblauw */
+  --kleur-primair:         #2563eb;  /* blue-600 */
+  --kleur-primair-hover:   #1d4ed8;  /* blue-700 */
+  --kleur-primair-zacht:   #eff6ff;  /* blue-50  */
+  --kleur-primair-tekst:   #ffffff;
+
+  /* Achtergrond & oppervlakken */
+  --kleur-achtergrond:     #f9fafb;  /* gray-50  */
+  --kleur-oppervlak:       #ffffff;
+  --kleur-oppervlak-hover: #f3f4f6;  /* gray-100 */
+
+  /* Randen */
+  --kleur-rand:            #e5e7eb;  /* gray-200 */
+  --kleur-rand-sterk:      #d1d5db;  /* gray-300 */
+
+  /* Tekst */
+  --kleur-tekst:           #111827;  /* gray-900 */
+  --kleur-tekst-zacht:     #6b7280;  /* gray-500 */
+  --kleur-tekst-placeholder: #9ca3af; /* gray-400 */
+
+  /* Statusklassen */
+  --kleur-succes:          #16a34a;  /* green-600 */
+  --kleur-succes-zacht:    #f0fdf4;  /* green-50  */
+  --kleur-gevaar:          #dc2626;  /* red-600   */
+  --kleur-gevaar-zacht:    #fef2f2;  /* red-50    */
+  --kleur-waarschuwing:    #d97706;  /* amber-600 */
+  --kleur-waarschuwing-zacht: #fffbeb; /* amber-50 */
+  --kleur-info:            #0284c7;  /* sky-600   */
+  --kleur-info-zacht:      #f0f9ff;  /* sky-50    */
+
+  /* Schaduw */
+  --schaduw-sm:  0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --schaduw:     0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --schaduw-md:  0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+html.dark {
+  /* Primair — lichtere tint voor contrast op donkere achtergrond */
+  --kleur-primair:         #3b82f6;  /* blue-500 */
+  --kleur-primair-hover:   #60a5fa;  /* blue-400 */
+  --kleur-primair-zacht:   #1e3a5f;  /* custom   */
+  --kleur-primair-tekst:   #ffffff;
+
+  /* Achtergrond & oppervlakken */
+  --kleur-achtergrond:     #111827;  /* gray-900 */
+  --kleur-oppervlak:       #1f2937;  /* gray-800 */
+  --kleur-oppervlak-hover: #374151;  /* gray-700 */
+
+  /* Randen */
+  --kleur-rand:            #374151;  /* gray-700 */
+  --kleur-rand-sterk:      #4b5563;  /* gray-600 */
+
+  /* Tekst */
+  --kleur-tekst:           #f9fafb;  /* gray-50  */
+  --kleur-tekst-zacht:     #9ca3af;  /* gray-400 */
+  --kleur-tekst-placeholder: #6b7280; /* gray-500 */
+
+  /* Statusklassen */
+  --kleur-succes:          #22c55e;  /* green-500 */
+  --kleur-succes-zacht:    #052e16;  /* green-950 */
+  --kleur-gevaar:          #ef4444;  /* red-500   */
+  --kleur-gevaar-zacht:    #450a0a;  /* red-950   */
+  --kleur-waarschuwing:    #f59e0b;  /* amber-500 */
+  --kleur-waarschuwing-zacht: #451a03; /* amber-950 */
+  --kleur-info:            #38bdf8;  /* sky-400   */
+  --kleur-info-zacht:      #082f49;  /* sky-950   */
+
+  /* Schaduw */
+  --schaduw-sm:  0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --schaduw:     0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
+  --schaduw-md:  0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.4);
+}

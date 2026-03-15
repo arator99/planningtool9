@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="{{ gebruiker.taal | default('nl') }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block titel %}Planning Tool{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <style>{{ thema_css | safe }}</style>
+    <style>
+        body { background-color: var(--achtergrond); color: var(--tekst); }
+        nav  { background-color: var(--nav-bg); border-color: var(--nav-rand); }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="min-h-screen" id="app-body">
+
+<!-- Navigatiebalk -->
+<nav class="border-b shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between h-14">
+
+            <!-- Logo + navigatie -->
+            <div class="flex items-center gap-6">
+                <span class="text-blue-600 font-bold text-lg tracking-tight">Planning Tool</span>
+
+                <!-- Menu op basis van rol -->
+                <a href="/dashboard" class="text-sm font-medium
+                    {% if actief_menu == 'dashboard' %}text-blue-600{% else %}text-gray-600 hover:text-blue-600{% endif %}">
+                    {{ t("nav.dashboard") }}
+                </a>
+                {% if gebruiker.rol in ['beheerder', 'planner'] %}
+                <!-- Planning dropdown (maandgrid + mijn planning) -->
+                <div class="relative" id="planning-wrapper">
+                    <button onclick="wisselMenu('planning')"
+                            class="flex items-center gap-0.5 text-sm font-medium transition-colors
+                                   {% if actief_menu in ['planning', 'mijn_planning'] %}text-blue-600{% else %}text-gray-600 hover:text-blue-600{% endif %}">
+                        {{ t("nav.planning") }}
+                        <svg class="w-3 h-3 opacity-50 mt-px" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+                    <div id="planning-menu"
+                         class="hidden absolute left-0 mt-2 w-44 rounded-xl shadow-lg border py-1 z-50"
+                         style="background: var(--achtergrond-widget); border-color: var(--rand);">
+                        <a href="/planning"
+                           class="flex items-center px-4 py-2 text-sm transition-colors {% if actief_menu == 'planning' %}font-semibold{% endif %}"
+                           style="color: {% if actief_menu == 'planning' %}var(--primair){% else %}var(--tekst){% endif %};"
+                           onmouseover="this.style.background='var(--hover-bg)'"
+                           onmouseout="this.style.background='transparent'">
+                            {{ t("planning.maandoverzicht") }}
+                        </a>
+                        <a href="/planning/mijn"
+                           class="flex items-center px-4 py-2 text-sm transition-colors {% if actief_menu == 'mijn_planning' %}font-semibold{% endif %}"
+                           style="color: {% if actief_menu == 'mijn_planning' %}var(--primair){% else %}var(--tekst){% endif %};"
+                           onmouseover="this.style.background='var(--hover-bg)'"
+                           onmouseout="this.style.background='transparent'">
+                            {{ t("planning.mijn_planning") }}
+                        </a>
+                    </div>
+                </div>
+                {% else %}
+                <!-- Mijn Planning direct zichtbaar voor andere rollen -->
+                <a href="/planning/mijn" class="text-sm font-medium
+                    {% if actief_menu == 'mijn_planning' %}text-blue-600{% else %}text-gray-600 hover:text-blue-600{% endif %}">
+                    {{ t("planning.mijn_planning") }}
+                </a>
+                {% endif %}
+                <!-- Verlof dropdown -->
+                <div class="relative" id="verlof-wrapper">
+                    <button onclick="wisselMenu('verlof')"
+                            class="flex items-center gap-0.5 text-sm font-medium transition-colors
+                                   {% if actief_menu in ['verlof', 'verlof_overzicht', 'verlof_saldo'] %}text-blue-600{% else %}text-gray-600 hover:text-blue-600{% endif %}">
+                        {{ t("nav.verlof") }}
+                        <svg class="w-3 h-3 opacity-50 mt-px" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+                    <div id="verlof-menu"
+                         class="hidden absolute left-0 mt-2 w-48 rounded-xl shadow-lg border py-1 z-50"
+                         style="background: var(--achtergrond-widget); border-color: var(--rand);">
+                        <a href="/verlof"
+                           class="flex items-center px-4 py-2 text-sm transition-colors {% if actief_menu == 'verlof' %}font-semibold{% endif %}"
+                           style="color: {% if actief_menu == 'verlof' %}var(--primair){% else %}var(--tekst){% endif %};"
+                           onmouseover="this.style.background='var(--hover-bg)'"
+                           onmouseout="this.style.background='transparent'">
+                            {{ t("verlof.aanvragen") }}
+                        </a>
+                        <a href="/verlof/overzicht"
+                           class="flex items-center px-4 py-2 text-sm transition-colors {% if actief_menu == 'verlof_overzicht' %}font-semibold{% endif %}"
+                           style="color: {% if actief_menu == 'verlof_overzicht' %}var(--primair){% else %}var(--tekst){% endif %};"
+                           onmouseover="this.style.background='var(--hover-bg)'"
+                           onmouseout="this.style.background='transparent'">
+                            {{ t("verlof.maand_overzicht") }}
+                        </a>
+                        <a href="/verlof/saldo"
+                           class="flex items-center px-4 py-2 text-sm transition-colors {% if actief_menu == 'verlof_saldo' %}font-semibold{% endif %}"
+                           style="color: {% if actief_menu == 'verlof_saldo' %}var(--primair){% else %}var(--tekst){% endif %};"
+                           onmouseover="this.style.background='var(--hover-bg)'"
+                           onmouseout="this.style.background='transparent'">
+                            {{ t("verlof.saldo_titel") }}
+                        </a>
+                    </div>
+                </div>
+                {% if gebruiker.rol in ['beheerder', 'planner', 'hr'] %}
+                <a href="/rapporten" class="text-sm font-medium
+                    {% if actief_menu == 'rapporten' %}text-blue-600{% else %}text-gray-600 hover:text-blue-600{% endif %}">
+                    {{ t("nav.rapporten") }}
+                </a>
+                {% endif %}
+                <a href="/notities" class="relative inline-flex items-center gap-1 text-sm font-medium
+                    {% if actief_menu == 'notities' %}text-blue-600{% else %}text-gray-600 hover:text-blue-600{% endif %}">
+                    {{ t("nav.notities") }}
+                    <span id="notities-badge"
+                          hx-get="/notities/ongelezen-aantal"
+                          hx-trigger="load, every 60s"
+                          hx-swap="innerHTML"></span>
+                </a>
+
+                <!-- Instellingen dropdown (shiftcodes, werkposten, HR, app instellingen) -->
+                {% if gebruiker.rol in ['beheerder', 'planner', 'hr'] %}
+                <div class="relative" id="instellingen-wrapper">
+                    <button onclick="wisselMenu('instellingen')"
+                            class="flex items-center gap-0.5 text-sm font-medium transition-colors
+                                   {% if actief_menu in ['shiftcodes', 'werkposten', 'hr', 'instellingen'] %}text-blue-600{% else %}text-gray-600 hover:text-blue-600{% endif %}">
+                        {{ t("nav.instellingen") }}
+                        <svg class="w-3 h-3 opacity-50 mt-px" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+                    <div id="instellingen-menu"
+                         class="hidden absolute left-0 mt-2 w-44 rounded-xl shadow-lg border py-1 z-50"
+                         style="background: var(--achtergrond-widget); border-color: var(--rand);">
+                        {% if gebruiker.rol in ['beheerder', 'planner'] %}
+                        <a href="/shiftcodes"
+                           class="flex items-center px-4 py-2 text-sm transition-colors {% if actief_menu == 'shiftcodes' %}font-semibold{% endif %}"
+                           style="color: {% if actief_menu == 'shiftcodes' %}var(--primair){% else %}var(--tekst){% endif %};"
+                           onmouseover="this.style.background='var(--hover-bg)'"
+                           onmouseout="this.style.background='transparent'">
+                            {{ t("nav.shiftcodes") }}
+                        </a>
+                        <a href="/werkposten"
+                           class="flex items-center px-4 py-2 text-sm transition-colors {% if actief_menu == 'werkposten' %}font-semibold{% endif %}"
+                           style="color: {% if actief_menu == 'werkposten' %}var(--primair){% else %}var(--tekst){% endif %};"
+                           onmouseover="this.style.background='var(--hover-bg)'"
+                           onmouseout="this.style.background='transparent'">
+                            {{ t("nav.werkposten") }}
+                        </a>
+                        {% endif %}
+                        {% if gebruiker.rol in ['beheerder', 'hr'] %}
+                        <a href="/hr"
+                           class="flex items-center px-4 py-2 text-sm transition-colors {% if actief_menu == 'hr' %}font-semibold{% endif %}"
+                           style="color: {% if actief_menu == 'hr' %}var(--primair){% else %}var(--tekst){% endif %};"
+                           onmouseover="this.style.background='var(--hover-bg)'"
+                           onmouseout="this.style.background='transparent'">
+                            {{ t("nav.hr") }}
+                        </a>
+                        {% endif %}
+                        {% if gebruiker.rol == 'beheerder' %}
+                        <div class="border-t my-1" style="border-color: var(--rand);"></div>
+                        <a href="/instellingen"
+                           class="flex items-center px-4 py-2 text-sm transition-colors {% if actief_menu == 'instellingen' %}font-semibold{% endif %}"
+                           style="color: {% if actief_menu == 'instellingen' %}var(--primair){% else %}var(--tekst){% endif %};"
+                           onmouseover="this.style.background='var(--hover-bg)'"
+                           onmouseout="this.style.background='transparent'">
+                            {{ t("instelling.titel") }}
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Beheer dropdown (gebruikers, competenties, logboek) -->
+                {% if gebruiker.rol in ['beheerder', 'planner'] %}
+                <div class="relative" id="beheer-wrapper">
+                    <button onclick="wisselMenu('beheer')"
+                            class="flex items-center gap-0.5 text-sm font-medium transition-colors
+                                   {% if actief_menu in ['gebruikers', 'competenties', 'logboek', 'groepen'] %}text-blue-600{% else %}text-gray-600 hover:text-blue-600{% endif %}">
+                        {{ t("nav.beheer") }}
+                        <svg class="w-3 h-3 opacity-50 mt-px" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+                    <div id="beheer-menu"
+                         class="hidden absolute left-0 mt-2 w-44 rounded-xl shadow-lg border py-1 z-50"
+                         style="background: var(--achtergrond-widget); border-color: var(--rand);">
+                        <a href="/beheer/gebruikers"
+                           class="flex items-center px-4 py-2 text-sm transition-colors {% if actief_menu == 'gebruikers' %}font-semibold{% endif %}"
+                           style="color: {% if actief_menu == 'gebruikers' %}var(--primair){% else %}var(--tekst){% endif %};"
+                           onmouseover="this.style.background='var(--hover-bg)'"
+                           onmouseout="this.style.background='transparent'">
+                            {{ t("nav.gebruikers") }}
+                        </a>
+                        <a href="/competenties"
+                           class="flex items-center px-4 py-2 text-sm transition-colors {% if actief_menu == 'competenties' %}font-semibold{% endif %}"
+                           style="color: {% if actief_menu == 'competenties' %}var(--primair){% else %}var(--tekst){% endif %};"
+                           onmouseover="this.style.background='var(--hover-bg)'"
+                           onmouseout="this.style.background='transparent'">
+                            {{ t("nav.competenties") }}
+                        </a>
+                        {% if gebruiker.rol == 'beheerder' %}
+                        <div class="border-t my-1" style="border-color: var(--rand);"></div>
+                        <a href="/groepen"
+                           class="flex items-center px-4 py-2 text-sm transition-colors {% if actief_menu == 'groepen' %}font-semibold{% endif %}"
+                           style="color: {% if actief_menu == 'groepen' %}var(--primair){% else %}var(--tekst){% endif %};"
+                           onmouseover="this.style.background='var(--hover-bg)'"
+                           onmouseout="this.style.background='transparent'">
+                            Groepen
+                        </a>
+                        <a href="/logboek"
+                           class="flex items-center px-4 py-2 text-sm transition-colors {% if actief_menu == 'logboek' %}font-semibold{% endif %}"
+                           style="color: {% if actief_menu == 'logboek' %}var(--primair){% else %}var(--tekst){% endif %};"
+                           onmouseover="this.style.background='var(--hover-bg)'"
+                           onmouseout="this.style.background='transparent'">
+                            {{ t("nav.logboek") }}
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Rechts: dark mode toggle + account dropdown -->
+            <div class="flex items-center gap-3">
+
+                <!-- Help dropdown -->
+                <div class="relative" id="help-wrapper">
+                    <button id="help-knop" onclick="wisselHelpMenu()"
+                            class="p-1.5 rounded-lg transition-colors"
+                            style="background: var(--hover-bg); color: var(--tekst-secundair);"
+                            title="{{ t('nav.help') }}">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </button>
+                    <div id="help-menu"
+                         class="hidden absolute right-0 mt-1 w-44 rounded-xl shadow-lg border py-1 z-50"
+                         style="background: var(--achtergrond-widget); border-color: var(--rand);">
+                        <a href="/help/changelog"
+                           class="flex items-center gap-2.5 px-4 py-2 text-sm transition-colors"
+                           style="color: var(--tekst);"
+                           onmouseover="this.style.background='var(--hover-bg)'"
+                           onmouseout="this.style.background='transparent'">
+                            <svg class="w-4 h-4 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                            </svg>
+                            {{ t("nav.changelog") }}
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Dark mode toggle -->
+                <button id="thema-toggle" onclick="wisselThema()"
+                        class="p-1.5 rounded-lg transition-colors"
+                        style="background: var(--hover-bg); color: var(--tekst-secundair);"
+                        title="{{ t('auth.wissel_thema') }}">
+                    <svg id="icoon-donker" class="w-4 h-4 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                    </svg>
+                    <svg id="icoon-licht" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z"/>
+                    </svg>
+                </button>
+
+                <!-- Account dropdown -->
+                <div class="relative" id="account-wrapper">
+                    <button id="account-knop"
+                            onclick="wisselAccountMenu()"
+                            class="flex items-center gap-2 px-2 py-1 rounded-lg text-sm transition-colors"
+                            style="color: var(--tekst);"
+                            onmouseover="this.style.background='var(--hover-bg)'"
+                            onmouseout="this.style.background='transparent'">
+                        <span class="font-medium">{{ gebruiker.volledige_naam or gebruiker.gebruikersnaam }}</span>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                            {% if gebruiker.rol == 'beheerder' %}bg-purple-100 text-purple-700
+                            {% elif gebruiker.rol == 'planner' %}bg-blue-100 text-blue-700
+                            {% elif gebruiker.rol == 'hr' %}bg-orange-100 text-orange-700
+                            {% else %}bg-gray-100 text-gray-600{% endif %}">
+                            {{ t("rol." + gebruiker.rol) }}
+                        </span>
+                        <svg class="w-3.5 h-3.5 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+
+                    <!-- Dropdown panel -->
+                    <div id="account-menu"
+                         class="hidden absolute right-0 mt-1 w-52 rounded-xl shadow-lg border py-1 z-50"
+                         style="background: var(--achtergrond-widget); border-color: var(--rand);">
+
+                        <!-- Gebruikersnaam header -->
+                        <div class="px-4 py-2 border-b" style="border-color: var(--rand);">
+                            <p class="text-xs font-medium truncate" style="color: var(--tekst);">
+                                {{ gebruiker.gebruikersnaam }}
+                            </p>
+                            <p class="text-xs" style="color: var(--tekst-secundair);">{{ gebruiker.groep.naam }}</p>
+                        </div>
+
+                        <a href="/account/wachtwoord"
+                           class="flex items-center gap-2.5 px-4 py-2 text-sm transition-colors"
+                           style="color: var(--tekst);"
+                           onmouseover="this.style.background='var(--hover-bg)'"
+                           onmouseout="this.style.background='transparent'">
+                            <svg class="w-4 h-4 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+                            </svg>
+                            {{ t("nav.wachtwoord_wijzigen") }}
+                        </a>
+
+                        <a href="/account/voorkeuren"
+                           class="flex items-center gap-2.5 px-4 py-2 text-sm transition-colors"
+                           style="color: var(--tekst);"
+                           onmouseover="this.style.background='var(--hover-bg)'"
+                           onmouseout="this.style.background='transparent'">
+                            <svg class="w-4 h-4 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+                            </svg>
+                            {{ t("account.voorkeuren") }}
+                        </a>
+
+                        <a href="/totp/instellen"
+                           class="flex items-center gap-2.5 px-4 py-2 text-sm transition-colors"
+                           style="color: var(--tekst);"
+                           onmouseover="this.style.background='var(--hover-bg)'"
+                           onmouseout="this.style.background='transparent'">
+                            <svg class="w-4 h-4 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                            </svg>
+                            {% if gebruiker.totp_actief %}{{ t("auth.2fa_beheren") }}{% else %}{{ t("auth.2fa_instellen") }}{% endif %}
+                        </a>
+
+                        <button type="button"
+                                onclick="document.getElementById('account-menu').classList.add('hidden'); document.getElementById('taal-dialog').showModal();"
+                                class="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-left transition-colors"
+                                style="color: var(--tekst);"
+                                onmouseover="this.style.background='var(--hover-bg)'"
+                                onmouseout="this.style.background='transparent'">
+                            <svg class="w-4 h-4 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"/>
+                            </svg>
+                            {{ t("auth.taal_wijzigen") }}
+                            <span class="ml-auto text-xs opacity-50 uppercase">{{ gebruiker.taal }}</span>
+                        </button>
+
+                        <div class="border-t my-1" style="border-color: var(--rand);"></div>
+
+                        <form method="post" action="/auth/uitloggen">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit"
+                                    class="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-left transition-colors"
+                                    style="color: var(--fout);"
+                                    onmouseover="this.style.background='var(--msg-fout-bg)'"
+                                    onmouseout="this.style.background='transparent'">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                                </svg>
+                                {{ t("nav.uitloggen") }}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+</nav>
+
+<!-- Paginainhoud -->
+<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    {% block inhoud %}{% endblock %}
+</main>
+
+<!-- Taal selectie dialoog -->
+<dialog id="taal-dialog"
+        class="rounded-xl shadow-xl border p-0 w-80 backdrop:bg-black/40"
+        style="background: var(--achtergrond-widget); border-color: var(--rand);">
+    <div class="px-5 py-4 border-b flex items-center justify-between" style="border-color: var(--rand);">
+        <h2 class="text-sm font-semibold" style="color: var(--tekst);">{{ t("auth.taal_wijzigen") }}</h2>
+        <button onclick="document.getElementById('taal-dialog').close()"
+                class="p-1 rounded-lg transition-colors"
+                style="color: var(--tekst-secundair);"
+                onmouseover="this.style.background='var(--hover-bg)'"
+                onmouseout="this.style.background='transparent'">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+        </button>
+    </div>
+    <form method="post" action="/account/taal" class="p-4 flex flex-col gap-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        {% set talen = [('nl', '🇳🇱', 'Nederlands'), ('fr', '🇫🇷', 'Français'), ('en', '🇬🇧', 'English')] %}
+        {% for code, vlag, naam in talen %}
+        <label class="flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors"
+               style="{% if gebruiker.taal == code %}background: var(--hover-bg);{% endif %}"
+               onmouseover="this.style.background='var(--hover-bg)'"
+               onmouseout="this.style.background='{% if gebruiker.taal == code %}var(--hover-bg){% else %}transparent{% endif %}'">
+            <input type="radio" name="taal" value="{{ code }}"
+                   {% if gebruiker.taal == code %}checked{% endif %}
+                   class="accent-blue-600">
+            <span class="text-lg leading-none">{{ vlag }}</span>
+            <span class="text-sm" style="color: var(--tekst);">{{ naam }}</span>
+            {% if gebruiker.taal == code %}
+            <svg class="w-4 h-4 ml-auto text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+            </svg>
+            {% endif %}
+        </label>
+        {% endfor %}
+        <div class="mt-2 flex justify-end gap-2">
+            <button type="button"
+                    onclick="document.getElementById('taal-dialog').close()"
+                    class="px-3 py-1.5 text-sm rounded-lg transition-colors"
+                    style="color: var(--tekst-secundair);"
+                    onmouseover="this.style.background='var(--hover-bg)'"
+                    onmouseout="this.style.background='transparent'">
+                {{ t("algemeen.annuleer") }}
+            </button>
+            <button type="submit"
+                    class="px-3 py-1.5 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors">
+                {{ t("algemeen.opslaan") }}
+            </button>
+        </div>
+    </form>
+</dialog>
+
+<script>
+(function () {
+    const HTML = document.documentElement;
+    const opgeslagen = localStorage.getItem('thema') || 'light';
+    if (opgeslagen === 'dark') HTML.setAttribute('data-theme', 'dark');
+
+    function bijwerkIcoon(thema) {
+        document.getElementById('icoon-donker').classList.toggle('hidden', thema !== 'dark');
+        document.getElementById('icoon-licht').classList.toggle('hidden', thema === 'dark');
+    }
+    bijwerkIcoon(opgeslagen);
+
+    window.wisselThema = function () {
+        const huidig = HTML.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+        const nieuw = huidig === 'dark' ? 'light' : 'dark';
+        if (nieuw === 'dark') HTML.setAttribute('data-theme', 'dark');
+        else HTML.removeAttribute('data-theme');
+        localStorage.setItem('thema', nieuw);
+        bijwerkIcoon(nieuw);
+    };
+})();
+
+const _MENUS = ['account', 'help', 'planning', 'verlof', 'instellingen', 'beheer'];
+
+window.wisselMenu = function (id) {
+    _MENUS.forEach(function (m) {
+        const menu = document.getElementById(m + '-menu');
+        if (!menu) return;
+        if (m === id) menu.classList.toggle('hidden');
+        else menu.classList.add('hidden');
+    });
+};
+
+// Achterwaartse compatibiliteit
+window.wisselAccountMenu = function () { wisselMenu('account'); };
+window.wisselHelpMenu    = function () { wisselMenu('help'); };
+
+document.addEventListener('click', function (e) {
+    _MENUS.forEach(function (m) {
+        const wrapper = document.getElementById(m + '-wrapper');
+        if (wrapper && !wrapper.contains(e.target)) {
+            const menu = document.getElementById(m + '-menu');
+            if (menu) menu.classList.add('hidden');
+        }
+    });
+});
+</script>
+</body>
+</html>

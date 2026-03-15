@@ -1,0 +1,75 @@
+{% extends "layouts/app.html" %}
+
+{% block titel %}{{ t("account.voorkeuren") }} — Planning Tool{% endblock %}
+
+{% block inhoud %}
+
+<div class="flex items-center gap-3 mb-6">
+    <a href="/account/wachtwoord" class="text-sm" style="color: var(--tekst-secundair);">&larr; {{ t("nav.account") }}</a>
+    <span style="color: var(--rand);">/</span>
+    <h1 class="text-xl font-bold" style="color: var(--tekst);">{{ t("account.voorkeuren") }}</h1>
+</div>
+
+{% if bericht %}
+<div class="mb-4 px-4 py-2.5 rounded-lg text-sm font-medium" style="background: var(--msg-succes-bg); color: var(--succes);">
+    {{ t("account." + bericht) if bericht == "voorkeuren_opgeslagen" else bericht }}
+</div>
+{% endif %}
+{% if fout %}
+<div class="mb-4 px-4 py-2.5 rounded-lg text-sm font-medium" style="background: var(--msg-fout-bg); color: var(--fout);">
+    {{ t("fout." + fout) }}
+</div>
+{% endif %}
+
+<div class="max-w-md">
+    <div class="rounded-xl shadow-sm border overflow-hidden" style="border-color: var(--rand); background: var(--achtergrond-widget);">
+        <div class="px-6 py-4 border-b" style="border-color: var(--rand);">
+            <p class="text-sm" style="color: var(--tekst-secundair);">
+                Geef aan welke shifts je verkiest. De planner gebruikt dit bij het auto-invullen van de planning.
+            </p>
+        </div>
+        <form method="post" action="/account/voorkeuren" class="p-6">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+            {% set shift_labels = {
+                "vroeg": t("account.voorkeur_vroeg"),
+                "laat":  t("account.voorkeur_laat"),
+                "nacht": t("account.voorkeur_nacht")
+            } %}
+
+            <div class="flex flex-col gap-4">
+                {% for shift_type in shift_types %}
+                <div class="flex items-center justify-between">
+                    <label class="text-sm font-medium" style="color: var(--tekst);">
+                        {{ shift_labels[shift_type] }}
+                    </label>
+                    <select name="voorkeur_{{ shift_type }}"
+                            class="text-sm rounded-lg border px-3 py-1.5 outline-none w-44"
+                            style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
+                        <option value="" {% if not voorkeuren.get(shift_type) %}selected{% endif %}>
+                            {{ t("account.voorkeur_geen") }}
+                        </option>
+                        {% for rang in ["1", "2", "3"] %}
+                        <option value="{{ rang }}" {% if voorkeuren.get(shift_type) == rang %}selected{% endif %}>
+                            {{ t("account.voorkeur_rang") }} {{ rang }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="mt-6 flex justify-end">
+                <button type="submit"
+                        class="text-sm font-medium px-5 py-2 rounded-lg text-white"
+                        style="background: var(--primair);"
+                        onmouseover="this.style.background='var(--primair-hover)'"
+                        onmouseout="this.style.background='var(--primair)'">
+                    {{ t("algemeen.opslaan") }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,24 @@
+<!-- HTMX fragment: suggestie paneel voor één cel -->
+<div class="p-3">
+    {% if suggesties %}
+    <p class="text-xs font-medium text-gray-500 mb-2">
+        {{ t("planning.suggestie") }} — <span class="text-gray-400">{{ datum_str }}</span>
+    </p>
+    <div class="flex flex-wrap gap-1.5">
+        {% for s in suggesties %}
+        <button
+            onclick="pasCodeToe('{{ s.shiftcode }}')"
+            title="{{ t('planning.score') }}: {{ '%.0f'|format(s.score) }}{% if s.redenen %} · {{ s.redenen | join(', ') }}{% endif %}"
+            class="text-xs font-semibold px-2.5 py-1 rounded border transition-colors
+                   {% if s.score >= 65 %}bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100
+                   {% elif s.score >= 50 %}bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100
+                   {% else %}bg-gray-50 border-gray-200 text-gray-400 hover:bg-gray-100{% endif %}">
+            {{ s.shiftcode }}
+            <span class="font-normal opacity-60 ml-0.5">{{ '%.0f'|format(s.score) }}</span>
+        </button>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-xs text-gray-400">{{ t("planning.geen_kandidaten") }}</p>
+    {% endif %}
+</div>

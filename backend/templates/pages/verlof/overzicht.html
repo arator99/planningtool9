@@ -1,0 +1,129 @@
+{% extends "layouts/app.html" %}
+{% set actief_menu = "verlof_overzicht" %}
+
+{% block titel %}Verlof overzicht — Planning Tool{% endblock %}
+
+{% block inhoud %}
+
+<!-- Header met navigatie -->
+<div class="flex items-center justify-between mb-5">
+    <div class="flex items-center gap-4">
+        <a href="/verlof/overzicht?jaar={{ vorige.jaar }}&maand={{ vorige.maand }}"
+           class="p-2 rounded-lg border transition-colors"
+           style="border-color: var(--rand); color: var(--tekst-secundair); background: var(--achtergrond-widget);">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+        </a>
+        <h1 class="text-xl font-bold capitalize" style="color: var(--tekst);">{{ maand_naam }} {{ jaar }}</h1>
+        <a href="/verlof/overzicht?jaar={{ volgende.jaar }}&maand={{ volgende.maand }}"
+           class="p-2 rounded-lg border transition-colors"
+           style="border-color: var(--rand); color: var(--tekst-secundair); background: var(--achtergrond-widget);">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+        </a>
+    </div>
+    <div class="flex items-center gap-3 text-xs" style="color: var(--tekst-secundair);">
+        <span class="flex items-center gap-1">
+            <span class="inline-block w-3 h-3 rounded bg-yellow-200"></span> In behandeling
+        </span>
+        <span class="flex items-center gap-1">
+            <span class="inline-block w-3 h-3 rounded bg-green-200"></span> Goedgekeurd
+        </span>
+        <a href="/verlof" class="ml-2 text-sm font-medium" style="color: var(--primair);">← Aanvragen lijst</a>
+    </div>
+</div>
+
+<!-- Grid (horizontaal scrollbaar) -->
+<div class="rounded-xl border overflow-hidden overflow-x-auto" style="border-color: var(--rand); background: var(--achtergrond-widget);">
+    <table class="text-xs border-collapse" style="min-width: max-content;">
+        <thead>
+            <tr style="background: var(--grid-header); border-bottom: 1px solid var(--rand);">
+                <!-- Medewerker kolom (vast) -->
+                <th class="text-left px-3 py-2 font-medium sticky left-0 z-10 min-w-[160px]"
+                    style="color: var(--tekst-secundair); background: var(--grid-header);">
+                    Medewerker
+                </th>
+                <!-- Dag kolommen -->
+                {% for d in datums %}
+                {% set weekdag = d.weekday() %}
+                <th class="text-center py-2 w-8 font-medium
+                           {% if weekdag >= 5 %}opacity-60{% endif %}"
+                    style="color: var(--tekst-secundair); border-left: 1px solid var(--rand);">
+                    <div>{{ d.day }}</div>
+                    <div class="font-normal opacity-70">{{ ['Ma','Di','Wo','Do','Vr','Za','Zo'][weekdag] }}</div>
+                </th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for mw in medewerkers %}
+            {% set mw_verlof = verlof_per_dag.get(mw.id, {}) %}
+            <tr style="border-bottom: 1px solid var(--rand);">
+                <!-- Naam (sticky) -->
+                <td class="px-3 py-1.5 font-medium sticky left-0 z-10 whitespace-nowrap"
+                    style="color: var(--tekst); background: var(--achtergrond-widget);">
+                    {{ mw.volledige_naam or mw.gebruikersnaam }}
+                </td>
+                <!-- Verlof cellen -->
+                {% for d in datums %}
+                {% set datum_str = d.isoformat() %}
+                {% set status = mw_verlof.get(datum_str) %}
+                {% set weekdag = d.weekday() %}
+                <td class="text-center py-1.5 w-8"
+                    style="border-left: 1px solid var(--rand);
+                           {% if status == 'goedgekeurd' %}background: #dcfce7;
+                           {% elif status == 'pending' %}background: #fef9c3;
+                           {% elif weekdag >= 5 %}background: var(--hover-bg);
+                           {% endif %}">
+                    {% if status == 'goedgekeurd' %}
+                    <span class="text-green-700 font-bold">V</span>
+                    {% elif status == 'pending' %}
+                    <span class="text-yellow-600 font-bold">?</span>
+                    {% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="{{ datums | length + 1 }}" class="px-4 py-8 text-center" style="color: var(--tekst-secundair);">
+                    Geen actieve medewerkers gevonden.
+                </td>
+            </tr>
+            {% endfor %}
+
+            <!-- Capaciteitsrij -->
+            {% if medewerkers %}
+            <tr style="border-top: 2px solid var(--rand); background: var(--grid-header);">
+                <td class="px-3 py-1.5 font-semibold text-xs sticky left-0 z-10"
+                    style="color: var(--tekst-secundair); background: var(--grid-header);">
+                    Beschikbaar
+                </td>
+                {% set totaal = medewerkers | length %}
+                {% for d in datums %}
+                {% set datum_str = d.isoformat() %}
+                {% set afwezig = namespace(n=0) %}
+                {% for mw in medewerkers %}
+                    {% if verlof_per_dag.get(mw.id, {}).get(datum_str) == 'goedgekeurd' %}
+                        {% set afwezig.n = afwezig.n + 1 %}
+                    {% endif %}
+                {% endfor %}
+                {% set beschikbaar = totaal - afwezig.n %}
+                <td class="text-center py-1.5 w-8 font-medium tabular-nums"
+                    style="border-left: 1px solid var(--rand);
+                           color: {% if beschikbaar < totaal * 0.5 %}var(--fout){% else %}var(--tekst){% endif %};">
+                    {{ beschikbaar }}
+                </td>
+                {% endfor %}
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+
+<p class="mt-3 text-xs" style="color: var(--tekst-secundair);">
+    <strong>V</strong> = goedgekeurd verlof · <strong>?</strong> = in behandeling · Capaciteitsrij toont beschikbare medewerkers (excl. goedgekeurd verlof)
+</p>
+
+{% endblock %}

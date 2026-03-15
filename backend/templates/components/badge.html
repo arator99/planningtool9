@@ -1,0 +1,24 @@
+{#
+  Badge component
+  Parameters:
+    label    — tekst (verplicht)
+    variant  — 'primair' (default) | 'succes' | 'gevaar' | 'waarschuwing' | 'neutraal'
+    klasse   — extra CSS-klassen
+#}
+{% set _variant = variant | default('primair') %}
+
+{% if _variant == 'succes' %}
+  {% set _klassen = 'bg-succes-zacht text-succes' %}
+{% elif _variant == 'gevaar' %}
+  {% set _klassen = 'bg-gevaar-zacht text-gevaar' %}
+{% elif _variant == 'waarschuwing' %}
+  {% set _klassen = 'bg-waarschuwing-zacht text-waarschuwing' %}
+{% elif _variant == 'neutraal' %}
+  {% set _klassen = 'bg-oppervlak-hover text-tekst-zacht border border-rand' %}
+{% else %}
+  {% set _klassen = 'bg-primair-zacht text-primair' %}
+{% endif %}
+
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ _klassen }} {{ klasse | default('') }}">
+  {{ label }}
+</span>

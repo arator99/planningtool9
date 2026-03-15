@@ -1,0 +1,494 @@
+{% extends "layouts/app.html" %}
+{% set actief_menu = "planning" %}
+
+{% block titel %}Planning {{ maand_naam }} {{ jaar }} — Planning Tool{% endblock %}
+
+{% block inhoud %}
+
+<!-- Header -->
+<div class="flex items-center justify-between mb-5">
+    <div class="flex items-center gap-4">
+        <a href="/planning?jaar={{ vorige.jaar }}&maand={{ vorige.maand }}"
+           class="p-2 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+        </a>
+        <h1 class="text-xl font-bold text-gray-800 capitalize">{{ maand_naam }} {{ jaar }}</h1>
+        <a href="/planning?jaar={{ volgende.jaar }}&maand={{ volgende.maand }}"
+           class="p-2 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+        </a>
+    </div>
+
+    <div class="flex items-center gap-3">
+        <!-- Valideer knop -->
+        <button id="valideer-knop"
+                hx-get="/planning/valideer?jaar={{ jaar }}&maand={{ maand }}"
+                hx-target="#validatie-paneel"
+                hx-swap="innerHTML"
+                hx-indicator="#valideer-spinner"
+                class="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm font-medium px-3 py-1.5 rounded-lg shadow-sm transition-colors flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            {{ t("planning.valideer") }}
+            <svg id="valideer-spinner" class="htmx-indicator w-3.5 h-3.5 animate-spin text-gray-400"
+                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" stroke-width="3" stroke-opacity="0.25"/>
+                <path d="M12 2a10 10 0 0110 10" stroke-width="3"/>
+            </svg>
+        </button>
+
+        <!-- Batch auto-invullen -->
+        {% if not is_gepubliceerd %}
+        <form method="post" action="/planning/batch-auto"
+              onsubmit="return confirm('{{ t('planning.batch_auto_confirm') }}')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="jaar" value="{{ jaar }}">
+            <input type="hidden" name="maand" value="{{ maand }}">
+            <button type="submit"
+                    class="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm font-medium px-3 py-1.5 rounded-lg shadow-sm transition-colors flex items-center gap-1.5">
+                <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+                {{ t("planning.batch_auto") }}
+            </button>
+        </form>
+        {% endif %}
+
+        {% if shiftcodes_gegroepeerd %}
+        <button id="hud-toggle-knop" onclick="toggleHUD()"
+                class="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm font-medium px-3 py-1.5 rounded-lg shadow-sm transition-colors flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+            </svg>
+            Shiftcodes
+        </button>
+        {% endif %}
+
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium
+            {% if is_gepubliceerd %}bg-green-100 text-green-700{% else %}bg-yellow-100 text-yellow-700{% endif %}">
+            <span class="w-1.5 h-1.5 rounded-full {% if is_gepubliceerd %}bg-green-500{% else %}bg-yellow-500{% endif %}"></span>
+            {% if is_gepubliceerd %}Gepubliceerd{% else %}Concept{% endif %}
+        </span>
+
+        {% if not is_gepubliceerd %}
+        <form method="post" action="/planning/publiceer">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="jaar" value="{{ jaar }}">
+            <input type="hidden" name="maand" value="{{ maand }}">
+            <button type="submit"
+                    class="bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-4 py-1.5 rounded-lg transition-colors">
+                Publiceer
+            </button>
+        </form>
+        {% else %}
+        <form method="post" action="/planning/concept"
+              onsubmit="return confirm('Planning terugzetten naar concept?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="jaar" value="{{ jaar }}">
+            <input type="hidden" name="maand" value="{{ maand }}">
+            <button type="submit"
+                    class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium px-4 py-1.5 rounded-lg transition-colors">
+                Naar concept
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+{% if bericht == 'batch_klaar' %}
+<div class="mb-4 px-4 py-2.5 rounded-lg text-sm font-medium bg-green-50 text-green-700">
+    {{ t("planning.batch_klaar") }}{% if batch_aantal %} ({{ batch_aantal }}){% endif %}
+</div>
+{% elif fout %}
+<div class="mb-4 px-4 py-2.5 rounded-lg text-sm font-medium bg-red-50 text-red-700">
+    {{ t("fout." + fout) }}
+</div>
+{% endif %}
+
+{% if grid %}
+<div class="overflow-x-auto rounded-xl shadow-sm border border-gray-200">
+    <table class="border-collapse bg-white text-sm" id="planningtabel" style="min-width: max-content;">
+        <thead>
+            <tr class="bg-gray-50 border-b border-gray-200">
+                <th class="sticky left-0 z-10 bg-gray-50 text-left px-4 py-2 font-medium text-gray-600
+                           border-r border-gray-200 min-w-[160px]">Medewerker</th>
+                {% for dag in dag_info %}
+                <th class="text-center px-0 py-2 font-medium min-w-[44px] w-[44px]
+                           {% if dag.is_weekend %}text-blue-500 bg-blue-50{% else %}text-gray-500{% endif %}">
+                    <div class="text-xs leading-none">{{ dag.dag_naam }}</div>
+                    <div class="text-sm font-bold leading-tight">{{ dag.dag }}</div>
+                </th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for rij in grid %}
+            <tr class="border-b border-gray-100">
+                <td class="sticky left-0 z-10 bg-white px-4 py-0 font-medium text-gray-800
+                           border-r border-gray-200 whitespace-nowrap h-8">
+                    {{ rij.naam }}
+                </td>
+                {% for dag in dag_info %}
+                {% set shift = rij.shifts[dag.datum] %}
+                <td class="border-r border-gray-100 p-0 h-8
+                           {% if dag.is_weekend %}bg-blue-50/50{% endif %}">
+                    <input
+                        type="text"
+                        id="cel-{{ rij.id }}-{{ dag.datum }}"
+                        name="shift_code"
+                        value="{{ shift.code or '' }}"
+                        maxlength="10"
+                        data-uid="{{ rij.id }}"
+                        data-datum="{{ dag.datum }}"
+                        class="plancel w-full h-8 text-center text-xs font-semibold uppercase bg-transparent
+                               border-0 outline-none cursor-pointer
+                               focus:bg-blue-50 focus:ring-1 focus:ring-inset focus:ring-blue-400 focus:cursor-text
+                               {% if shift.code in ['N'] %}text-indigo-700
+                               {% elif shift.code in ['RXW', 'RXF', 'V'] %}text-gray-400
+                               {% else %}text-gray-700{% endif %}"
+                        hx-post="/planning/cel/{{ rij.id }}/{{ dag.datum }}"
+                        hx-trigger="change"
+                        hx-swap="none"
+                        hx-include="this"
+                        hx-vals='{"csrf_token": "{{ csrf_token }}"}'
+                        autocomplete="off"
+                        spellcheck="false"
+                        onfocus="celFocus(this)"
+                        {% if is_gepubliceerd %}readonly tabindex="-1"{% endif %}
+                    >
+                </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% else %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center text-gray-400">
+    <p class="text-lg font-medium mb-1">Geen medewerkers gevonden</p>
+    <p class="text-sm">Voeg eerst gebruikers toe via
+        <a href="/beheer/gebruikers" class="text-blue-600 hover:underline">Gebruikersbeheer</a>.
+    </p>
+</div>
+{% endif %}
+
+<!-- ================================================================ -->
+<!-- Reserves Paneel                                                   -->
+<!-- ================================================================ -->
+{% if reserves %}
+<div class="mt-5 rounded-xl border overflow-hidden" style="border-color: var(--rand); background: var(--achtergrond-widget);">
+    <button type="button" onclick="toggleReserves()"
+            class="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold"
+            style="color: var(--tekst);">
+        <span>Reserves
+            <span class="ml-1.5 text-xs font-normal px-2 py-0.5 rounded-full"
+                  style="background: #fef9c3; color: #854d0e;">{{ reserves | length }}</span>
+        </span>
+        <svg id="reserves-pijl" class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+    </button>
+    <div id="reserves-inhoud" class="hidden border-t" style="border-color: var(--rand);">
+        <table class="w-full text-xs">
+            <thead>
+                <tr style="background: var(--achtergrond-alt); border-bottom: 1px solid var(--rand);">
+                    <th class="text-left px-4 py-2 font-medium" style="color: var(--tekst-secundair);">Naam</th>
+                    <th class="text-left px-4 py-2 font-medium" style="color: var(--tekst-secundair);">Primaire groep</th>
+                    <th class="px-4 py-2"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for rv in reserves %}
+                <tr style="border-bottom: 1px solid var(--rand);">
+                    <td class="px-4 py-2 font-medium" style="color: var(--tekst);">{{ rv.volledige_naam or rv.gebruikersnaam }}</td>
+                    <td class="px-4 py-2 text-xs" style="color: var(--tekst-secundair);">
+                        {{ rv.groep.naam if rv.groep else '—' }}
+                    </td>
+                    <td class="px-4 py-2 text-right">
+                        <button type="button"
+                                hx-get="/planning/reserve/{{ rv.id }}/beschikbaarheid?jaar={{ jaar }}&maand={{ maand }}"
+                                hx-target="#reserve-detail-{{ rv.id }}"
+                                hx-swap="innerHTML"
+                                class="text-xs px-2 py-1 rounded border transition-colors"
+                                style="border-color: var(--rand); color: var(--tekst-secundair);">
+                            Beschikbaarheid
+                        </button>
+                    </td>
+                </tr>
+                <tr id="reserve-detail-{{ rv.id }}" style="border-bottom: 1px solid var(--rand);">
+                    <td colspan="3" class="px-4 py-0"></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- ================================================================ -->
+<!-- HR Validatie Paneel                                               -->
+<!-- ================================================================ -->
+<div id="validatie-paneel" class="mt-5">
+    <!-- Gevuld via HTMX na klik op "Valideer" -->
+</div>
+
+<!-- ================================================================ -->
+<!-- Suggestie Paneel                                                  -->
+<!-- ================================================================ -->
+<div id="suggestie-paneel" class="mt-3 hidden rounded-xl border border-blue-100 bg-white shadow-sm">
+    <!-- Gevuld via HTMX na cel-focus -->
+</div>
+
+<!-- ================================================================ -->
+<!-- Floating Shiftcode HUD                                            -->
+<!-- ================================================================ -->
+{% if shiftcodes_gegroepeerd %}
+<div id="shiftcode-hud"
+     class="hidden fixed z-50 bg-white rounded-xl shadow-xl border border-gray-200 select-none"
+     style="width: 320px; top: 80px; right: 24px;">
+
+    <!-- Titelbalk (drag handle) -->
+    <div id="hud-header"
+         class="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-200 rounded-t-xl cursor-move">
+        <span class="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+            </svg>
+            Shiftcodes
+        </span>
+        <button onclick="toggleHUD()" class="text-gray-400 hover:text-red-500 transition-colors text-lg leading-none">&times;</button>
+    </div>
+
+    <!-- Inhoud -->
+    <div class="overflow-y-auto rounded-b-xl" style="max-height: 480px;">
+        {% for groep in shiftcodes_gegroepeerd %}
+        <!-- Categorie header -->
+        <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wide border-b"
+             style="background-color: {{ groep.var_bg }}; color: {{ groep.var_tekst }}; border-color: rgba(0,0,0,0.08);">
+            {{ groep.naam }}
+        </div>
+        <!-- Code rijen -->
+        {% for sc in groep.codes %}
+        <div class="flex items-center px-3 py-1 text-xs border-b"
+             style="background-color: {{ groep.var_bg }}; border-color: rgba(0,0,0,0.04);"
+             title="{{ sc.code }}{% if sc.start_uur %} · {{ sc.start_uur }}–{{ sc.eind_uur }}{% endif %}">
+            <span class="font-bold w-14 shrink-0" style="color: {{ groep.var_tekst }};">{{ sc.code }}</span>
+            <span class="w-28 shrink-0 tabular-nums" style="color: {{ groep.var_tekst }}; opacity: 0.75;">
+                {% if sc.start_uur and sc.eind_uur %}{{ sc.start_uur }} – {{ sc.eind_uur }}
+                {% elif sc.start_uur %}{{ sc.start_uur }}
+                {% else %}—{% endif %}
+            </span>
+            <span class="truncate" style="color: var(--tekst-secundair);">{{ sc.werkpost.naam if sc.werkpost else '' }}</span>
+        </div>
+        {% endfor %}
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<script>
+(function () {
+    // ============================================================
+    // Planninggrid navigatie
+    // ============================================================
+    const tabel = document.getElementById('planningtabel');
+    if (!tabel) return;
+
+    const rijen = Array.from(tabel.querySelectorAll('tbody tr'));
+    const grid = rijen.map(tr => Array.from(tr.querySelectorAll('.plancel')));
+    const aantalRijen = grid.length;
+    const aantalKolommen = grid[0]?.length ?? 0;
+
+    function vindPositie(cel) {
+        for (let r = 0; r < aantalRijen; r++) {
+            const k = grid[r].indexOf(cel);
+            if (k !== -1) return [r, k];
+        }
+        return null;
+    }
+
+    function focusCel(r, k) {
+        if (r >= 0 && r < aantalRijen && k >= 0 && k < aantalKolommen) {
+            const cel = grid[r][k];
+            cel.focus();
+            cel.select();
+        }
+    }
+
+    document.addEventListener('keydown', function (e) {
+        const cel = e.target;
+        if (!cel.classList.contains('plancel')) return;
+        const pos = vindPositie(cel);
+        if (!pos) return;
+        let [r, k] = pos;
+        switch (e.key) {
+            case 'Tab':
+                e.preventDefault();
+                e.shiftKey ? focusCel(r, k - 1) : focusCel(r, k + 1);
+                break;
+            case 'ArrowRight':
+                if (cel.selectionStart === cel.value.length) { e.preventDefault(); focusCel(r, k + 1); }
+                break;
+            case 'ArrowLeft':
+                if (cel.selectionStart === 0) { e.preventDefault(); focusCel(r, k - 1); }
+                break;
+            case 'ArrowDown': case 'Enter':
+                e.preventDefault(); focusCel(r + 1, k);
+                break;
+            case 'ArrowUp':
+                e.preventDefault(); focusCel(r - 1, k);
+                break;
+            case 'Delete': case 'Backspace':
+                if (cel.value === '') { e.preventDefault(); cel.dispatchEvent(new Event('change', { bubbles: true })); }
+                break;
+        }
+    });
+
+    document.addEventListener('input', function (e) {
+        const cel = e.target;
+        if (!cel.classList.contains('plancel')) return;
+        cel.value = cel.value.toUpperCase();
+        pasKleurAan(cel);
+    });
+
+    function pasKleurAan(cel) {
+        const v = cel.value;
+        cel.classList.remove('text-indigo-700', 'text-gray-400', 'text-gray-700');
+        if (v === 'N') cel.classList.add('text-indigo-700');
+        else if (['RXW', 'RXF', 'V'].includes(v)) cel.classList.add('text-gray-400');
+        else cel.classList.add('text-gray-700');
+    }
+
+    document.body.addEventListener('htmx:afterRequest', function (e) {
+        const cel = e.detail.elt;
+        if (!cel.classList.contains('plancel')) return;
+        if (e.detail.successful) {
+            cel.classList.add('opgeslagen');
+            setTimeout(() => cel.classList.remove('opgeslagen'), 700);
+        }
+    });
+
+    // ============================================================
+    // Suggestie paneel
+    // ============================================================
+    let huidigeCel = null;
+    const suggestiePaneel = document.getElementById('suggestie-paneel');
+
+    window.celFocus = function (el) {
+        huidigeCel = el;
+        if (!suggestiePaneel) return;
+        const uid = el.dataset.uid;
+        const datum = el.dataset.datum;
+        if (!uid || !datum) return;
+        suggestiePaneel.classList.remove('hidden');
+        htmx.ajax('GET', `/planning/suggestie/${uid}/${datum}`, {
+            target: '#suggestie-paneel',
+            swap: 'innerHTML'
+        });
+    };
+
+    window.pasCodeToe = function (code) {
+        if (!huidigeCel) return;
+        huidigeCel.value = code;
+        huidigeCel.dispatchEvent(new Event('input', { bubbles: true }));
+        huidigeCel.dispatchEvent(new Event('change', { bubbles: true }));
+        huidigeCel.focus();
+        if (suggestiePaneel) suggestiePaneel.classList.add('hidden');
+    };
+
+    // ============================================================
+    // Reserves paneel toggle
+    // ============================================================
+    window.toggleReserves = function () {
+        const inhoud = document.getElementById('reserves-inhoud');
+        const pijl = document.getElementById('reserves-pijl');
+        if (!inhoud) return;
+        inhoud.classList.toggle('hidden');
+        if (pijl) pijl.style.transform = inhoud.classList.contains('hidden') ? '' : 'rotate(180deg)';
+    };
+
+    // ============================================================
+    // HUD toggle + drag
+    // ============================================================
+    const hud = document.getElementById('shiftcode-hud');
+    const hudHeader = document.getElementById('hud-header');
+
+    window.toggleHUD = function () {
+        if (!hud) return;
+        hud.classList.toggle('hidden');
+        const knop = document.getElementById('hud-toggle-knop');
+        if (knop) knop.classList.toggle('bg-indigo-50', !hud.classList.contains('hidden'));
+    };
+
+    if (hud && hudHeader) {
+        let sleepX = 0, sleepY = 0, startX = 0, startY = 0;
+
+        hudHeader.addEventListener('mousedown', function (e) {
+            e.preventDefault();
+            startX = e.clientX;
+            startY = e.clientY;
+            const rect = hud.getBoundingClientRect();
+            sleepX = startX - rect.left;
+            sleepY = startY - rect.top;
+
+            function beweeg(e) {
+                hud.style.left = (e.clientX - sleepX) + 'px';
+                hud.style.top  = (e.clientY - sleepY) + 'px';
+                hud.style.right = 'auto';
+            }
+            function stop() {
+                document.removeEventListener('mousemove', beweeg);
+                document.removeEventListener('mouseup', stop);
+            }
+            document.addEventListener('mousemove', beweeg);
+            document.addEventListener('mouseup', stop);
+        });
+    }
+})();
+</script>
+
+{% endblock %}
+
+{% block extra_head %}
+<style>
+    .plancel:read-only { opacity: 0.6; }
+    .plancel.opgeslagen {
+        background-color: #dcfce7 !important;
+        transition: background-color 0.6s ease;
+    }
+
+    /* HR Validatie cel-markers */
+    .plancel.cel-kritiek {
+        outline: 2px solid #ef4444 !important;
+        outline-offset: -2px;
+        background-color: #fef2f2 !important;
+    }
+    .plancel.cel-waarschuwing {
+        outline: 2px solid #f97316 !important;
+        outline-offset: -2px;
+        background-color: #fff7ed !important;
+    }
+    .plancel.cel-info {
+        outline: 2px solid #60a5fa !important;
+        outline-offset: -2px;
+        background-color: #eff6ff !important;
+    }
+
+    /* HTMX spinner standaard verborgen */
+    .htmx-indicator { display: none; }
+    .htmx-request .htmx-indicator { display: inline-block; }
+
+    /* Override dialog backdrop */
+    dialog::backdrop { background: rgba(0,0,0,0.4); }
+</style>
+{% endblock %}

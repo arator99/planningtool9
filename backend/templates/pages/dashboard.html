@@ -1,0 +1,224 @@
+{% extends "layouts/app.html" %}
+{% set actief_menu = "dashboard" %}
+
+{% block titel %}Dashboard — Planning Tool{% endblock %}
+
+{% block inhoud %}
+
+<!-- Welkomst header -->
+<div class="mb-6">
+    <h1 class="text-2xl font-bold" style="color: var(--tekst);">
+        {{ t("dashboard.welkom", naam=(gebruiker.volledige_naam or gebruiker.gebruikersnaam)) }}
+    </h1>
+    <p class="text-sm mt-1" style="color: var(--tekst-secundair);">{{ gebruiker.groep.naam }}</p>
+</div>
+
+<!-- Live widgets -->
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+
+    <!-- Ongelezen notities -->
+    <a href="/notities" class="flex items-center gap-4 p-4 rounded-xl border transition-colors hover:shadow-sm"
+       style="background: var(--achtergrond-widget); border-color: var(--rand);">
+        <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center">
+            <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+            </svg>
+        </div>
+        <div>
+            <p class="text-2xl font-bold tabular-nums" style="color: var(--tekst);">{{ ongelezen_notities }}</p>
+            <p class="text-xs" style="color: var(--tekst-secundair);">{{ t("nav.notities") }}</p>
+        </div>
+        {% if ongelezen_notities > 0 %}
+        <span class="ml-auto text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-700">Nieuw</span>
+        {% endif %}
+    </a>
+
+    <!-- Pending verlofaanvragen (voor planners/beheerder/hr) -->
+    {% if gebruiker.rol in ['beheerder', 'planner', 'hr'] %}
+    <a href="/verlof" class="flex items-center gap-4 p-4 rounded-xl border transition-colors hover:shadow-sm"
+       style="background: var(--achtergrond-widget); border-color: var(--rand);">
+        <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
+            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+            </svg>
+        </div>
+        <div>
+            <p class="text-2xl font-bold tabular-nums" style="color: var(--tekst);">{{ pending_verlof }}</p>
+            <p class="text-xs" style="color: var(--tekst-secundair);">{{ t("verlof.aanvragen_overzicht") }}</p>
+        </div>
+        {% if pending_verlof > 0 %}
+        <span class="ml-auto text-xs font-medium px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">{{ t("status.pending") }}</span>
+        {% endif %}
+    </a>
+    {% else %}
+    <!-- Verlof saldo link voor gewone gebruiker -->
+    <a href="/verlof/saldo" class="flex items-center gap-4 p-4 rounded-xl border transition-colors hover:shadow-sm"
+       style="background: var(--achtergrond-widget); border-color: var(--rand);">
+        <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
+            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
+        </div>
+        <div>
+            <p class="text-sm font-medium" style="color: var(--tekst);">{{ t("verlof.saldo_titel") }}</p>
+            <p class="text-xs" style="color: var(--tekst-secundair);">{{ t("nav.verlof") }}</p>
+        </div>
+    </a>
+    {% endif %}
+
+    <!-- Komende shifts -->
+    <div class="flex items-start gap-4 p-4 rounded-xl border"
+         style="background: var(--achtergrond-widget); border-color: var(--rand);">
+        <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
+        </div>
+        <div class="flex-1 min-w-0">
+            <p class="text-xs font-medium mb-2" style="color: var(--tekst-secundair);">{{ t("planning.mijn_planning") }} — komende 7 dagen</p>
+            {% if komende_shifts %}
+            <div class="flex flex-col gap-1">
+                {% for shift in komende_shifts[:5] %}
+                <div class="flex items-center justify-between">
+                    <span class="text-xs tabular-nums" style="color: var(--tekst-secundair);">
+                        {{ shift.datum.strftime('%a %d/%m') }}
+                    </span>
+                    <span class="text-xs font-bold font-mono px-1.5 py-0.5 rounded"
+                          style="background: var(--hover-bg); color: var(--primair);">
+                        {{ shift.shift_code }}
+                    </span>
+                </div>
+                {% endfor %}
+                {% if komende_shifts | length > 5 %}
+                <p class="text-xs" style="color: var(--tekst-secundair);">+{{ komende_shifts | length - 5 }} meer</p>
+                {% endif %}
+            </div>
+            {% else %}
+            <p class="text-xs" style="color: var(--tekst-secundair);">{{ t("planning.geen_shifts") }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+
+<!-- Moduletegels -->
+<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+
+    {% macro tegel(titel, omschrijving, url, kleur, icoon, beschikbaar=True) %}
+    {% if beschikbaar %}
+    <a href="{{ url }}"
+       class="rounded-xl shadow-sm border p-5
+              hover:shadow-md hover:-translate-y-0.5
+              transition-all duration-150 group"
+       style="background: var(--achtergrond-widget); border-color: var(--rand);">
+    {% else %}
+    <div class="rounded-xl shadow-sm border p-5 opacity-50 cursor-not-allowed"
+         style="background: var(--achtergrond-widget); border-color: var(--rand);">
+    {% endif %}
+        <div class="inline-flex items-center justify-center w-10 h-10
+                    bg-{{ kleur }}-100 rounded-lg mb-3 group-hover:bg-{{ kleur }}-200 transition-colors duration-150">
+            {{ icoon | safe }}
+        </div>
+        <div class="text-sm font-semibold" style="color: var(--tekst);">{{ titel }}</div>
+        <div class="text-xs mt-0.5" style="color: var(--tekst-secundair);">{{ omschrijving }}</div>
+        {% if not beschikbaar %}
+        <div class="text-xs mt-1 italic" style="color: var(--tekst-secundair); opacity: 0.6;">
+            {{ t("dashboard.binnenkort") }}
+        </div>
+        {% endif %}
+    {% if beschikbaar %}</a>{% else %}</div>{% endif %}
+    {% endmacro %}
+
+    {% set icoon_planning %}
+    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+    </svg>
+    {% endset %}
+
+    {% set icoon_verlof %}
+    <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+    </svg>
+    {% endset %}
+
+    {% set icoon_gebruikers %}
+    <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+    </svg>
+    {% endset %}
+
+    {% set icoon_hr %}
+    <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+    </svg>
+    {% endset %}
+
+    {% set icoon_shiftcodes %}
+    <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+    </svg>
+    {% endset %}
+
+    {% set icoon_rapporten %}
+    <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+    </svg>
+    {% endset %}
+
+    {% set icoon_notities %}
+    <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+    </svg>
+    {% endset %}
+
+    {% set icoon_instellingen %}
+    <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+    </svg>
+    {% endset %}
+
+    <!-- Tegels zichtbaar per rol -->
+
+    {% if gebruiker.rol in ['beheerder', 'planner'] %}
+    {{ tegel(t("nav.planning"), t("dashboard.planning_omschrijving"), "/planning", "blue", icoon_planning) }}
+    {% endif %}
+
+    {{ tegel(t("nav.verlof"), t("dashboard.verlof_omschrijving"), "/verlof", "green", icoon_verlof) }}
+
+    {% if gebruiker.rol == 'beheerder' %}
+    {{ tegel(t("nav.gebruikers"), t("dashboard.gebruikers_omschrijving"), "/beheer/gebruikers", "purple", icoon_gebruikers) }}
+    {% endif %}
+
+    {% if gebruiker.rol in ['beheerder', 'planner'] %}
+    {{ tegel(t("nav.shiftcodes"), t("dashboard.shiftcodes_omschrijving"), "/shiftcodes", "indigo", icoon_shiftcodes) }}
+    {% endif %}
+
+    {% if gebruiker.rol in ['beheerder', 'hr'] %}
+    {{ tegel(t("nav.hr"), t("dashboard.hr_omschrijving"), "/hr", "orange", icoon_hr) }}
+    {% endif %}
+
+    {% if gebruiker.rol in ['beheerder', 'planner', 'hr'] %}
+    {{ tegel(t("nav.rapporten"), t("dashboard.rapporten_omschrijving"), "/rapporten", "teal", icoon_rapporten) }}
+    {% endif %}
+
+    {{ tegel(t("nav.notities"), t("dashboard.notities_omschrijving"), "/notities", "yellow", icoon_notities) }}
+
+    {% if gebruiker.rol == 'beheerder' %}
+    {{ tegel(t("nav.instellingen"), t("dashboard.instellingen_omschrijving"), "/instellingen", "gray", icoon_instellingen) }}
+    {% endif %}
+
+</div>
+{% endblock %}

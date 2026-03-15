@@ -1,0 +1,209 @@
+{% extends "layouts/app.html" %}
+{% set actief_menu = "rapporten" %}
+
+{% block titel %}Rapporten — Planning Tool{% endblock %}
+
+{% block extra_head %}
+<style>
+.grid-cel {
+    font-size: 0.7rem;
+    text-align: center;
+    padding: 2px 1px;
+    white-space: nowrap;
+    min-width: 28px;
+}
+.grid-weekend { background: var(--grid-weekend, #f9fafb); }
+.grid-header-dag { font-size: 0.65rem; text-align: center; padding: 2px 1px; }
+@media print {
+    nav, .geen-print { display: none !important; }
+    body { background: white !important; }
+    .print-break { page-break-before: always; }
+}
+</style>
+{% endblock %}
+
+{% block inhoud %}
+
+<div class="flex items-center justify-between mb-6">
+    <div class="flex items-center gap-3 flex-wrap">
+        <h1 class="text-xl font-bold" style="color: var(--tekst);">{{ t("rapport.titel") }}</h1>
+        <a href="/rapporten/balans"
+           class="text-sm px-3 py-1 rounded-lg border transition-colors"
+           style="border-color: var(--rand); color: var(--tekst-secundair);">
+            {{ t("balans.titel") }} &rarr;
+        </a>
+        <a href="/rapporten/compliance?jaar={{ geselecteerd_jaar }}&maand={{ geselecteerd_maand }}"
+           class="text-sm px-3 py-1 rounded-lg border transition-colors"
+           style="border-color: var(--rand); color: var(--tekst-secundair);">
+            {{ t("rapport.compliance") }} &rarr;
+        </a>
+        <a href="/rapporten/overrides?jaar={{ geselecteerd_jaar }}&maand={{ geselecteerd_maand }}"
+           class="text-sm px-3 py-1 rounded-lg border transition-colors"
+           style="border-color: var(--rand); color: var(--tekst-secundair);">
+            {{ t("rapport.overrides") }} &rarr;
+        </a>
+        <a href="/rapporten/medewerkers"
+           class="text-sm px-3 py-1 rounded-lg border transition-colors"
+           style="border-color: var(--rand); color: var(--tekst-secundair);">
+            {{ t("rapport.medewerkers") }} &rarr;
+        </a>
+    </div>
+    <div class="geen-print flex items-center gap-2">
+        <a href="/rapporten/maandplanning/csv?jaar={{ geselecteerd_jaar }}&maand={{ geselecteerd_maand }}"
+           class="text-sm font-medium px-4 py-1.5 rounded-lg border transition-colors"
+           style="border-color: var(--rand); color: var(--tekst-secundair);">
+            {{ t("rapport.exporteer_csv") }}
+        </a>
+        <a href="/rapporten/maandplanning/excel?jaar={{ geselecteerd_jaar }}&maand={{ geselecteerd_maand }}"
+           class="text-sm font-medium px-4 py-1.5 rounded-lg border transition-colors"
+           style="border-color: var(--succes); color: var(--succes);">
+            {{ t("rapport.excel_download") }}
+        </a>
+        <button onclick="window.print()"
+                class="text-sm font-medium text-white px-4 py-1.5 rounded-lg transition-colors"
+                style="background: var(--primair);"
+                onmouseover="this.style.background='var(--primair-hover)'"
+                onmouseout="this.style.background='var(--primair)'">
+            {{ t("rapport.afdrukken") }}
+        </button>
+    </div>
+</div>
+
+{% if bericht %}
+<div class="mb-4 px-4 py-2.5 rounded-lg text-sm font-medium" style="background: var(--msg-succes-bg); color: var(--succes);">
+    {{ bericht }}
+</div>
+{% endif %}
+
+<!-- Filter balk -->
+<div class="geen-print flex items-center gap-3 mb-6 p-4 rounded-xl border" style="border-color: var(--rand); background: var(--achtergrond-widget);">
+    <form method="get" action="/rapporten/maandplanning" class="flex items-center gap-3 flex-wrap">
+        <label class="text-sm font-medium" style="color: var(--tekst);">{{ t("algemeen.maand") }}</label>
+        <select name="maand"
+                class="text-sm rounded-lg border px-3 py-1.5 outline-none"
+                style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
+            {% for nr, naam in maand_namen.items() %}
+            <option value="{{ nr }}" {% if nr == geselecteerd_maand %}selected{% endif %}>{{ naam }}</option>
+            {% endfor %}
+        </select>
+        <select name="jaar"
+                class="text-sm rounded-lg border px-3 py-1.5 outline-none"
+                style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
+            {% for j in jaren %}
+            <option value="{{ j }}" {% if j == geselecteerd_jaar %}selected{% endif %}>{{ j }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit"
+                class="text-sm font-medium px-4 py-1.5 rounded-lg text-white transition-colors"
+                style="background: var(--primair);"
+                onmouseover="this.style.background='var(--primair-hover)'"
+                onmouseout="this.style.background='var(--primair)'">
+            {{ t("algemeen.tonen") }}
+        </button>
+    </form>
+</div>
+
+<!-- ── MAANDPLANNING GRID ── -->
+<section class="mb-10">
+    <h2 class="text-base font-semibold mb-3" style="color: var(--tekst);">
+        {{ t("rapport.maandgrid") }} — {{ maand_namen[geselecteerd_maand] }} {{ geselecteerd_jaar }}
+    </h2>
+
+    {% if planning_data.grid %}
+    <div class="rounded-xl shadow-sm border overflow-x-auto" style="border-color: var(--rand); background: var(--achtergrond-widget);">
+        <table class="border-collapse text-xs" style="min-width: max-content;">
+            <thead>
+                <tr style="background: var(--grid-header); border-bottom: 1px solid var(--rand);">
+                    <th class="text-left px-3 py-2 font-medium text-sm sticky left-0 z-10"
+                        style="background: var(--grid-header); color: var(--tekst-secundair); min-width: 140px;">
+                        {{ t("balans.medewerker") }}
+                    </th>
+                    {% for dag in planning_data.dag_info %}
+                    <th class="grid-header-dag font-medium border-l"
+                        style="color: {% if dag.is_weekend %}var(--tekst-secundair){% else %}var(--tekst){% endif %};
+                               border-color: var(--rand);
+                               {% if dag.is_weekend %}background: var(--grid-weekend, rgba(0,0,0,0.03));{% endif %}">
+                        <div>{{ dag.dag_naam[:2] }}</div>
+                        <div>{{ dag.dag }}</div>
+                    </th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for rij in planning_data.grid %}
+                <tr class="border-b" style="border-color: var(--rand);">
+                    <td class="px-3 py-1.5 text-sm font-medium sticky left-0 z-10 border-r"
+                        style="background: var(--achtergrond-widget); color: var(--tekst); border-color: var(--rand);">
+                        {{ rij.naam }}
+                    </td>
+                    {% for shift in rij.shifts %}
+                    {% set dag = planning_data.dag_info[loop.index0] %}
+                    <td class="grid-cel border-l"
+                        style="border-color: var(--rand);
+                               {% if dag.is_weekend %}background: var(--grid-weekend, rgba(0,0,0,0.02));{% endif %}
+                               color: var(--tekst-secundair);">
+                        {{ shift or '' }}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="rounded-xl border p-8 text-center" style="border-color: var(--rand); background: var(--achtergrond-widget); color: var(--tekst-secundair);">
+        {{ t("algemeen.geen_resultaten") }}
+    </div>
+    {% endif %}
+</section>
+
+<!-- ── VERLOF OVERZICHT ── -->
+<section class="print-break">
+    <h2 class="text-base font-semibold mb-3" style="color: var(--tekst);">
+        {{ t("rapport.verlofoverzicht") }} — {{ geselecteerd_jaar }}
+    </h2>
+
+    {% if verlof_data %}
+    <div class="rounded-xl shadow-sm border overflow-hidden" style="border-color: var(--rand); background: var(--achtergrond-widget);">
+        <table class="w-full text-sm border-collapse">
+            <thead>
+                <tr style="background: var(--grid-header); border-bottom: 1px solid var(--rand);">
+                    <th class="text-left px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">{{ t("balans.medewerker") }}</th>
+                    <th class="text-left px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">{{ t("verlof.periode") }}</th>
+                    <th class="text-center px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">{{ t("verlof.dagen") }}</th>
+                    <th class="text-left px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">{{ t("algemeen.opmerking") }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for medewerker in verlof_data %}
+                    {% for a in medewerker.aanvragen %}
+                    <tr class="border-b" style="border-color: var(--rand);">
+                        {% if loop.first %}
+                        <td class="px-4 py-2.5 font-medium align-top" rowspan="{{ medewerker.aanvragen | length }}"
+                            style="color: var(--tekst); border-right: 1px solid var(--rand);">
+                            {{ medewerker.naam }}
+                            <div class="text-xs font-normal mt-0.5" style="color: var(--tekst-secundair);">
+                                Totaal: {{ medewerker.totaal_dagen }} dag{{ 'en' if medewerker.totaal_dagen != 1 else '' }}
+                            </div>
+                        </td>
+                        {% endif %}
+                        <td class="px-4 py-2.5 tabular-nums" style="color: var(--tekst);">
+                            {{ a.start_datum.strftime('%d/%m/%Y') }}
+                            {% if a.start_datum != a.eind_datum %}– {{ a.eind_datum.strftime('%d/%m/%Y') }}{% endif %}
+                        </td>
+                        <td class="px-4 py-2.5 text-center tabular-nums" style="color: var(--tekst);">{{ a.aantal_dagen }}</td>
+                        <td class="px-4 py-2.5 max-w-xs truncate" style="color: var(--tekst-secundair);">{{ a.opmerking or '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="rounded-xl border p-8 text-center" style="border-color: var(--rand); background: var(--achtergrond-widget); color: var(--tekst-secundair);">
+        {{ t("algemeen.geen_resultaten") }}
+    </div>
+    {% endif %}
+</section>
+
+{% endblock %}

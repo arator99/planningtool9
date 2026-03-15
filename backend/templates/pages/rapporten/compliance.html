@@ -1,0 +1,122 @@
+{% extends "layouts/app.html" %}
+{% set actief_menu = "rapporten" %}
+
+{% block titel %}{{ t("rapport.compliance") }} — Planning Tool{% endblock %}
+
+{% block inhoud %}
+
+<div class="flex items-center justify-between mb-6">
+    <div class="flex items-center gap-3">
+        <a href="/rapporten" class="text-sm" style="color: var(--tekst-secundair);">&larr; {{ t("rapport.titel") }}</a>
+        <span style="color: var(--rand);">/</span>
+        <h1 class="text-xl font-bold" style="color: var(--tekst);">{{ t("rapport.compliance") }}</h1>
+    </div>
+</div>
+
+<!-- Filter balk -->
+<div class="flex items-center gap-3 mb-6 p-4 rounded-xl border"
+     style="border-color: var(--rand); background: var(--achtergrond-widget);">
+    <form method="get" action="/rapporten/compliance" class="flex items-center gap-3 flex-wrap">
+        <label class="text-sm font-medium" style="color: var(--tekst);">{{ t("algemeen.maand") }}</label>
+        <select name="maand"
+                class="text-sm rounded-lg border px-3 py-1.5 outline-none"
+                style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
+            {% for nr, naam in maand_namen.items() %}
+            <option value="{{ nr }}" {% if nr == geselecteerd_maand %}selected{% endif %}>{{ naam }}</option>
+            {% endfor %}
+        </select>
+        <select name="jaar"
+                class="text-sm rounded-lg border px-3 py-1.5 outline-none"
+                style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
+            {% for j in jaren %}
+            <option value="{{ j }}" {% if j == geselecteerd_jaar %}selected{% endif %}>{{ j }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit"
+                class="text-sm font-medium px-4 py-1.5 rounded-lg text-white"
+                style="background: var(--primair);"
+                onmouseover="this.style.background='var(--primair-hover)'"
+                onmouseout="this.style.background='var(--primair)'">
+            {{ t("algemeen.tonen") }}
+        </button>
+    </form>
+</div>
+
+<!-- Samenvatting tellers -->
+{% if fouten %}
+{% set n_critical = fouten | selectattr("ernst", "equalto", "CRITICAL") | list | length %}
+{% set n_warning  = fouten | selectattr("ernst", "equalto", "WARNING")  | list | length %}
+{% set n_info     = fouten | selectattr("ernst", "equalto", "INFO")     | list | length %}
+<div class="flex items-center gap-4 mb-5">
+    <span class="px-3 py-1.5 rounded-lg text-sm font-medium bg-red-100 text-red-700">
+        {{ n_critical }} Kritiek
+    </span>
+    <span class="px-3 py-1.5 rounded-lg text-sm font-medium bg-yellow-100 text-yellow-700">
+        {{ n_warning }} Waarschuwing
+    </span>
+    <span class="px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-100 text-blue-700">
+        {{ n_info }} Info
+    </span>
+    <span class="text-sm" style="color: var(--tekst-secundair);">
+        {{ fouten | length }} overtredingen — {{ maand_namen[geselecteerd_maand] }} {{ geselecteerd_jaar }}
+    </span>
+</div>
+{% endif %}
+
+<!-- Compliance tabel -->
+<section>
+    {% if fouten %}
+    <div class="rounded-xl shadow-sm border overflow-x-auto" style="border-color: var(--rand); background: var(--achtergrond-widget);">
+        <table class="w-full text-sm border-collapse">
+            <thead>
+                <tr style="background: var(--grid-header); border-bottom: 1px solid var(--rand);">
+                    <th class="text-left px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">{{ t("balans.medewerker") }}</th>
+                    <th class="text-left px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">{{ t("algemeen.datum") }}</th>
+                    <th class="text-left px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">Validator</th>
+                    <th class="text-center px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">{{ t("hr.ernst") }}</th>
+                    <th class="text-left px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">Bericht</th>
+                    <th class="text-center px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">Override</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for f in fouten %}
+                <tr class="border-b" style="border-color: var(--rand);">
+                    <td class="px-4 py-2.5 font-medium" style="color: var(--tekst);">
+                        {% if f.gebruiker_id == 0 %}(Dag-niveau){% else %}{{ f.gebruiker_naam }}{% endif %}
+                    </td>
+                    <td class="px-4 py-2.5 tabular-nums" style="color: var(--tekst);">
+                        {{ f.datum.strftime('%d/%m/%Y') }}
+                    </td>
+                    <td class="px-4 py-2.5 font-mono text-xs" style="color: var(--tekst-secundair);">
+                        {{ f.validator_code }}
+                    </td>
+                    <td class="px-4 py-2.5 text-center">
+                        {% if f.ernst == "CRITICAL" %}
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700">Kritiek</span>
+                        {% elif f.ernst == "WARNING" %}
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">Waarschuwing</span>
+                        {% else %}
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">Info</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-2.5 max-w-sm" style="color: var(--tekst-secundair);">{{ f.bericht }}</td>
+                    <td class="px-4 py-2.5 text-center text-xs" style="color: var(--tekst-secundair);">
+                        {% if f.heeft_override %}
+                        <span class="px-2 py-0.5 rounded bg-orange-100 text-orange-700 font-medium">Ja</span>
+                        {% else %}—{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="rounded-xl border p-12 text-center"
+         style="border-color: var(--rand); background: var(--achtergrond-widget); color: var(--tekst-secundair);">
+        <p class="text-lg font-medium mb-1" style="color: var(--succes);">Geen overtredingen</p>
+        <p class="text-sm">{{ maand_namen[geselecteerd_maand] }} {{ geselecteerd_jaar }} is volledig compliant.</p>
+    </div>
+    {% endif %}
+</section>
+
+{% endblock %}

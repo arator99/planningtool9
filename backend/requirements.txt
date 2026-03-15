@@ -1,0 +1,20 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+sqlalchemy>=2.0,<3.0
+alembic==1.13.3
+pydantic>=2.0,<3.0
+pydantic-settings==2.5.2
+PyJWT==2.8.0
+argon2-cffi==23.1.0
+bcrypt==4.0.1
+# bcrypt: read-only voor legacy v0.7/v0.8 hash-verificatie tijdens migratie.
+# Verwijderen 60 dagen na go-live zodra alle hashes argon2 zijn.
+python-multipart==0.0.9
+jinja2==3.1.4
+aiofiles==23.2.1
+slowapi==0.1.9
+itsdangerous==2.2.0
+psycopg2-binary==2.9.9
+pyotp==2.9.0
+markdown==3.7
+openpyxl==3.1.5

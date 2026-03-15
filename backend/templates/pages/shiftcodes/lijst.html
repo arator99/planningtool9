@@ -1,0 +1,132 @@
+{% extends "layouts/app.html" %}
+{% set actief_menu = "shiftcodes" %}
+
+{% block titel %}Shiftcodes — Planning Tool{% endblock %}
+
+{% block inhoud %}
+
+<div class="flex items-center justify-between mb-6">
+    <h1 class="text-xl font-bold" style="color: var(--tekst);">Shiftcodes</h1>
+    <a href="/shiftcodes/nieuw"
+       class="text-sm font-medium text-white px-4 py-1.5 rounded-lg transition-colors"
+       style="background: var(--primair);"
+       onmouseover="this.style.background='var(--primair-hover)'"
+       onmouseout="this.style.background='var(--primair)'">
+        + Nieuwe shiftcode
+    </a>
+</div>
+
+{% if bericht %}
+<div class="mb-4 px-4 py-2.5 rounded-lg text-sm font-medium" style="background: var(--msg-succes-bg); color: var(--succes);">{{ bericht }}</div>
+{% endif %}
+{% if fout %}
+<div class="mb-4 px-4 py-2.5 rounded-lg text-sm font-medium" style="background: var(--msg-fout-bg); color: var(--fout);">{{ fout }}</div>
+{% endif %}
+
+<!-- Zoekbalk -->
+<div class="mb-4">
+    <input type="text" id="shiftcode-zoek"
+           placeholder="Zoeken op code of naam..."
+           class="w-full text-sm rounded-lg border px-4 py-2 outline-none"
+           style="border-color: var(--rand); background: var(--achtergrond-widget); color: var(--tekst);"
+           oninput="filterShiftcodes(this.value)">
+</div>
+
+{% set type_labels = {"vroeg": "Vroege Dienst", "laat": "Late Dienst", "nacht": "Nachtdienst", "dag": "Dagdienst", "rust": "Rust / Verlof", "overig": "Overig"} %}
+{% set type_vars = {"vroeg": "--grid-vroeg", "laat": "--grid-laat", "nacht": "--grid-nacht", "dag": "--grid-dag", "rust": "--grid-rust", "overig": "--grid-standby"} %}
+{% set type_tekst = {"vroeg": "--grid-vroeg-tekst", "laat": "--grid-laat-tekst", "nacht": "--grid-nacht-tekst", "dag": "--grid-dag-tekst", "rust": "--grid-rust-tekst", "overig": "--grid-standby-tekst"} %}
+
+{% set volgorde = ["vroeg", "laat", "nacht", "dag", "rust", "overig"] %}
+
+{% if gegroepeerd %}
+<div class="space-y-4">
+    {% for type_key in volgorde %}
+    {% if type_key in gegroepeerd %}
+    {% set codes = gegroepeerd[type_key] %}
+    {% set bg_var = type_vars[type_key] %}
+    {% set tekst_var = type_tekst[type_key] %}
+
+    <div class="rounded-xl shadow-sm border overflow-hidden" style="border-color: var(--rand);">
+        <!-- Categorie header -->
+        <div class="px-4 py-2 text-xs font-bold uppercase tracking-wide"
+             style="background: var({{ bg_var }}); color: var({{ tekst_var }});">
+            {{ type_labels[type_key] }} <span class="font-normal opacity-70">({{ codes|length }})</span>
+        </div>
+        <table class="w-full text-sm border-collapse" style="background: var(--achtergrond-widget);">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--rand);">
+                    <th class="text-left px-4 py-2 font-medium w-24" style="color: var(--tekst-secundair);">Code</th>
+                    <th class="text-left px-4 py-2 font-medium w-32" style="color: var(--tekst-secundair);">Tijden</th>
+                    <th class="text-left px-4 py-2 font-medium" style="color: var(--tekst-secundair);">Dagtype</th>
+                    <th class="text-left px-4 py-2 font-medium" style="color: var(--tekst-secundair);">Werkpost</th>
+                    <th class="text-center px-4 py-2 font-medium w-20" style="color: var(--tekst-secundair);">Kritisch</th>
+                    <th class="px-4 py-2 w-28"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sc in codes %}
+                <tr class="border-b" style="border-color: var(--rand);">
+                    <td class="px-4 py-2 font-bold" style="color: var(--tekst);">{{ sc.code }}</td>
+                    <td class="px-4 py-2 tabular-nums" style="color: var(--tekst);">
+                        {% if sc.start_uur and sc.eind_uur %}{{ sc.start_uur }} – {{ sc.eind_uur }}
+                        {% elif sc.start_uur %}{{ sc.start_uur }}
+                        {% else %}<span style="color: var(--tekst-secundair);">—</span>{% endif %}
+                    </td>
+                    <td class="px-4 py-2" style="color: var(--tekst-secundair);">{{ sc.dag_type or '—' }}</td>
+                    <td class="px-4 py-2" style="color: var(--tekst-secundair);">{{ sc.werkpost.naam if sc.werkpost else '—' }}</td>
+                    <td class="px-4 py-2 text-center">
+                        {% if sc.is_kritisch %}
+                        <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-700">ja</span>
+                        {% else %}
+                        <span style="color: var(--tekst-secundair);">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-2 text-right whitespace-nowrap">
+                        <a href="/shiftcodes/{{ sc.id }}/bewerk"
+                           class="text-xs font-medium px-2.5 py-1 rounded-md transition-colors mr-1"
+                           style="background: var(--hover-bg); color: var(--tekst-secundair);">
+                            Bewerk
+                        </a>
+                        {% if gebruiker.rol == 'beheerder' %}
+                        <form method="post" action="/shiftcodes/{{ sc.id }}/verwijder" class="inline"
+                              onsubmit="return confirm('Shiftcode {{ sc.code }} verwijderen?')">
+                            <button type="submit"
+                                    class="text-xs font-medium px-2.5 py-1 rounded-md bg-red-50 text-red-500 hover:bg-red-100 transition-colors">
+                                Verwijder
+                            </button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+    {% endfor %}
+</div>
+
+{% else %}
+<div class="rounded-xl border p-12 text-center" style="border-color: var(--rand); background: var(--achtergrond-widget); color: var(--tekst-secundair);">
+    <p class="text-lg font-medium mb-1">Geen shiftcodes</p>
+    <p class="text-sm"><a href="/shiftcodes/nieuw" style="color: var(--primair);" class="hover:underline">Voeg een eerste shiftcode toe</a>.</p>
+</div>
+{% endif %}
+
+<script>
+function filterShiftcodes(zoek) {
+    const lc = zoek.toLowerCase();
+    document.querySelectorAll('.space-y-4 > div').forEach(sectie => {
+        let zichtbaar = 0;
+        sectie.querySelectorAll('tbody tr').forEach(tr => {
+            const code = (tr.querySelector('td:first-child')?.textContent || '').toLowerCase();
+            const toon = code.includes(lc);
+            tr.style.display = toon ? '' : 'none';
+            if (toon) zichtbaar++;
+        });
+        sectie.style.display = zichtbaar > 0 ? '' : 'none';
+    });
+}
+</script>
+
+{% endblock %}

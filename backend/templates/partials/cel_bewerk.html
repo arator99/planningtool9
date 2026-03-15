@@ -1,0 +1,45 @@
+<td id="cel-{{ cel_gebruiker_id }}-{{ datum }}"
+    class="border-2 border-blue-400 bg-blue-50 p-1 min-w-[48px] align-top">
+    <form hx-post="/planning/cel/{{ cel_gebruiker_id }}/{{ datum }}"
+          hx-target="#cel-{{ cel_gebruiker_id }}-{{ datum }}"
+          hx-swap="outerHTML"
+          class="flex flex-col gap-1">
+
+        <!-- Snelknoppen voor bekende shiftcodes -->
+        {% if shiftcodes %}
+        <div class="flex flex-wrap gap-0.5 mb-1">
+            {% for sc in shiftcodes %}
+            <button type="submit" name="shift_code" value="{{ sc.code }}"
+                    class="text-xs px-1.5 py-0.5 rounded font-medium
+                           {% if sc.code == huidige_code %}bg-blue-600 text-white
+                           {% else %}bg-white border border-gray-300 text-gray-700 hover:bg-gray-100{% endif %}">
+                {{ sc.code }}
+            </button>
+            {% endfor %}
+            <button type="submit" name="shift_code" value=""
+                    class="text-xs px-1.5 py-0.5 rounded font-medium bg-red-50 border border-red-200 text-red-600 hover:bg-red-100"
+                    title="Wis cel">✕</button>
+        </div>
+        {% endif %}
+
+        <!-- Vrij invoerveld -->
+        <div class="flex gap-1">
+            <input type="text" name="shift_code"
+                   value="{{ huidige_code or '' }}"
+                   maxlength="10"
+                   class="w-16 text-xs border border-gray-300 rounded px-1 py-0.5 uppercase
+                          focus:outline-none focus:ring-1 focus:ring-blue-500"
+                   placeholder="code"
+                   autofocus>
+            <button type="submit"
+                    class="text-xs px-1.5 py-0.5 bg-blue-600 text-white rounded hover:bg-blue-700">✓</button>
+        </div>
+
+        <!-- Annuleer -->
+        <button type="button"
+                hx-get="/planning/cel/{{ cel_gebruiker_id }}/{{ datum }}/annuleer"
+                hx-target="#cel-{{ cel_gebruiker_id }}-{{ datum }}"
+                hx-swap="outerHTML"
+                class="text-xs text-gray-400 hover:text-gray-600 text-left">annuleer</button>
+    </form>
+</td>

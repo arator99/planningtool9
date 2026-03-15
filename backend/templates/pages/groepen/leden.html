@@ -1,0 +1,135 @@
+{% extends "layouts/app.html" %}
+{% set actief_menu = "beheer" %}
+
+{% block titel %}{{ groep.naam }} — Leden beheren — Planning Tool{% endblock %}
+
+{% block inhoud %}
+<div class="flex items-center gap-4 mb-6">
+    <a href="/groepen" class="text-sm" style="color: var(--tekst-secundair);">← Groepen</a>
+    <h1 class="text-2xl font-bold" style="color: var(--tekst);">{{ groep.naam }} <span class="text-base font-normal font-mono" style="color: var(--tekst-secundair);">({{ groep.code }})</span></h1>
+</div>
+
+{% if request.query_params.get('fout') %}
+<div class="mb-4 px-4 py-2.5 rounded-lg text-sm" style="background: var(--msg-fout-bg); color: var(--fout);">
+    Gebruiker niet gevonden.
+</div>
+{% endif %}
+
+<!-- Huidige leden tabel -->
+<div class="rounded-xl border overflow-hidden mb-6" style="border-color: var(--rand); background: var(--achtergrond-widget);">
+    <div class="px-4 py-3 border-b font-semibold text-sm" style="border-color: var(--rand); color: var(--tekst);">
+        Huidige leden
+    </div>
+    <table class="w-full text-sm">
+        <thead>
+            <tr style="border-bottom: 1px solid var(--rand); background: var(--achtergrond-alt);">
+                <th class="text-left px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">Naam</th>
+                <th class="text-left px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">Gebruikersnaam</th>
+                <th class="text-left px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">Rol</th>
+                <th class="text-center px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">Reserve</th>
+                <th class="px-4 py-2.5"></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% set heeft_leden = namespace(n=false) %}
+            {% for mw in alle_gebruikers %}
+            {% if mw.id in gekoppelde_ids %}
+            {% set heeft_leden.n = true %}
+            {% set koppeling = gekoppelde_ids[mw.id] %}
+            <tr style="border-bottom: 1px solid var(--rand);">
+                <td class="px-4 py-2.5 font-medium" style="color: var(--tekst);">{{ mw.volledige_naam or mw.gebruikersnaam }}</td>
+                <td class="px-4 py-2.5 font-mono text-xs" style="color: var(--tekst-secundair);">{{ mw.gebruikersnaam }}</td>
+                <td class="px-4 py-2.5 text-xs" style="color: var(--tekst-secundair);">{{ mw.rol }}</td>
+                <td class="px-4 py-2.5 text-center">
+                    {% if koppeling.is_reserve %}
+                    <span class="text-xs px-2 py-0.5 rounded-full font-medium" style="background: #fef9c3; color: #854d0e;">Reserve</span>
+                    {% else %}
+                    <span class="text-xs px-2 py-0.5 rounded-full font-medium" style="background: var(--msg-succes-bg); color: var(--succes);">Vast</span>
+                    {% endif %}
+                </td>
+                <td class="px-4 py-2.5">
+                    <div class="flex items-center gap-2 justify-end">
+                        <!-- Wissel vast/reserve -->
+                        <form method="post" action="/groepen/{{ groep.id }}/leden/{{ mw.id }}" class="inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <input type="hidden" name="is_reserve" value="{{ 'false' if koppeling.is_reserve else 'true' }}">
+                            <button type="submit" class="text-xs px-2 py-1 rounded border transition-colors"
+                                    style="border-color: var(--rand); color: var(--tekst-secundair);">
+                                → {{ 'Vast' if koppeling.is_reserve else 'Reserve' }}
+                            </button>
+                        </form>
+                        <!-- Verwijderen -->
+                        <form method="post" action="/groepen/{{ groep.id }}/leden/{{ mw.id }}/verwijder" class="inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="text-xs px-2 py-1 rounded border transition-colors"
+                                    style="border-color: var(--fout); color: var(--fout);"
+                                    onclick="return confirm('{{ mw.volledige_naam or mw.gebruikersnaam }} verwijderen uit {{ groep.naam }}?')">
+                                Verwijder
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+            {% if not heeft_leden.n %}
+            <tr>
+                <td colspan="5" class="px-4 py-6 text-center text-sm" style="color: var(--tekst-secundair);">
+                    Geen leden gekoppeld aan deze groep.
+                </td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Medewerker toevoegen -->
+<div class="rounded-xl border p-5" style="border-color: var(--rand); background: var(--achtergrond-widget);">
+    <h2 class="text-sm font-semibold mb-3" style="color: var(--tekst);">Lid toevoegen</h2>
+    <form method="post" class="flex items-end gap-3 flex-wrap" id="lid-toevoegen-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="flex-1 min-w-48">
+            <label class="block text-xs mb-1" style="color: var(--tekst-secundair);">Medewerker</label>
+            <select name="_lid_id" id="lid-select" required
+                    class="w-full text-sm rounded-lg border px-3 py-2 outline-none"
+                    style="border-color: var(--rand); background: var(--achtergrond); color: var(--tekst);"
+                    onchange="updateLidFormAction(this.value)">
+                <option value="">— selecteer —</option>
+                {% for mw in alle_gebruikers %}
+                {% if mw.id not in gekoppelde_ids %}
+                <option value="{{ mw.id }}">{{ mw.volledige_naam or mw.gebruikersnaam }} ({{ mw.gebruikersnaam }})</option>
+                {% endif %}
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs mb-1" style="color: var(--tekst-secundair);">Rol</label>
+            <select name="is_reserve"
+                    class="text-sm rounded-lg border px-3 py-2 outline-none"
+                    style="border-color: var(--rand); background: var(--achtergrond); color: var(--tekst);">
+                <option value="false">Vast lid</option>
+                <option value="true">Reserve</option>
+            </select>
+        </div>
+        <button type="submit" id="lid-submit" disabled
+                class="text-sm font-medium text-white px-4 py-2 rounded-lg disabled:opacity-40"
+                style="background: var(--primair);">
+            Toevoegen
+        </button>
+    </form>
+</div>
+
+<script>
+function updateLidFormAction(lidId) {
+    const form = document.getElementById('lid-toevoegen-form');
+    const submit = document.getElementById('lid-submit');
+    if (lidId) {
+        form.action = '/groepen/{{ groep.id }}/leden/' + lidId;
+        submit.disabled = false;
+    } else {
+        form.action = '';
+        submit.disabled = true;
+    }
+}
+</script>
+{% endblock %}

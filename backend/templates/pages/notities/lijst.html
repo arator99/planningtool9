@@ -1,0 +1,286 @@
+{% extends "layouts/app.html" %}
+{% set actief_menu = "notities" %}
+
+{% block titel %}Notities — Planning Tool{% endblock %}
+
+{% block inhoud %}
+
+<div class="flex items-center justify-between mb-6">
+    <h1 class="text-xl font-bold" style="color: var(--tekst);">Notities</h1>
+    <div class="flex items-center gap-2">
+        {% if inbox | selectattr('is_gelezen', 'equalto', false) | list %}
+        <form method="post" action="/notities/alles-gelezen" class="inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit"
+                    class="text-sm px-3 py-1.5 rounded-lg border transition-colors"
+                    style="border-color: var(--rand); color: var(--tekst-secundair);">
+                Alles gelezen
+            </button>
+        </form>
+        {% endif %}
+        <button type="button" onclick="toonNieuwDialog()"
+                class="text-sm font-medium text-white px-4 py-1.5 rounded-lg transition-colors"
+                style="background: var(--primair);"
+                onmouseover="this.style.background='var(--primair-hover)'"
+                onmouseout="this.style.background='var(--primair)'">
+            + Nieuw bericht
+        </button>
+    </div>
+</div>
+
+{% if bericht %}
+<div class="mb-4 px-4 py-2.5 rounded-lg text-sm font-medium" style="background: var(--msg-succes-bg); color: var(--succes);">
+    {{ bericht }}
+</div>
+{% endif %}
+{% if fout %}
+<div class="mb-4 px-4 py-2.5 rounded-lg text-sm font-medium" style="background: var(--msg-fout-bg); color: var(--fout);">
+    {{ fout }}
+</div>
+{% endif %}
+
+<!-- Tabs + filter -->
+<div class="flex items-center gap-1 mb-4 border-b" style="border-color: var(--rand);">
+    <button onclick="wisselTab('inbox')"
+            id="tab-inbox"
+            class="tab-knop text-sm font-medium px-4 py-2 border-b-2 transition-colors"
+            style="{% if actieve_tab == 'inbox' %}border-color: var(--primair); color: var(--primair);{% else %}border-color: transparent; color: var(--tekst-secundair);{% endif %}">
+        Inbox
+        {% set ongelezen = inbox | selectattr('is_gelezen', 'equalto', false) | list | length %}
+        {% if ongelezen %}
+        <span class="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full text-xs text-white bg-yellow-500">{{ ongelezen }}</span>
+        {% endif %}
+    </button>
+    <button onclick="wisselTab('verzonden')"
+            id="tab-verzonden"
+            class="tab-knop text-sm font-medium px-4 py-2 border-b-2 transition-colors"
+            style="{% if actieve_tab == 'verzonden' %}border-color: var(--primair); color: var(--primair);{% else %}border-color: transparent; color: var(--tekst-secundair);{% endif %}">
+        Verzonden
+    </button>
+    <div class="ml-auto pb-1 self-end">
+        <select id="inbox-filter" onchange="filterInbox(this.value)"
+                class="text-sm rounded-lg border px-2 py-1 outline-none"
+                style="border-color: var(--rand); background: var(--achtergrond-widget); color: var(--tekst);">
+            <option value="alle">Alle</option>
+            <option value="ongelezen">Ongelezen</option>
+            <option value="hoog">Hoog</option>
+        </select>
+    </div>
+</div>
+
+<!-- Inbox tab -->
+<div id="tab-inhoud-inbox" {% if actieve_tab != 'inbox' %}class="hidden"{% endif %}>
+{% if inbox %}
+<div class="rounded-xl shadow-sm border overflow-hidden" style="border-color: var(--rand); background: var(--achtergrond-widget);">
+    <div class="divide-y" style="border-color: var(--rand);">
+        {% for n in inbox %}
+        <div class="notitie-item flex items-start gap-3 px-4 py-3 {% if not n.is_gelezen %}font-medium{% endif %}"
+             data-gelezen="{{ 'ja' if n.is_gelezen else 'nee' }}"
+             data-prioriteit="{{ n.prioriteit }}"
+             style="background: {% if not n.is_gelezen %}var(--msg-info-bg){% else %}transparent{% endif %};">
+            <!-- Prioriteit indicator -->
+            <div class="mt-1 flex-shrink-0 w-2 h-2 rounded-full
+                {% if n.prioriteit == 'hoog' %}bg-orange-400
+                {% elif n.prioriteit == 'laag' %}bg-gray-200
+                {% else %}bg-blue-400{% endif %}">
+            </div>
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-0.5">
+                    <span class="text-sm" style="color: var(--tekst-secundair);">
+                        {{ n.van_gebruiker.volledige_naam or n.van_gebruiker.gebruikersnaam }}
+                    </span>
+                    {% if not n.naar_gebruiker_id %}
+                    <span class="text-xs px-1.5 py-0.5 rounded" style="background: var(--grid-header); color: var(--tekst-secundair);">groep</span>
+                    {% endif %}
+                    {% if n.prioriteit == 'hoog' %}
+                    <span class="text-xs font-medium px-1.5 py-0.5 rounded bg-orange-100 text-orange-600">hoog</span>
+                    {% endif %}
+                    <span class="ml-auto text-xs" style="color: var(--tekst-secundair);">
+                        {{ n.aangemaakt_op.strftime('%d/%m/%Y %H:%M') }}
+                    </span>
+                </div>
+                <p class="text-sm break-words" style="color: var(--tekst);">{{ n.bericht }}</p>
+            </div>
+            <!-- Acties -->
+            <div class="flex-shrink-0 flex items-center gap-1 ml-2">
+                {% if not n.is_gelezen %}
+                <form method="post" action="/notities/{{ n.id }}/gelezen" class="inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" title="Markeer als gelezen"
+                            class="p-1 rounded hover:bg-gray-100 transition-colors"
+                            style="color: var(--tekst-secundair);">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+<div class="rounded-xl border p-10 text-center" style="border-color: var(--rand); background: var(--achtergrond-widget); color: var(--tekst-secundair);">
+    <p class="font-medium">Inbox is leeg</p>
+    <p class="text-sm mt-1">Je hebt nog geen berichten ontvangen.</p>
+</div>
+{% endif %}
+</div>
+
+<!-- Verzonden tab -->
+<div id="tab-inhoud-verzonden" {% if actieve_tab != 'verzonden' %}class="hidden"{% endif %}>
+{% if verzonden %}
+<div class="rounded-xl shadow-sm border overflow-hidden" style="border-color: var(--rand); background: var(--achtergrond-widget);">
+    <div class="divide-y" style="border-color: var(--rand);">
+        {% for n in verzonden %}
+        <div class="flex items-start gap-3 px-4 py-3">
+            <div class="mt-1 flex-shrink-0 w-2 h-2 rounded-full
+                {% if n.prioriteit == 'hoog' %}bg-orange-400
+                {% elif n.prioriteit == 'laag' %}bg-gray-200
+                {% else %}bg-blue-400{% endif %}">
+            </div>
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-0.5">
+                    <span class="text-sm" style="color: var(--tekst-secundair);">
+                        Aan: {% if n.naar_gebruiker_id %}{{ n.naar_gebruiker.volledige_naam or n.naar_gebruiker.gebruikersnaam }}{% else %}<em>iedereen</em>{% endif %}
+                    </span>
+                    {% if n.prioriteit == 'hoog' %}
+                    <span class="text-xs font-medium px-1.5 py-0.5 rounded bg-orange-100 text-orange-600">hoog</span>
+                    {% endif %}
+                    <span class="ml-auto text-xs" style="color: var(--tekst-secundair);">
+                        {{ n.aangemaakt_op.strftime('%d/%m/%Y %H:%M') }}
+                    </span>
+                </div>
+                <p class="text-sm break-words" style="color: var(--tekst);">{{ n.bericht }}</p>
+                {% if n.is_gelezen %}
+                <p class="text-xs mt-0.5" style="color: var(--succes);">Gelezen op {{ n.gelezen_op.strftime('%d/%m/%Y %H:%M') }}</p>
+                {% elif n.naar_gebruiker_id %}
+                <p class="text-xs mt-0.5" style="color: var(--tekst-secundair);">Nog niet gelezen</p>
+                {% endif %}
+            </div>
+            <!-- Verwijder -->
+            <form method="post" action="/notities/{{ n.id }}/verwijder" class="inline"
+                  onsubmit="return confirm('Bericht verwijderen?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" title="Verwijder"
+                        class="p-1 rounded hover:bg-red-50 transition-colors"
+                        style="color: var(--tekst-secundair);">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                </button>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+<div class="rounded-xl border p-10 text-center" style="border-color: var(--rand); background: var(--achtergrond-widget); color: var(--tekst-secundair);">
+    <p class="font-medium">Geen verzonden berichten</p>
+</div>
+{% endif %}
+</div>
+
+<!-- Nieuw bericht dialog -->
+<div id="nieuw-dialog" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40">
+    <div class="rounded-xl shadow-xl p-6 w-full max-w-lg" style="background: var(--achtergrond-widget);">
+        <h2 class="text-base font-semibold mb-4" style="color: var(--tekst);">Nieuw bericht</h2>
+        <form method="post" action="/notities/stuur">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-sm font-medium mb-1" style="color: var(--tekst);">Aan</label>
+                    <select name="naar_id"
+                            class="w-full text-sm rounded-lg border px-3 py-2 outline-none"
+                            style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
+                        <option value="">Iedereen (groepsbericht)</option>
+                        {% for m in medewerkers %}
+                        <option value="{{ m.id }}">{{ m.volledige_naam or m.gebruikersnaam }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1" style="color: var(--tekst);">Prioriteit</label>
+                    <select name="prioriteit"
+                            class="w-full text-sm rounded-lg border px-3 py-2 outline-none"
+                            style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
+                        {% for p in prioriteiten %}
+                        <option value="{{ p }}" {% if p == 'normaal' %}selected{% endif %}>{{ p | capitalize }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1" style="color: var(--tekst);">Bericht</label>
+                    <textarea name="bericht" rows="4" required
+                              class="w-full text-sm rounded-lg border px-3 py-2 outline-none resize-none"
+                              style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);"
+                              placeholder="Typ je bericht..."></textarea>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 mt-4">
+                <button type="button" onclick="sluitNieuwDialog()"
+                        class="text-sm px-4 py-1.5 rounded-lg border transition-colors"
+                        style="border-color: var(--rand); color: var(--tekst-secundair);">
+                    Annuleer
+                </button>
+                <button type="submit"
+                        class="text-sm font-medium px-4 py-1.5 rounded-lg text-white transition-colors"
+                        style="background: var(--primair);"
+                        onmouseover="this.style.background='var(--primair-hover)'"
+                        onmouseout="this.style.background='var(--primair)'">
+                    Verstuur
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+const PRIMAIR = 'var(--primair)';
+
+function wisselTab(tab) {
+    ['inbox', 'verzonden'].forEach(t => {
+        const btn = document.getElementById('tab-' + t);
+        const inhoud = document.getElementById('tab-inhoud-' + t);
+        if (t === tab) {
+            btn.style.borderColor = PRIMAIR;
+            btn.style.color = PRIMAIR;
+            inhoud.classList.remove('hidden');
+        } else {
+            btn.style.borderColor = 'transparent';
+            btn.style.color = 'var(--tekst-secundair)';
+            inhoud.classList.add('hidden');
+        }
+    });
+}
+
+function toonNieuwDialog() {
+    const d = document.getElementById('nieuw-dialog');
+    d.classList.remove('hidden');
+    d.classList.add('flex');
+}
+function sluitNieuwDialog() {
+    const d = document.getElementById('nieuw-dialog');
+    d.classList.add('hidden');
+    d.classList.remove('flex');
+}
+
+function filterInbox(filter) {
+    document.querySelectorAll('.notitie-item').forEach(item => {
+        const gelezen = item.dataset.gelezen === 'ja';
+        const prioriteit = item.dataset.prioriteit;
+        let toon = true;
+        if (filter === 'ongelezen') toon = !gelezen;
+        if (filter === 'hoog') toon = prioriteit === 'hoog';
+        item.style.display = toon ? '' : 'none';
+    });
+}
+
+// Open verzonden tab als URL param aanwezig
+const params = new URLSearchParams(location.search);
+if (params.get('tab') === 'verzonden') wisselTab('verzonden');
+</script>
+
+{% endblock %}

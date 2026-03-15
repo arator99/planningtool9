@@ -1,0 +1,42 @@
+{% extends "layouts/app.html" %}
+{% set actief_menu = "help" %}
+
+{% block titel %}Changelog — Planning Tool{% endblock %}
+
+{% block extra_head %}
+<style>
+    .changelog h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem; color: var(--tekst); }
+    .changelog h2 { font-size: 1.125rem; font-weight: 700; margin-top: 2rem; margin-bottom: 0.5rem; padding-bottom: 0.375rem; border-bottom: 1px solid var(--rand); color: var(--tekst); }
+    .changelog h3 { font-size: 0.95rem; font-weight: 600; margin-top: 1rem; margin-bottom: 0.375rem; color: var(--tekst-secundair); text-transform: uppercase; letter-spacing: 0.05em; }
+    .changelog h4 { font-size: 0.875rem; font-weight: 600; margin-top: 0.75rem; margin-bottom: 0.25rem; color: var(--tekst); }
+    .changelog p  { font-size: 0.875rem; margin-bottom: 0.5rem; color: var(--tekst); line-height: 1.6; }
+    .changelog ul { list-style: disc; padding-left: 1.25rem; margin-bottom: 0.75rem; }
+    .changelog li { font-size: 0.875rem; margin-bottom: 0.25rem; color: var(--tekst); line-height: 1.5; }
+    .changelog code { font-size: 0.8rem; padding: 0.1rem 0.35rem; border-radius: 0.25rem; background: var(--achtergrond-alt); color: var(--primair); font-family: monospace; }
+    .changelog pre  { font-size: 0.8rem; padding: 0.75rem 1rem; border-radius: 0.5rem; background: var(--achtergrond-alt); overflow-x: auto; margin-bottom: 0.75rem; }
+    .changelog pre code { background: none; padding: 0; color: var(--tekst); }
+    .changelog a  { color: var(--primair); text-decoration: underline; }
+    .changelog blockquote { border-left: 3px solid var(--primair); padding-left: 0.75rem; margin: 0.75rem 0; color: var(--tekst-secundair); font-style: italic; }
+    .changelog table { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-bottom: 0.75rem; }
+    .changelog th { text-align: left; padding: 0.375rem 0.75rem; background: var(--grid-header); color: var(--tekst-secundair); font-weight: 500; border-bottom: 1px solid var(--rand); }
+    .changelog td { padding: 0.375rem 0.75rem; border-bottom: 1px solid var(--rand); color: var(--tekst); }
+    .changelog hr { border-color: var(--rand); margin: 1.5rem 0; }
+</style>
+{% endblock %}
+
+{% block inhoud %}
+
+<div class="max-w-3xl mx-auto">
+    <div class="flex items-center gap-3 mb-6">
+        <h1 class="text-xl font-bold" style="color: var(--tekst);">Changelog</h1>
+        <span class="text-xs px-2 py-0.5 rounded-full" style="background: var(--achtergrond-alt); color: var(--tekst-secundair);">
+            Planning Tool v0.8
+        </span>
+    </div>
+
+    <div class="rounded-xl border p-6 changelog" style="border-color: var(--rand); background: var(--achtergrond-widget);">
+        {{ inhoud_html | safe }}
+    </div>
+</div>
+
+{% endblock %}

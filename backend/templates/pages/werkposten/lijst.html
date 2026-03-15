@@ -1,0 +1,127 @@
+{% extends "layouts/app.html" %}
+{% set actief_menu = "werkposten" %}
+
+{% block titel %}{{ t("werkpost.titel") }} — Planning Tool{% endblock %}
+
+{% block inhoud %}
+<div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold" style="color: var(--tekst);">{{ t("werkpost.titel") }}</h1>
+    <a href="/werkposten/nieuw"
+       class="text-sm font-medium text-white px-4 py-2 rounded-lg transition-colors"
+       style="background: var(--primair);"
+       onmouseover="this.style.background='var(--primair-hover)'"
+       onmouseout="this.style.background='var(--primair)'">
+        + {{ t("werkpost.nieuw") }}
+    </a>
+</div>
+
+{% if bericht %}
+<div class="mb-4 px-4 py-2.5 rounded-lg text-sm" style="background: var(--msg-succes-bg); color: var(--succes);">
+    {{ bericht }}
+</div>
+{% endif %}
+{% if fout %}
+<div class="mb-4 px-4 py-2.5 rounded-lg text-sm" style="background: var(--msg-fout-bg); color: var(--fout);">
+    {{ t("fout." + fout) }}
+</div>
+{% endif %}
+
+<!-- Zoekbalk -->
+<div class="mb-4">
+    <input type="text" id="werkpost-zoek"
+           placeholder="Zoeken op naam..."
+           class="w-full text-sm rounded-lg border px-4 py-2 outline-none"
+           style="border-color: var(--rand); background: var(--achtergrond-widget); color: var(--tekst);"
+           oninput="filterWerkposten(this.value)">
+</div>
+
+<div class="rounded-xl border overflow-hidden" style="border-color: var(--rand); background: var(--achtergrond-widget);">
+    <table class="w-full text-sm">
+        <thead>
+            <tr style="border-bottom: 1px solid var(--rand); background: var(--achtergrond-alt);">
+                <th class="text-left px-4 py-3 font-semibold" style="color: var(--tekst);">{{ t("werkpost.naam") }}</th>
+                <th class="text-left px-4 py-3 font-semibold" style="color: var(--tekst);">{{ t("werkpost.beschrijving") }}</th>
+                <th class="text-center px-4 py-3 font-semibold" style="color: var(--tekst);">{{ t("werkpost.telt_als_werkdag") }}</th>
+                <th class="text-center px-4 py-3 font-semibold" style="color: var(--tekst);">{{ t("werkpost.reset_12u_rust") }}</th>
+                <th class="text-center px-4 py-3 font-semibold" style="color: var(--tekst);">{{ t("werkpost.actief") }}</th>
+                <th class="px-4 py-3"></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for wp in werkposten %}
+            <tr style="border-bottom: 1px solid var(--rand); opacity: {% if not wp.is_actief %}0.5{% else %}1{% endif %};">
+                <td class="px-4 py-3 font-medium" style="color: var(--tekst);">{{ wp.naam }}</td>
+                <td class="px-4 py-3" style="color: var(--tekst-secundair);">{{ wp.beschrijving or '—' }}</td>
+                <td class="px-4 py-3 text-center">
+                    {% if wp.telt_als_werkdag %}
+                    <span class="text-green-600">✓</span>
+                    {% else %}
+                    <span style="color: var(--tekst-secundair);">—</span>
+                    {% endif %}
+                </td>
+                <td class="px-4 py-3 text-center">
+                    {% if wp.reset_12u_rust %}
+                    <span class="text-green-600">✓</span>
+                    {% else %}
+                    <span style="color: var(--tekst-secundair);">—</span>
+                    {% endif %}
+                </td>
+                <td class="px-4 py-3 text-center">
+                    {% if wp.is_actief %}
+                    <span class="text-xs px-2 py-0.5 rounded-full font-medium" style="background: var(--msg-succes-bg); color: var(--succes);">{{ t("algemeen.actief") }}</span>
+                    {% else %}
+                    <span class="text-xs px-2 py-0.5 rounded-full font-medium" style="background: var(--achtergrond-alt); color: var(--tekst-secundair);">{{ t("algemeen.inactief") }}</span>
+                    {% endif %}
+                </td>
+                <td class="px-4 py-3">
+                    <div class="flex items-center gap-2 justify-end">
+                        <a href="/werkposten/{{ wp.id }}/bewerk"
+                           class="text-xs px-3 py-1 rounded border transition-colors"
+                           style="border-color: var(--rand); color: var(--tekst-secundair);">
+                            {{ t("algemeen.bewerken") }}
+                        </a>
+                        {% if wp.is_actief %}
+                        <form method="post" action="/werkposten/{{ wp.id }}/deactiveer" class="inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit"
+                                    class="text-xs px-3 py-1 rounded border transition-colors"
+                                    style="border-color: var(--fout); color: var(--fout);"
+                                    onclick="return confirm('{{ wp.naam }} deactiveren?')">
+                                {{ t("algemeen.deactiveer") }}
+                            </button>
+                        </form>
+                        {% else %}
+                        <form method="post" action="/werkposten/{{ wp.id }}/activeer" class="inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit"
+                                    class="text-xs px-3 py-1 rounded border transition-colors"
+                                    style="border-color: var(--succes); color: var(--succes);">
+                                {{ t("algemeen.activeer") }}
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" class="px-4 py-8 text-center text-sm" style="color: var(--tekst-secundair);">
+                    {{ t("algemeen.geen_resultaten") }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+function filterWerkposten(zoek) {
+    const lc = zoek.toLowerCase();
+    document.querySelectorAll('tbody tr').forEach(tr => {
+        const naam = (tr.querySelector('td:first-child')?.textContent || '').toLowerCase();
+        tr.style.display = naam.includes(lc) ? '' : 'none';
+    });
+}
+</script>
+
+{% endblock %}

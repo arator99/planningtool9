@@ -1,0 +1,110 @@
+{% extends "layouts/app.html" %}
+{% set actief_menu = "logboek" %}
+
+{% block titel %}{{ t("logboek.titel") }} — Planning Tool{% endblock %}
+
+{% block inhoud %}
+
+<div class="flex items-center justify-between mb-6">
+    <h1 class="text-xl font-bold" style="color: var(--tekst);">{{ t("logboek.titel") }}</h1>
+    <span class="text-sm" style="color: var(--tekst-secundair);">{{ totaal }} entr{{ 'ies' if totaal != 1 else 'y' }}</span>
+</div>
+
+<!-- Filter -->
+<div class="flex items-center gap-3 mb-6 p-4 rounded-xl border"
+     style="border-color: var(--rand); background: var(--achtergrond-widget);">
+    <form method="get" action="/logboek" class="flex items-center gap-3 flex-wrap">
+        <label class="text-sm font-medium" style="color: var(--tekst);">{{ t("logboek.filter_actie") }}</label>
+        <select name="actie"
+                class="text-sm rounded-lg border px-3 py-1.5 outline-none"
+                style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
+            <option value="">{{ t("logboek.alle_acties") }}</option>
+            {% for a in bekende_acties %}
+            <option value="{{ a }}" {% if a == actie_filter %}selected{% endif %}>{{ a }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit"
+                class="text-sm font-medium px-4 py-1.5 rounded-lg text-white"
+                style="background: var(--primair);"
+                onmouseover="this.style.background='var(--primair-hover)'"
+                onmouseout="this.style.background='var(--primair)'">
+            {{ t("algemeen.tonen") }}
+        </button>
+    </form>
+</div>
+
+{% if entries %}
+<div class="rounded-xl shadow-sm border overflow-x-auto" style="border-color: var(--rand); background: var(--achtergrond-widget);">
+    <table class="w-full text-sm border-collapse">
+        <thead>
+            <tr style="background: var(--grid-header); border-bottom: 1px solid var(--rand);">
+                <th class="text-left px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">{{ t("logboek.tijdstip") }}</th>
+                <th class="text-left px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">{{ t("logboek.uitgevoerd_door") }}</th>
+                <th class="text-left px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">{{ t("logboek.actie") }}</th>
+                <th class="text-left px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">{{ t("logboek.object_type") }}</th>
+                <th class="text-left px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">{{ t("logboek.object_id") }}</th>
+                <th class="text-left px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">{{ t("logboek.detail") }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in entries %}
+            <tr class="border-b" style="border-color: var(--rand);">
+                <td class="px-4 py-2.5 tabular-nums text-xs whitespace-nowrap" style="color: var(--tekst-secundair);">
+                    {{ e.tijdstip.strftime('%d/%m/%Y %H:%M') }}
+                </td>
+                <td class="px-4 py-2.5 text-sm" style="color: var(--tekst);">
+                    {{ gebruikers_map.get(e.gebruiker_id, '—') }}
+                </td>
+                <td class="px-4 py-2.5">
+                    <span class="font-mono text-xs px-2 py-0.5 rounded"
+                          style="background: var(--hover-bg); color: var(--primair);">{{ e.actie }}</span>
+                </td>
+                <td class="px-4 py-2.5 text-xs" style="color: var(--tekst-secundair);">
+                    {{ e.doel_type or '—' }}
+                </td>
+                <td class="px-4 py-2.5 text-xs tabular-nums" style="color: var(--tekst-secundair);">
+                    {{ e.doel_id or '—' }}
+                </td>
+                <td class="px-4 py-2.5 max-w-xs text-xs truncate" style="color: var(--tekst-secundair);"
+                    title="{{ e.detail or '' }}">
+                    {{ e.detail or '—' }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Paginering -->
+{% if totaal_paginas > 1 %}
+<div class="flex items-center justify-between mt-4">
+    <span class="text-sm" style="color: var(--tekst-secundair);">
+        Pagina {{ huidige_pagina }} van {{ totaal_paginas }}
+    </span>
+    <div class="flex gap-2">
+        {% if huidige_pagina > 1 %}
+        <a href="?pagina={{ huidige_pagina - 1 }}{% if actie_filter %}&actie={{ actie_filter }}{% endif %}"
+           class="text-sm px-3 py-1.5 rounded-lg border transition-colors"
+           style="border-color: var(--rand); color: var(--tekst-secundair);">
+            {{ t("algemeen.vorige") }}
+        </a>
+        {% endif %}
+        {% if huidige_pagina < totaal_paginas %}
+        <a href="?pagina={{ huidige_pagina + 1 }}{% if actie_filter %}&actie={{ actie_filter }}{% endif %}"
+           class="text-sm px-3 py-1.5 rounded-lg border transition-colors"
+           style="border-color: var(--rand); color: var(--tekst-secundair);">
+            {{ t("algemeen.volgende") }}
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% else %}
+<div class="rounded-xl border p-12 text-center"
+     style="border-color: var(--rand); background: var(--achtergrond-widget); color: var(--tekst-secundair);">
+    {{ t("logboek.geen") }}
+</div>
+{% endif %}
+
+{% endblock %}

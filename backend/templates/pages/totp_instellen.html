@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block titel %}2FA instellen — Planning Tool{% endblock %}
+
+{% block extra_head %}
+<!-- QR code generator (client-side, geen server dependency) -->
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+{% endblock %}
+
+{% block inhoud %}
+<div class="min-h-screen flex items-center justify-center bg-gray-100 py-8">
+    <div class="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md">
+
+        <div class="text-center mb-6">
+            <div class="inline-flex items-center justify-center w-14 h-14 bg-green-600 rounded-xl mb-4">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                </svg>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-800">2FA instellen</h1>
+            <p class="text-gray-500 text-sm mt-1">Tweestapsverificatie activeren voor {{ gebruiker.gebruikersnaam }}</p>
+        </div>
+
+        {% if fout %}
+        <div class="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-6 text-sm">
+            {{ fout }}
+        </div>
+        {% endif %}
+
+        <!-- Stap 1: QR code scannen -->
+        <div class="mb-6">
+            <div class="flex items-center gap-2 mb-3">
+                <span class="bg-blue-600 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">1</span>
+                <span class="text-sm font-medium text-gray-700">Scan de QR code met uw authenticator app</span>
+            </div>
+            <div class="flex justify-center mb-3">
+                <div id="qr-code" class="p-2 bg-white border border-gray-200 rounded-lg"></div>
+            </div>
+            <p class="text-xs text-gray-500 text-center mb-2">
+                Werkt niet? Voer de code handmatig in:
+            </p>
+            <div class="bg-gray-50 rounded-lg px-3 py-2 text-center">
+                <code class="text-xs font-mono text-gray-700 tracking-widest break-all">{{ totp_geheim }}</code>
+            </div>
+            <p class="text-xs text-gray-400 text-center mt-1">
+                Aanbevolen apps: Google Authenticator, Microsoft Authenticator, Authy
+            </p>
+        </div>
+
+        <!-- Stap 2: Bevestig met code -->
+        <div class="mb-6">
+            <div class="flex items-center gap-2 mb-3">
+                <span class="bg-blue-600 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">2</span>
+                <span class="text-sm font-medium text-gray-700">Voer de eerste code in ter bevestiging</span>
+            </div>
+            <form method="post" action="/totp/instellen/bevestig" class="space-y-4">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input
+                    type="text"
+                    name="code"
+                    required
+                    autofocus
+                    autocomplete="one-time-code"
+                    inputmode="numeric"
+                    pattern="[0-9]{6}"
+                    maxlength="6"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-center
+                           tracking-widest text-lg font-mono
+                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="000000"
+                >
+                <button
+                    type="submit"
+                    class="w-full bg-green-600 hover:bg-green-700 text-white font-medium
+                           rounded-lg py-2.5 text-sm transition-colors duration-150"
+                >
+                    2FA activeren
+                </button>
+            </form>
+        </div>
+
+        <div class="text-center">
+            <a href="/welkom" class="text-xs text-gray-400 hover:text-gray-600">Overslaan (later instellen)</a>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // Genereer QR code client-side
+    new QRCode(document.getElementById("qr-code"), {
+        text: "{{ totp_uri }}",
+        width: 180,
+        height: 180,
+        colorDark: "#1e3a5f",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.M
+    });
+</script>
+{% endblock %}

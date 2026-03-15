@@ -1,0 +1,75 @@
+{% extends "layouts/app.html" %}
+{% set actief_menu = "rapporten" %}
+
+{% block titel %}{{ t("rapport.medewerkers") }} — Planning Tool{% endblock %}
+
+{% block inhoud %}
+
+<div class="flex items-center justify-between mb-6">
+    <div class="flex items-center gap-3">
+        <a href="/rapporten" class="text-sm" style="color: var(--tekst-secundair);">&larr; {{ t("rapport.titel") }}</a>
+        <span style="color: var(--rand);">/</span>
+        <h1 class="text-xl font-bold" style="color: var(--tekst);">{{ t("rapport.medewerkers") }}</h1>
+    </div>
+    <span class="text-sm" style="color: var(--tekst-secundair);">
+        {{ medewerkers | length }} medewerker(s)
+        · {{ medewerkers | selectattr("is_actief") | list | length }} actief
+    </span>
+</div>
+
+{% if medewerkers %}
+<div class="rounded-xl shadow-sm border overflow-hidden" style="border-color: var(--rand); background: var(--achtergrond-widget);">
+    <table class="w-full text-sm border-collapse">
+        <thead>
+            <tr style="background: var(--grid-header); border-bottom: 1px solid var(--rand);">
+                <th class="text-left px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">{{ t("gebruiker.volledige_naam") }}</th>
+                <th class="text-left px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">{{ t("gebruiker.gebruikersnaam") }}</th>
+                <th class="text-center px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">{{ t("gebruiker.rol") }}</th>
+                <th class="text-center px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">{{ t("gebruiker.2fa") }}</th>
+                <th class="text-center px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">{{ t("algemeen.status") }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in medewerkers %}
+            <tr class="border-b {% if not m.is_actief %}opacity-50{% endif %}"
+                style="border-color: var(--rand);">
+                <td class="px-4 py-2.5 font-medium" style="color: var(--tekst);">
+                    {{ m.volledige_naam or '—' }}
+                </td>
+                <td class="px-4 py-2.5" style="color: var(--tekst-secundair);">{{ m.gebruikersnaam }}</td>
+                <td class="px-4 py-2.5 text-center">
+                    {% set rol_kleur = {
+                        "beheerder": "bg-purple-100 text-purple-700",
+                        "planner":   "bg-blue-100 text-blue-700",
+                        "hr":        "bg-teal-100 text-teal-700",
+                        "medewerker":"bg-gray-100 text-gray-600"
+                    } %}
+                    <span class="text-xs font-medium px-2 py-0.5 rounded-full {{ rol_kleur.get(m.rol, 'bg-gray-100 text-gray-600') }}">
+                        {{ t("rol." + m.rol) }}
+                    </span>
+                </td>
+                <td class="px-4 py-2.5 text-center text-xs" style="color: var(--tekst-secundair);">
+                    {% if m.totp_actief %}
+                    <span class="px-2 py-0.5 rounded bg-green-100 text-green-700 font-medium">Actief</span>
+                    {% else %}—{% endif %}
+                </td>
+                <td class="px-4 py-2.5 text-center">
+                    {% if m.is_actief %}
+                    <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-700">{{ t("algemeen.actief") }}</span>
+                    {% else %}
+                    <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">{{ t("algemeen.inactief") }}</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="rounded-xl border p-12 text-center"
+     style="border-color: var(--rand); background: var(--achtergrond-widget); color: var(--tekst-secundair);">
+    {{ t("algemeen.geen_resultaten") }}
+</div>
+{% endif %}
+
+{% endblock %}

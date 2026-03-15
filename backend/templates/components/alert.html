@@ -1,0 +1,27 @@
+{#
+  Alert component
+  Parameters:
+    bericht  — tekst (verplicht)
+    variant  — 'succes' | 'gevaar' | 'waarschuwing' (default) | 'info'
+    klasse   — extra CSS-klassen
+#}
+{% set _variant = variant | default('waarschuwing') %}
+
+{% if _variant == 'succes' %}
+  {% set _klassen = 'bg-succes-zacht text-succes border-succes' %}
+  {% set _icoon = '✓' %}
+{% elif _variant == 'gevaar' %}
+  {% set _klassen = 'bg-gevaar-zacht text-gevaar border-gevaar' %}
+  {% set _icoon = '✕' %}
+{% elif _variant == 'info' %}
+  {% set _klassen = 'bg-info-zacht text-info border-info' %}
+  {% set _icoon = 'ℹ' %}
+{% else %}
+  {% set _klassen = 'bg-waarschuwing-zacht text-waarschuwing border-waarschuwing' %}
+  {% set _icoon = '⚠' %}
+{% endif %}
+
+<div class="flex items-start gap-2 px-4 py-3 rounded-md border text-sm {{ _klassen }} {{ klasse | default('') }}" role="alert">
+  <span class="mt-0.5 shrink-0 font-bold">{{ _icoon }}</span>
+  <span>{{ bericht }}</span>
+</div>
