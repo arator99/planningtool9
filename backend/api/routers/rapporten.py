@@ -7,7 +7,7 @@ from fastapi.responses import HTMLResponse, Response
 from sqlalchemy.orm import Session
 
 from i18n import maak_vertaler
-from api.dependencies import haal_db, vereiste_rol, haal_csrf_token
+from api.dependencies import haal_db, vereiste_rol, haal_csrf_token, haal_primaire_team_id
 from api.sjablonen import sjablonen
 from models.gebruiker import Gebruiker
 from services.rapport_service import RapportService
@@ -37,9 +37,10 @@ def overzicht(
     csrf_token: str = Depends(haal_csrf_token),
 ):
     jaar, maand = _huidig_jaar_maand()
+    team_id = haal_primaire_team_id(gebruiker.id, db)
     svc = RapportService(db)
-    planning_data = svc.maandplanning_overzicht(gebruiker.groep_id, jaar, maand)
-    verlof_data = svc.verlof_overzicht(gebruiker.groep_id, jaar)
+    planning_data = svc.maandplanning_overzicht(team_id, jaar, maand) if team_id else {}
+    verlof_data = svc.verlof_overzicht(gebruiker.locatie_id, jaar)
 
     jaren = list(range(date.today().year - 2, date.today().year + 2))
 
@@ -75,9 +76,10 @@ def maandplanning(
         jaar = jaar or hj
         maand = maand or hm
 
+    team_id = haal_primaire_team_id(gebruiker.id, db)
     svc = RapportService(db)
-    planning_data = svc.maandplanning_overzicht(gebruiker.groep_id, jaar, maand)
-    verlof_data = svc.verlof_overzicht(gebruiker.groep_id, jaar)
+    planning_data = svc.maandplanning_overzicht(team_id, jaar, maand) if team_id else {}
+    verlof_data = svc.verlof_overzicht(gebruiker.locatie_id, jaar)
     jaren = list(range(date.today().year - 2, date.today().year + 2))
 
     return sjablonen.TemplateResponse(
@@ -109,7 +111,8 @@ def balans_overzicht(
         jaar = jaar or hj
         maand = maand or hm
 
-    balans_data = BalansService(db).haal_team_balans(gebruiker.groep_id, jaar, maand)
+    team_id = haal_primaire_team_id(gebruiker.id, db)
+    balans_data = BalansService(db).haal_team_balans(team_id, jaar, maand) if team_id else {}
     jaren = list(range(date.today().year - 2, date.today().year + 2))
 
     return sjablonen.TemplateResponse(
@@ -138,7 +141,10 @@ def maandplanning_csv(
         jaar = jaar or hj
         maand = maand or hm
 
-    csv_tekst = RapportService(db).maandplanning_csv(gebruiker.groep_id, jaar, maand)
+    team_id = haal_primaire_team_id(gebruiker.id, db)
+    if not team_id:
+        return Response(status_code=403)
+    csv_tekst = RapportService(db).maandplanning_csv(team_id, jaar, maand)
     bestandsnaam = f"planning_{jaar}_{maand:02d}.csv"
     return Response(
         content=csv_tekst.encode("utf-8-sig"),  # BOM voor Excel compatibiliteit
@@ -159,10 +165,13 @@ def maandplanning_excel(
         jaar = jaar or hj
         maand = maand or hm
 
+    team_id = haal_primaire_team_id(gebruiker.id, db)
+    if not team_id:
+        return Response(status_code=403)
     try:
-        fouten = ValidatieService(db).valideer_maand(gebruiker.groep_id, jaar, maand)
+        fouten = ValidatieService(db).valideer_maand(team_id, gebruiker.locatie_id, jaar, maand)
         excel_bytes = ExcelExportService(db).genereer_excel(
-            gebruiker.groep_id, jaar, maand, fouten=fouten
+            team_id, jaar, maand, fouten=fouten
         )
     except Exception as fout:
         logger.error("Excel export mislukt: %s", fout)
@@ -191,7 +200,8 @@ def compliance_rapport(
         jaar = jaar or hj
         maand = maand or hm
 
-    fouten = ValidatieService(db).valideer_maand(gebruiker.groep_id, jaar, maand)
+    team_id = haal_primaire_team_id(gebruiker.id, db)
+    fouten = ValidatieService(db).valideer_maand(team_id, gebruiker.locatie_id, jaar, maand) if team_id else []
     jaren = list(range(date.today().year - 2, date.today().year + 2))
 
     return sjablonen.TemplateResponse(
@@ -220,7 +230,8 @@ def override_audit(
         jaar = jaar or hj
         maand = maand or hm
 
-    overrides = RapportService(db).override_audit(gebruiker.groep_id, jaar, maand)
+    team_id = haal_primaire_team_id(gebruiker.id, db)
+    overrides = RapportService(db).override_audit(team_id, jaar, maand) if team_id else []
     jaren = list(range(date.today().year - 2, date.today().year + 2))
 
     return sjablonen.TemplateResponse(
@@ -242,7 +253,7 @@ def medewerkers_overzicht(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner", "hr")),
     db: Session = Depends(haal_db),
 ):
-    medewerkers = RapportService(db).medewerkers_overzicht(gebruiker.groep_id)
+    medewerkers = RapportService(db).medewerkers_overzicht(gebruiker.locatie_id)
 
     return sjablonen.TemplateResponse(
         "pages/rapporten/medewerkers.html",

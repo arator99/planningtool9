@@ -13,6 +13,8 @@ def gezondheidscheck(db: Session = Depends(haal_db)) -> dict:
     """Controleert of de app en database bereikbaar zijn. Gebruikt door Docker healthcheck."""
     try:
         db.execute(text("SELECT 1"))
-        return {"status": "ok", "versie": instellingen.app_versie, "omgeving": instellingen.omgeving}
+        if instellingen.omgeving == "development":
+            return {"status": "ok", "versie": instellingen.app_versie, "omgeving": instellingen.omgeving}
+        return {"status": "ok"}
     except Exception as fout:
         raise HTTPException(status_code=503, detail="Database niet bereikbaar") from fout

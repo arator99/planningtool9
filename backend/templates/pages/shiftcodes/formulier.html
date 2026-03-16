@@ -26,7 +26,7 @@
     {% endif %}
 
     <div class="rounded-xl shadow-sm border p-6 space-y-4" style="border-color: var(--rand); background: var(--achtergrond-widget);">
-        <form method="post" action="/shiftcodes/{% if bewerk_modus %}{{ sc.id }}/bewerk{% else %}nieuw{% endif %}">
+        <form method="post" action="/shiftcodes/{% if bewerk_modus %}{{ sc.uuid }}/bewerk{% else %}nieuw{% endif %}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
             {% if not bewerk_modus %}

@@ -30,7 +30,7 @@ def lijst(
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
 ):
-    werkposten = WerkpostService(db).haal_alle(gebruiker.groep_id, ook_inactief=True)
+    werkposten = WerkpostService(db).haal_alle(gebruiker.locatie_id, ook_inactief=True)
     bericht = request.query_params.get("bericht")
     fout = request.query_params.get("fout")
     return sjablonen.TemplateResponse(
@@ -75,7 +75,7 @@ def maak_aan(
 ):
     try:
         WerkpostService(db).maak_aan(
-            groep_id=gebruiker.groep_id,
+            locatie_id=gebruiker.locatie_id,
             naam=naam,
             beschrijving=beschrijving or None,
             telt_als_werkdag=bool(telt_als_werkdag),
@@ -92,16 +92,17 @@ def maak_aan(
 # Bewerken                                                             #
 # ------------------------------------------------------------------ #
 
-@router.get("/{werkpost_id}/bewerk", response_class=HTMLResponse)
+@router.get("/{uuid}/bewerk", response_class=HTMLResponse)
 def bewerk_formulier(
-    werkpost_id: int,
+    uuid: str,
     request: Request,
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
 ):
-    wp = WerkpostService(db).haal_op_id(werkpost_id, gebruiker.groep_id)
-    if not wp:
+    try:
+        wp = WerkpostService(db).haal_op_uuid(uuid)
+    except ValueError:
         return RedirectResponse(url="/werkposten?fout=niet_gevonden", status_code=303)
     return sjablonen.TemplateResponse(
         "pages/werkposten/formulier.html",
@@ -112,9 +113,9 @@ def bewerk_formulier(
     )
 
 
-@router.post("/{werkpost_id}/bewerk")
+@router.post("/{uuid}/bewerk")
 def bewerk(
-    werkpost_id: int,
+    uuid: str,
     naam: str = Form(...),
     beschrijving: str = Form(""),
     telt_als_werkdag: str = Form(""),
@@ -124,10 +125,15 @@ def bewerk(
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
 ):
+    svc = WerkpostService(db)
     try:
-        WerkpostService(db).bewerk(
-            werkpost_id=werkpost_id,
-            groep_id=gebruiker.groep_id,
+        wp = svc.haal_op_uuid(uuid)
+    except ValueError:
+        return RedirectResponse(url="/werkposten?fout=niet_gevonden", status_code=303)
+    try:
+        svc.bewerk(
+            werkpost_id=wp.id,
+            locatie_id=gebruiker.locatie_id,
             naam=naam,
             beschrijving=beschrijving or None,
             telt_als_werkdag=bool(telt_als_werkdag),
@@ -136,7 +142,7 @@ def bewerk(
         )
     except ValueError as fout:
         logger.warning("Werkpost bewerken mislukt: %s", fout)
-        return RedirectResponse(url=f"/werkposten/{werkpost_id}/bewerk?fout=bewerken_mislukt", status_code=303)
+        return RedirectResponse(url=f"/werkposten/{uuid}/bewerk?fout=bewerken_mislukt", status_code=303)
     return RedirectResponse(url="/werkposten?bericht=Werkpost+opgeslagen", status_code=303)
 
 
@@ -144,30 +150,34 @@ def bewerk(
 # Deactiveren / Activeren                                              #
 # ------------------------------------------------------------------ #
 
-@router.post("/{werkpost_id}/deactiveer")
+@router.post("/{uuid}/deactiveer")
 def deactiveer(
-    werkpost_id: int,
+    uuid: str,
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
 ):
+    svc = WerkpostService(db)
     try:
-        WerkpostService(db).deactiveer(werkpost_id, gebruiker.groep_id)
+        wp = svc.haal_op_uuid(uuid)
+        svc.deactiveer(wp.id, gebruiker.locatie_id)
     except ValueError as fout:
         logger.warning("Werkpost deactiveren mislukt: %s", fout)
         return RedirectResponse(url="/werkposten?fout=actie_mislukt", status_code=303)
     return RedirectResponse(url="/werkposten?bericht=Werkpost+gedeactiveerd", status_code=303)
 
 
-@router.post("/{werkpost_id}/activeer")
+@router.post("/{uuid}/activeer")
 def activeer(
-    werkpost_id: int,
+    uuid: str,
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
 ):
+    svc = WerkpostService(db)
     try:
-        WerkpostService(db).activeer(werkpost_id, gebruiker.groep_id)
+        wp = svc.haal_op_uuid(uuid)
+        svc.activeer(wp.id, gebruiker.locatie_id)
     except ValueError as fout:
         logger.warning("Werkpost activeren mislukt: %s", fout)
         return RedirectResponse(url="/werkposten?fout=actie_mislukt", status_code=303)

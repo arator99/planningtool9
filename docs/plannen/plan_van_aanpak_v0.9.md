@@ -531,58 +531,57 @@ v0.8 wordt NIET gekopieerd als startpunt. Wel als referentie voor patronen.
 
 ### Light & Dark thema
 
-Tailwind `darkMode: 'class'` — de `dark`-class staat op `<html>`. Voorkeur opgeslagen in `Gebruiker.thema` (`light | dark | systeem`, default `systeem`). Een inline JS-snippet in `<head>` (vóór Tailwind laadt) zet de class op basis van een cookie → geen flash bij laden.
+Tailwind `darkMode: ['attribute', 'data-theme']` — het `data-theme="dark"` attribuut staat op `<html>`. Voorkeur opgeslagen in `Gebruiker.thema` (`light | dark | systeem`, default `systeem`). Een inline JS-snippet in `<head>` (vóór Tailwind laadt) zet het attribuut op basis van een cookie → geen flash bij laden.
 
-Kleuren gedefinieerd als CSS custom properties in `static/css/theme.css`:
+**Twee CSS-systemen naast elkaar:**
+- `stijlen.py` — Python-bestand dat dynamisch CSS custom properties genereert en via `{{ thema_css | safe }}` injecteert in de `<head>`. Gebruikt variabelenamen zónder prefix (`--primair`, `--achtergrond`, etc.) en dark mode via `[data-theme='dark']`.
+- `static/css/theme.css` — statisch CSS-bestand, statische referentiedefinities met `--kleur-*` prefix en `html.dark`. Wordt gelinkt als stylesheet maar de semantische Tailwind-klassen verwijzen naar de `stijlen.py` variabelen.
 
-```css
-:root {                           /* light — bedrijfsblauw */
-  --kleur-primair:        #2563eb;   /* blue-600 */
-  --kleur-primair-hover:  #1d4ed8;   /* blue-700 */
-  --kleur-primair-zacht:  #eff6ff;   /* blue-50  */
-  --kleur-achtergrond:    #f9fafb;   /* gray-50  */
-  --kleur-oppervlak:      #ffffff;
-  --kleur-rand:           #e5e7eb;   /* gray-200 */
-  --kleur-tekst:          #111827;   /* gray-900 */
-  --kleur-tekst-zacht:    #6b7280;   /* gray-500 */
-  --kleur-succes:         #16a34a;   /* green-600 */
-  --kleur-gevaar:         #dc2626;   /* red-600  */
-  --kleur-waarschuwing:   #d97706;   /* amber-600 */
+De Tailwind semantische klassen verwijzen naar de variabelen van `stijlen.py`:
+
+```python
+# stijlen.py (selectie relevante variabelen):
+LIGHT_KLEUREN = {
+    "primair":            "#2563eb",
+    "primair-hover":      "#1d4ed8",
+    "achtergrond":        "#f1f5f9",
+    "achtergrond-widget": "#ffffff",   # ← 'oppervlak' in Tailwind
+    "tekst":              "#0f172a",
+    "tekst-secundair":    "#64748b",   # ← 'tekst-zacht' in Tailwind
+    "rand":               "#e2e8f0",
+    "succes":             "#10b981",
+    "fout":               "#ef4444",   # ← 'gevaar' in Tailwind
+    "waarschuwing":       "#f59e0b",
+    "info":               "#3b82f6",
+    "msg-succes-bg":      "#d1fae5",   # ← 'succes-zacht' in Tailwind
+    "msg-fout-bg":        "#fee2e2",   # ← 'gevaar-zacht' in Tailwind
+    ...
 }
-
-html.dark {                       /* dark — lichtere blauw voor contrast */
-  --kleur-primair:        #3b82f6;   /* blue-500 */
-  --kleur-primair-hover:  #60a5fa;   /* blue-400 */
-  --kleur-primair-zacht:  #1e3a5f;   /* custom  */
-  --kleur-achtergrond:    #111827;   /* gray-900 */
-  --kleur-oppervlak:      #1f2937;   /* gray-800 */
-  --kleur-rand:           #374151;   /* gray-700 */
-  --kleur-tekst:          #f9fafb;   /* gray-50  */
-  --kleur-tekst-zacht:    #9ca3af;   /* gray-400 */
-  --kleur-succes:         #22c55e;   /* green-500 */
-  --kleur-gevaar:         #ef4444;   /* red-500  */
-  --kleur-waarschuwing:   #f59e0b;   /* amber-500 */
-}
+# Dark mode via [data-theme='dark'] selector (niet html.dark)
 ```
 
-Tailwind config (inline `<script>` vóór Tailwind CDN in base template):
+Tailwind config (inline `<script>` vóór Tailwind CDN in `app.html`):
 ```js
-tailwind.config = {
-  darkMode: 'class',
+tailwind = { config: {
+  darkMode: ['attribute', 'data-theme'],
   theme: { extend: { colors: {
-    primair:      'var(--kleur-primair)',
-    'primair-hover': 'var(--kleur-primair-hover)',
-    'primair-zacht': 'var(--kleur-primair-zacht)',
-    achtergrond:  'var(--kleur-achtergrond)',
-    oppervlak:    'var(--kleur-oppervlak)',
-    rand:         'var(--kleur-rand)',
-    tekst:        'var(--kleur-tekst)',
-    'tekst-zacht':'var(--kleur-tekst-zacht)',
-    succes:       'var(--kleur-succes)',
-    gevaar:       'var(--kleur-gevaar)',
-    waarschuwing: 'var(--kleur-waarschuwing)',
+    'oppervlak':          'var(--achtergrond-widget)',
+    'achtergrond':        'var(--achtergrond)',
+    'primair':            'var(--primair)',
+    'primair-hover':      'var(--primair-hover)',
+    'tekst':              'var(--tekst)',
+    'tekst-zacht':        'var(--tekst-secundair)',
+    'rand':               'var(--rand)',
+    'succes':             'var(--succes)',
+    'succes-zacht':       'var(--msg-succes-bg)',
+    'gevaar':             'var(--fout)',
+    'gevaar-zacht':       'var(--msg-fout-bg)',
+    'waarschuwing':       'var(--waarschuwing)',
+    'waarschuwing-zacht': 'var(--msg-waarschuwing-bg)',
+    'info':               'var(--info)',
+    'info-zacht':         'var(--msg-info-bg)',
   }}}
-}
+} };
 ```
 
 Templates gebruiken altijd **semantische klassen**, nooit hardcoded Tailwind-kleurcodes:
@@ -908,9 +907,9 @@ Je kan bestaande bcrypt-hashes niet proactief omzetten zonder de plaintext. Opti
 
 **Stijlsysteem:**
 - [x] `backend/static/css/theme.css` aanmaken met CSS custom properties (light + dark, zie Stijlsysteem-sectie)
-- [x] `backend/templates/layouts/base.html` aanpassen:
-  - Inline `tailwind.config` script met semantische kleuraliassen
-  - Theme-init snippet in `<head>` (zet `html.dark` vóór render op basis van cookie `thema`)
+- [x] `backend/templates/layouts/app.html` aanpassen:
+  - Inline `tailwind.config` script met semantische kleuraliassen (zie Stijlsysteem-sectie)
+  - Theme-init snippet in `<head>` (zet `data-theme="dark"` op `<html>` vóór render op basis van cookie `thema`)
   - Tailwind CDN laden ná config
   - `theme.css` linken
 - [x] `backend/templates/components/` map aanmaken met basiscomponenten:
@@ -919,20 +918,20 @@ Je kan bestaande bcrypt-hashes niet proactief omzetten zonder de plaintext. Opti
   - `formulier_veld.html`
   - `badge.html`
   - `alert.html`
-- [ ] Theme-toggle knop in navbar (POST naar `/account/thema`, slaat op in `Gebruiker.thema`)
+- [x] Theme-toggle knop in navbar (POST naar `/account/thema`, slaat op in `Gebruiker.thema`)
 - [x] `Gebruiker.thema` veld toevoegen aan model (`light | dark | systeem`, default `systeem`) + Alembic migratie 002
 
 **i18n controle:**
-- [ ] Bestaande v0.8 i18n-mechanisme verifiëren (werkt `_()` in templates?)
-- [ ] Controleren of alle bestaande templates hardcoded tekst bevatten → inventariseren
-- [ ] Regel vastleggen in `CONTRIBUTING.md`: nooit hardcoded tekst, altijd vertaalsleutel
+- [x] Bestaande v0.8 i18n-mechanisme verifiëren (werkt `t()` in templates? — ja, alle 14 routers geven `t` door; fallback nl→sleutel werkt)
+- [x] Controleren of alle bestaande templates hardcoded tekst bevatten → inventariseren (22 van 28 pagina-templates bevatten nog hardcoded Dutch, wordt opgelost in Fase 1-6 bij template-herwerk)
+- [x] Regel vastleggen in `CONTRIBUTING.md`: nooit hardcoded tekst, altijd vertaalsleutel
 
 **Secrets & dependencies:**
 - [x] `.env.example` aanmaken met alle verplichte variabelen (placeholder-waarden)
 - [x] `.env` toevoegen aan `.gitignore`
 - [x] `secrets/` map toevoegen aan `.gitignore`
-- [ ] `pip freeze > requirements.txt` uitvoeren na setup
-- [ ] Scannen van v0.8 code op hardcoded secrets → verwijderen
+- [x] `pip freeze > requirements.txt` uitvoeren na setup (sqlalchemy 2.0.48, pydantic 2.12.5 gepind)
+- [x] Scannen van v0.8 code op hardcoded secrets → geen echte secrets gevonden (sentinel-string in config.py + seed-wachtwoord in main.py zijn bewust en acceptabel)
 - [x] `passlib` verwijderen uit requirements, vervangen door `argon2-cffi` + `bcrypt` (read-only voor migratie)
 - [x] `AuthService.verifieer_wachtwoord()` herschrijven met argon2 + bcrypt legacy-pad
 
@@ -946,65 +945,65 @@ Je kan bestaande bcrypt-hashes niet proactief omzetten zonder de plaintext. Opti
 **Dit moet als eerste — alle latere fases bouwen hierop.**
 
 **Hernoeming Groep → Team:**
-- [ ] `models/groep.py` → `models/team.py`; `Groep` → `Team`, `GroepConfig` → `TeamConfig`
-- [ ] `models/locatie.py` aanmaken: `Locatie(id, naam, code, area_label, is_actief)`
-- [ ] `Team.locatie_id` FK toevoegen
-- [ ] Alle `groep_id` velden hernoemd naar `team_id` in: Planning, Notitie, AuditLog
-- [ ] `Verlof` verliest `groep_id` → aparte `VerlofTeamStatus`-tabel (zie datamodel)
-- [ ] Router `/groepen` → `/teams`; alle route-strings bijwerken
-- [ ] Templates: alle verwijzingen naar "groep" → "team"
-- [ ] i18n: `groep.*` → `team.*` sleutels
+- [x] `models/groep.py` → `models/team.py`; `Groep` → `Team`, `GroepConfig` → `TeamConfig`
+- [x] `models/locatie.py` aanmaken: `Locatie(id, naam, code, area_label, is_actief)`
+- [x] `Team.locatie_id` FK toevoegen
+- [x] Alle `groep_id` velden hernoemd naar `team_id` in: Planning, Notitie, AuditLog
+- [x] `Verlof` verliest `groep_id` → aparte `VerlofTeamStatus`-tabel (zie datamodel)
+- [x] Router `/groepen` → `/teams`; alle route-strings bijwerken
+- [x] Templates: alle verwijzingen naar "groep" → "team"
+- [x] i18n: `groep.*` → `team.*` sleutels
 
 **Nieuwe operationele modellen (port vanuit v0.7):**
-- [ ] `Shiftcode` model uitbreiden met:
+- [x] `Shiftcode` model uitbreiden met:
   - `locatie_id → Locatie` (nullable — None = nationaal beschikbaar)
   - `telt_als_werkdag: bool` — telt mee voor de 19-dagenregel
   - `is_nachtprestatie: bool` — activeert nacht-vervolgingsbeperking
   - `reset_nacht: bool` — heft nacht-vervolgingsbeperking op
   - Referentie: `code_v07/src/services/domein/shiftcode_domein.py`
-- [ ] `RodeLijnConfig` model aanmaken (exact één record):
+- [x] `RodeLijnConfig` model aanmaken (exact één record):
   - `id, referentie_datum: date`
   - Rode lijn datums worden NOOIT opgeslagen, altijd berekend als `referentie_datum + n × 28`
   - Blokgrootte via `NationaleHRRegel(code='RODE_LIJN_BLOK_GROOTTE')`
   - Referentie: `code_v07/src/services/applicatie/rode_lijn_service.py`
-- [ ] `VerlofTeamStatus` model aanmaken: `(id, verlof_id, team_id, status, aangemaakt_op, behandeld_door_id, behandeld_op)`
-- [ ] `PlanningWijziging` model aanmaken met gedenormaliseerd `locatie_id` (via `Team.locatie_id` ingevuld bij aanmaak)
+- [x] `VerlofTeamStatus` model aanmaken: `(id, verlof_id, team_id, status, aangemaakt_op, behandeld_door_id, behandeld_op)`
+- [x] `PlanningWijziging` model aanmaken met gedenormaliseerd `locatie_id` (via `Team.locatie_id` ingevuld bij aanmaak)
 
 **Nieuw rolmodel (`GebruikerRol`):**
-- [ ] `Gebruiker.rol` veld verwijderen
-- [ ] `GebruikerGroep` tabel verwijderen
-- [ ] `models/gebruiker_rol.py` aanmaken:
+- [x] `Gebruiker.rol` veld verwijderen
+- [x] `GebruikerGroep` tabel verwijderen
+- [x] `models/gebruiker_rol.py` aanmaken:
   ```
   GebruikerRol(id, gebruiker_id, rol, scope_id, is_reserve, is_actief)
   rol: super_beheerder | beheerder | hr | planner | teamlid
   scope_id: team_id (teamlid/planner) | locatie_id (beheerder/hr) | nat_locatie_id (super_beheerder)
   is_reserve: bool (default False, enkel relevant bij rol=teamlid)
   ```
-- [ ] `heeft_rol(gebruiker_id, rollen, scope_id)` helper in `api/dependencies.py`
-- [ ] `heeft_rol_in_locatie(gebruiker_id, rollen, locatie_id)` helper in `api/dependencies.py`:
+- [x] `heeft_rol(gebruiker_id, rollen, scope_id)` helper in `api/dependencies.py`
+- [x] `heeft_rol_in_locatie(gebruiker_id, rollen, locatie_id)` helper in `api/dependencies.py`:
   - zoekt alle `GebruikerRol`-records voor de gebruiker
   - voor `teamlid/planner`: lookup `Team.locatie_id` via `scope_id` → vergelijk met `locatie_id`
   - voor `beheerder/hr`: vergelijk `scope_id` direct met `locatie_id`
   - voor `super_beheerder`: altijd `True`
   - **vereist in Fase 2 door HR-validators en locatie-gebaseerde permissiechecks**
-- [ ] `interpreteer_scope(rol, scope_id)` helper — geeft `('team', team_obj)` of `('locatie', locatie_obj)` terug (zie polymorfische FK-beslissing)
-- [ ] Alle router dependencies aanpassen: `vereiste_rol()` gebruikt nieuwe helpers
-- [ ] `GebruikerService` aanpassen: CRUD voor rollen toewijzen/intrekken
-- [ ] Planning grid query: enkel gebruikers met `teamlid|planner` voor dat team; `is_reserve` als uitfilterbare vlag
+- [x] `interpreteer_scope(rol, scope_id)` helper — geeft `('team', team_obj)` of `('locatie', locatie_obj)` terug (zie polymorfische FK-beslissing)
+- [x] Alle router dependencies aanpassen: `vereiste_rol()` gebruikt nieuwe helpers
+- [x] `GebruikerService` aanpassen: CRUD voor rollen toewijzen/intrekken
+- [x] Planning grid query: enkel gebruikers met `teamlid|planner` voor dat team; `is_reserve` als uitfilterbare vlag
 
 **Modelconventies toepassen:**
-- [ ] Alle hoofdmodellen uitbreiden met `verwijderd_op: datetime | None` en `verwijderd_door_id: int | None`
-- [ ] Alle via API blootgestelde modellen uitbreiden met `uuid: str` kolom (server-side uuid4, geïndexeerd)
-- [ ] `BaseRepository._locatie_filter()` filtert automatisch op `is_actief=True` en `verwijderd_op IS NULL`
-- [ ] API-routers gebruiken `uuid` in paden, services zoeken intern op `id`
+- [x] Alle hoofdmodellen uitbreiden met `verwijderd_op: datetime | None` en `verwijderd_door_id: int | None`
+- [x] Alle via API blootgestelde modellen uitbreiden met `uuid: str` kolom (server-side uuid4, geïndexeerd)
+- [x] `BaseRepository._locatie_filter()` filtert automatisch op `is_actief=True` en `verwijderd_op IS NULL`
+- [x] API-routers gebruiken `uuid` in paden, services zoeken intern op `id`
 
 **Alembic migratie:**
-- [ ] Migratie: hernoeming + Locatie + GebruikerRol + soft delete kolommen + uuid kolommen + PlanningWijziging + data migratie
+- [x] Migratie: hernoeming + Locatie + GebruikerRol + soft delete kolommen + uuid kolommen + PlanningWijziging + data migratie
 
 **Seed data:**
-- [ ] Vaste systeemlocatie aanmaken: `Locatie(code='NAT', naam='Nationaal')` — nooit verwijderbaar
-- [ ] 1 echte Locatie + 2 Teams (PAT, TO)
-- [ ] Admin account: `super_beheerder` rol met `scope_id = id van Locatie(code='NAT')`
+- [x] Vaste systeemlocatie aanmaken: `Locatie(code='NAT', naam='Nationaal')` — nooit verwijderbaar
+- [x] 1 echte Locatie + 2 Teams (PAT, TO)
+- [x] Admin account: `super_beheerder` rol met `scope_id = id van Locatie(code='NAT')`
 
 **Verificatie:** Login werkt, admin heeft super_beheerder-toegang, teams scherm toont correct, planning grid toont enkel teamleden
 
@@ -1015,23 +1014,23 @@ Je kan bestaande bcrypt-hashes niet proactief omzetten zonder de plaintext. Opti
 
 **Referentie:** `code_v07/src/services/applicatie/hr_regel_beheer_service.py`
 
-- [ ] Model `NationaleHRRegel(id, code, waarde, ernst_niveau, richting, beschrijving, is_actief)`
+- [x] Model `NationaleHRRegel(id, code, waarde, ernst_niveau, richting, beschrijving, is_actief)`
   - `richting`: `"max"` (lagere waarde = strenger, bv. MAX_DAGEN_OP_RIJ) of `"min"` (hogere waarde = strenger, bv. MIN_RUSTTIJD)
-- [ ] Model `LocatieHROverride(id, nationale_regel_id, locatie_id, waarde)`
+- [x] Model `LocatieHROverride(id, nationale_regel_id, locatie_id, waarde)`
   - Constraint: `richting="max"` → `waarde <= nationale.waarde`; `richting="min"` → `waarde >= nationale.waarde`
-- [ ] Bestaande `HRRegel` model vervangen door bovenstaande
-- [ ] Alembic migratie
-- [ ] `HRService.haal_effectieve_waarde(regel_code, locatie_id)` → override indien aanwezig, anders nationaal
-- [ ] `ValidatieService`: validators gebruiken `haal_effectieve_waarde()` i.p.v. directe HRRegel lookup
-- [ ] Router `/beheer/hr-nationaal` (super_beheerder only): CRUD nationale defaults
-- [ ] Router `/hr` (beheerder): nationale defaults zien + lokale overrides instellen
-- [ ] Templates: nationale waarden tonen als referentie naast lokale invoer
-- [ ] Seed: nationale defaults
+- [x] Bestaande `HRRegel` model vervangen door bovenstaande
+- [x] Alembic migratie (`002_hr_twee_laags.py`)
+- [x] `HRService.haal_effectieve_waarde(regel_code, locatie_id)` → override indien aanwezig, anders nationaal
+- [x] `ValidatieService`: validators gebruiken twee-laags lookup i.p.v. directe HRRegel query
+- [x] Router `/beheer/hr-nationaal` (super_beheerder only): CRUD nationale defaults
+- [x] Router `/hr` (beheerder): nationale defaults zien + lokale overrides instellen
+- [x] Templates: nationale waarden tonen als referentie naast lokale invoer
+- [x] Seed: nationale defaults
   - `MAX_DAGEN_OP_RIJ=7, MIN_RUSTTIJD=11, MAX_UREN_PER_WEEK=50`
   - `RX_MAX_GAP=7` (max dagen tussen RX-rustdagen)
   - `RODE_LIJN_BLOK_GROOTTE=1` (aantal aaneengesloten 28-daagse periodes per blok; override kan verlagen)
-- [ ] Seed: `RodeLijnConfig` aanmaken met nationale `referentie_datum` (te bepalen bij go-live op basis van PAT.db data)
-- [ ] Seed: v0.7 shiftcodes importeren met correcte `telt_als_werkdag` / `is_nachtprestatie` / `reset_nacht` flags
+- [x] Seed: `RodeLijnConfig` aanmaken met nationale `referentie_datum` — via `migreer_sqlite.py` uit PAT.db (`rode_lijnen_config.start_datum = 2024-07-29`, interval=28)
+- [x] Seed: v0.7 shiftcodes importeren met correcte flags — via `migreer_sqlite.py` (mapping: `reset_12u_rust→reset_nacht`, `shift_type='nacht'→is_nachtprestatie`)
 
 **Verificatie:** Lokale override MAX_DAGEN_OP_RIJ=5 → validator gebruikt 5; locatie zonder override gebruikt 7; rode lijn datums correct berekend vanuit referentiedatum
 
@@ -1130,7 +1129,7 @@ Je kan bestaande bcrypt-hashes niet proactief omzetten zonder de plaintext. Opti
 ---
 
 ### Fase 7 — Ontbrekende HR Validators (Week 9)
-**Doel:** Volledige validator suite: alle 9 validators actief
+**Doel:** Volledige validator suite: alle 10 validators actief
 
 **Bestaande v0.8 validators (al aanwezig, enkel `haal_effectieve_waarde()` aanpassen in Fase 2):**
 - `MaxDagenOpRijValidator` — `code_v07/src/services/domein/validators/max_dagen_op_rij_validator.py`
@@ -1276,7 +1275,7 @@ services:
 ```
 tests/
   domein/
-    test_validators.py       # alle 9 HR-validators
+    test_validators.py       # alle 10 HR-validators
     test_verlof_logica.py
     test_planning_berekeningen.py
   services/
@@ -1291,7 +1290,7 @@ tests/
 Elke fase-verificatiestap bevat naast manuele checks ook:
 - Domeinlaag: **unit tests vereist** vóór merge
 - Services: integratietest voor kritieke paden
-- Validators (Fase 7): 100% unit test coverage op alle 9 validators
+- Validators (Fase 7): 100% unit test coverage op alle 10 validators
 
 ---
 

@@ -6,16 +6,16 @@
 {% block inhoud %}
 <div class="flex items-center justify-between mb-4">
     <div>
-        <h1 class="text-2xl font-bold text-gray-800">Gebruikers</h1>
-        <p class="text-sm text-gray-500 mt-0.5">{{ totaal_actief }} actieve medewerkers in {{ gebruiker.groep.naam }}</p>
+        <h1 class="text-2xl font-bold text-tekst">{{ t('gebruiker.titel') }}</h1>
+        <p class="text-sm text-tekst-zacht mt-0.5">{{ totaal_actief }} actieve medewerkers in {{ gebruiker.locatie.naam if gebruiker.locatie else '' }}</p>
     </div>
     <a href="/beheer/gebruikers/nieuw"
-       class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white
+       class="inline-flex items-center gap-2 bg-primair hover:bg-primair-hover text-white
               text-sm font-medium px-4 py-2 rounded-lg transition-colors duration-150">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
         </svg>
-        Nieuwe gebruiker
+        {{ t('gebruiker.nieuw') }}
     </a>
 </div>
 
@@ -23,9 +23,9 @@
 <form method="get" action="/beheer/gebruikers" class="flex flex-wrap gap-2 mb-4">
     <input type="text" name="zoek" value="{{ zoek }}"
            placeholder="Zoeken op naam..."
-           class="flex-1 min-w-[180px] text-sm rounded-lg border border-gray-200 px-3 py-1.5 outline-none focus:ring-2 focus:ring-blue-300">
+           class="flex-1 min-w-[180px] text-sm rounded-lg border border-rand px-3 py-1.5 outline-none focus:ring-2 focus:ring-blue-300">
     <select name="rol" onchange="this.form.submit()"
-            class="text-sm rounded-lg border border-gray-200 px-3 py-1.5 outline-none bg-white">
+            class="text-sm rounded-lg border border-rand px-3 py-1.5 outline-none bg-oppervlak">
         <option value="" {% if not rol %}selected{% endif %}>Alle rollen</option>
         <option value="beheerder" {% if rol == 'beheerder' %}selected{% endif %}>Beheerder</option>
         <option value="planner" {% if rol == 'planner' %}selected{% endif %}>Planner</option>
@@ -33,18 +33,18 @@
         <option value="medewerker" {% if rol == 'medewerker' %}selected{% endif %}>Medewerker</option>
     </select>
     <select name="status" onchange="this.form.submit()"
-            class="text-sm rounded-lg border border-gray-200 px-3 py-1.5 outline-none bg-white">
+            class="text-sm rounded-lg border border-rand px-3 py-1.5 outline-none bg-oppervlak">
         <option value="actief" {% if status == 'actief' %}selected{% endif %}>Actief</option>
         <option value="inactief" {% if status == 'inactief' %}selected{% endif %}>Inactief</option>
         <option value="alle" {% if status == 'alle' %}selected{% endif %}>Alle statussen</option>
     </select>
     <button type="submit"
-            class="text-sm px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors">
-        Zoeken
+            class="text-sm px-3 py-1.5 rounded-lg bg-achtergrond hover:bg-gray-200 text-tekst transition-colors">
+        {{ t('algemeen.zoeken') }}
     </button>
     {% if zoek or rol or status != 'actief' %}
     <a href="/beheer/gebruikers"
-       class="text-sm px-3 py-1.5 rounded-lg text-gray-500 hover:text-gray-700 transition-colors">
+       class="text-sm px-3 py-1.5 rounded-lg text-tekst-zacht hover:text-tekst transition-colors">
         Wis filters
     </a>
     {% endif %}
@@ -58,23 +58,23 @@
 </div>
 {% endif %}
 
-<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+<div class="bg-oppervlak rounded-xl shadow-sm overflow-hidden">
     <table class="w-full text-sm">
-        <thead class="bg-gray-50 border-b border-gray-200">
+        <thead class="bg-achtergrond border-b border-rand">
             <tr>
-                <th class="text-left px-5 py-3 font-medium text-gray-600">Naam</th>
-                <th class="text-left px-5 py-3 font-medium text-gray-600">Gebruikersnaam</th>
-                <th class="text-left px-5 py-3 font-medium text-gray-600">Rol</th>
-                <th class="text-left px-5 py-3 font-medium text-gray-600">2FA</th>
-                <th class="text-left px-5 py-3 font-medium text-gray-600">Status</th>
+                <th class="text-left px-5 py-3 font-medium text-tekst-zacht">{{ t('gebruiker.volledige_naam') }}</th>
+                <th class="text-left px-5 py-3 font-medium text-tekst-zacht">{{ t('gebruiker.gebruikersnaam') }}</th>
+                <th class="text-left px-5 py-3 font-medium text-tekst-zacht">{{ t('gebruiker.rol') }}</th>
+                <th class="text-left px-5 py-3 font-medium text-tekst-zacht">2FA</th>
+                <th class="text-left px-5 py-3 font-medium text-tekst-zacht">{{ t('algemeen.status') }}</th>
                 <th class="px-5 py-3"></th>
             </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
             {% for g in gebruikers %}
-            <tr class="hover:bg-gray-50 {% if not g.is_actief %}opacity-50{% endif %}">
-                <td class="px-5 py-3 font-medium text-gray-800">{{ g.volledige_naam or g.gebruikersnaam }}</td>
-                <td class="px-5 py-3 text-gray-500">{{ g.gebruikersnaam }}</td>
+            <tr class="hover:bg-achtergrond {% if not g.is_actief %}opacity-50{% endif %}">
+                <td class="px-5 py-3 font-medium text-tekst">{{ g.volledige_naam or g.gebruikersnaam }}</td>
+                <td class="px-5 py-3 text-tekst-zacht">{{ g.gebruikersnaam }}</td>
                 <td class="px-5 py-3">
                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
                         {% if g.rol == 'beheerder' %}bg-purple-100 text-purple-700
@@ -86,34 +86,34 @@
                 </td>
                 <td class="px-5 py-3">
                     {% if g.totp_actief %}
-                    <span class="text-green-600 font-medium">Actief</span>
+                    <span class="text-green-600 font-medium">{{ t('algemeen.actief') }}</span>
                     {% else %}
                     <span class="text-gray-400">—</span>
                     {% endif %}
                 </td>
                 <td class="px-5 py-3">
                     {% if g.is_actief %}
-                    <span class="text-green-600 font-medium">Actief</span>
+                    <span class="text-green-600 font-medium">{{ t('algemeen.actief') }}</span>
                     {% else %}
-                    <span class="text-red-500">Inactief</span>
+                    <span class="text-red-500">{{ t('algemeen.inactief') }}</span>
                     {% endif %}
                 </td>
                 <td class="px-5 py-3">
                     <div class="flex items-center justify-end gap-3">
-                        <a href="/beheer/gebruikers/{{ g.id }}/bewerk"
-                           class="text-blue-600 hover:text-blue-800 font-medium">Bewerk</a>
-                        <a href="/beheer/gebruikers/{{ g.id }}/wachtwoord"
-                           class="text-gray-500 hover:text-gray-700">Wachtwoord</a>
+                        <a href="/beheer/gebruikers/{{ g.uuid }}/bewerk"
+                           class="text-blue-600 hover:text-blue-800 font-medium">{{ t('algemeen.bewerken') }}</a>
+                        <a href="/beheer/gebruikers/{{ g.uuid }}/wachtwoord"
+                           class="text-tekst-zacht hover:text-tekst">{{ t('algemeen.wachtwoord') }}</a>
                         {% if g.is_actief %}
-                        <form method="post" action="/beheer/gebruikers/{{ g.id }}/deactiveer"
+                        <form method="post" action="/beheer/gebruikers/{{ g.uuid }}/deactiveer"
                               onsubmit="return confirm('{{ g.volledige_naam or g.gebruikersnaam }} deactiveren?')">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                            <button type="submit" class="text-red-500 hover:text-red-700">Deactiveer</button>
+                            <button type="submit" class="text-red-500 hover:text-red-700">{{ t('algemeen.deactiveer') }}</button>
                         </form>
                         {% else %}
-                        <form method="post" action="/beheer/gebruikers/{{ g.id }}/activeer">
+                        <form method="post" action="/beheer/gebruikers/{{ g.uuid }}/activeer">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                            <button type="submit" class="text-green-600 hover:text-green-800">Activeer</button>
+                            <button type="submit" class="text-green-600 hover:text-green-800">{{ t('algemeen.activeer') }}</button>
                         </form>
                         {% endif %}
                     </div>
@@ -121,13 +121,13 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="6" class="px-5 py-8 text-center text-gray-400">Geen gebruikers gevonden.</td>
+                <td colspan="6" class="px-5 py-8 text-center text-tekst-zacht">Geen gebruikers gevonden.</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
     {% if gebruikers %}
-    <div class="px-5 py-3 border-t border-gray-100 bg-gray-50 text-xs text-gray-500">
+    <div class="px-5 py-3 border-t border-rand bg-achtergrond text-xs text-tekst-zacht">
         {{ gebruikers | length }} resultaten · {{ totaal_actief }} actieve medewerkers in totaal
     </div>
     {% endif %}

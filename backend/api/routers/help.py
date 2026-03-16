@@ -1,4 +1,5 @@
 """Help router — changelog en helpinformatie."""
+import bleach
 import markdown
 from pathlib import Path
 
@@ -13,6 +14,14 @@ from models.gebruiker import Gebruiker
 router = APIRouter(prefix="/help", tags=["help"])
 
 _CHANGELOG_PAD = Path(__file__).parent.parent.parent / "CHANGELOG.md"
+_TOEGESTANE_TAGS = [
+    "h1", "h2", "h3", "h4", "h5", "h6",
+    "p", "br", "strong", "em", "code", "pre",
+    "ul", "ol", "li", "blockquote", "hr",
+    "table", "thead", "tbody", "tr", "th", "td",
+    "a",
+]
+_TOEGESTANE_ATTRIBUTEN = {"a": ["href", "title"], "td": ["align"], "th": ["align"]}
 
 
 def _context(request: Request, gebruiker: Gebruiker, **extra) -> dict:
@@ -29,6 +38,8 @@ def toon_changelog(
     if _CHANGELOG_PAD.exists():
         tekst = _CHANGELOG_PAD.read_text(encoding="utf-8")
         inhoud_html = markdown.markdown(tekst, extensions=["tables", "fenced_code"])
+        inhoud_html = bleach.clean(inhoud_html, tags=_TOEGESTANE_TAGS,
+                                   attributes=_TOEGESTANE_ATTRIBUTEN, strip=True)
     else:
         inhoud_html = "<p>Changelog niet gevonden.</p>"
 

@@ -9,6 +9,7 @@ import logging
 from calendar import monthrange
 from datetime import date, timedelta
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from models.gebruiker import Gebruiker
@@ -52,7 +53,8 @@ class SuggestieService:
 
     def haal_shiftcode_suggesties(
         self,
-        groep_id: int,
+        team_id: int,
+        locatie_id: int,
         gebruiker_id: int,
         datum: date,
     ) -> list[ShiftcodeSuggestie]:
@@ -60,18 +62,13 @@ class SuggestieService:
         Geef top-10 gescoorde shiftcode-suggesties voor een gebruiker op een datum.
 
         Retourneert lege lijst als:
-        - gebruiker_id niet tot groep_id behoort
+        - gebruiker niet actief of niet tot locatie behorend
         - gebruiker al een shift heeft op die datum
         - gebruiker goedgekeurd verlof heeft op die datum
-
-        Args:
-            groep_id: Groep van de ingelogde planner.
-            gebruiker_id: ID van de te plannen medewerker.
-            datum: De doeldatum.
         """
         geb = self.db.query(Gebruiker).filter(
             Gebruiker.id == gebruiker_id,
-            Gebruiker.groep_id == groep_id,
+            Gebruiker.locatie_id == locatie_id,
             Gebruiker.is_actief == True,
         ).first()
         if not geb:
@@ -81,19 +78,21 @@ class SuggestieService:
         bestaand = self.db.query(Planning).filter(
             Planning.gebruiker_id == gebruiker_id,
             Planning.datum == datum,
-            Planning.groep_id == groep_id,
+            Planning.team_id == team_id,
         ).first()
         if bestaand and bestaand.shift_code:
             return []
 
         # Goedgekeurd verlof?
-        if self._heeft_verlof(gebruiker_id, groep_id, datum):
+        if self._heeft_verlof(gebruiker_id, datum):
             return []
 
-        # Actieve shiftcodes voor de groep (geen rust/verlof codes)
+        # Actieve shiftcodes voor de locatie (incl. nationale) — geen rust/verlof codes
         shiftcodes = [
             sc for sc in self.db.query(Shiftcode)
-            .filter(Shiftcode.groep_id == groep_id)
+            .filter(
+                or_(Shiftcode.locatie_id == locatie_id, Shiftcode.locatie_id.is_(None))
+            )
             .order_by(Shiftcode.code)
             .all()
             if sc.code.upper() not in _NIET_SUGGEREREN
@@ -107,7 +106,7 @@ class SuggestieService:
             rec.shift_code
             for rec in self.db.query(Planning).filter(
                 Planning.gebruiker_id == gebruiker_id,
-                Planning.groep_id == groep_id,
+                Planning.team_id == team_id,
                 Planning.datum >= hist_start,
                 Planning.datum < datum,
             ).all()
@@ -133,7 +132,8 @@ class SuggestieService:
 
     def auto_invullen(
         self,
-        groep_id: int,
+        team_id: int,
+        locatie_id: int,
         gebruiker_id: int,
         datum: date,
     ) -> str | None:
@@ -143,14 +143,14 @@ class SuggestieService:
         Returns:
             De toegepaste shiftcode, of None als geen suggestie beschikbaar.
         """
-        suggesties = self.haal_shiftcode_suggesties(groep_id, gebruiker_id, datum)
+        suggesties = self.haal_shiftcode_suggesties(team_id, locatie_id, gebruiker_id, datum)
         if not suggesties:
             return None
 
         beste = suggesties[0]
         from services.planning_service import PlanningService
         PlanningService(self.db).sla_shift_op(
-            gebruiker_id, groep_id, datum, beste.shiftcode
+            gebruiker_id, team_id, datum, beste.shiftcode
         )
         logger.debug(
             "Auto-invullen: gebruiker %s op %s → %s (score %.1f)",
@@ -160,7 +160,8 @@ class SuggestieService:
 
     def batch_auto_invullen(
         self,
-        groep_id: int,
+        team_id: int,
+        locatie_id: int,
         jaar: int,
         maand: int,
     ) -> int:
@@ -173,13 +174,21 @@ class SuggestieService:
         Returns:
             Aantal ingevulde cellen.
         """
+        from models.gebruiker_rol import GebruikerRol
+
         _, aantal_dagen = monthrange(jaar, maand)
         start = date(jaar, maand, 1)
         eind = date(jaar, maand, aantal_dagen)
 
         gebruikers = (
             self.db.query(Gebruiker)
-            .filter(Gebruiker.groep_id == groep_id, Gebruiker.is_actief == True)
+            .join(GebruikerRol, GebruikerRol.gebruiker_id == Gebruiker.id)
+            .filter(
+                GebruikerRol.scope_id == team_id,
+                GebruikerRol.rol.in_(["teamlid", "planner"]),
+                GebruikerRol.is_actief == True,
+                Gebruiker.is_actief == True,
+            )
             .all()
         )
 
@@ -187,7 +196,7 @@ class SuggestieService:
         bestaand_idx: set[tuple[int, date]] = {
             (s.gebruiker_id, s.datum)
             for s in self.db.query(Planning).filter(
-                Planning.groep_id == groep_id,
+                Planning.team_id == team_id,
                 Planning.datum >= start,
                 Planning.datum <= eind,
                 Planning.shift_code.isnot(None),
@@ -199,7 +208,7 @@ class SuggestieService:
         hist_records = (
             self.db.query(Planning)
             .filter(
-                Planning.groep_id == groep_id,
+                Planning.team_id == team_id,
                 Planning.datum >= hist_start,
                 Planning.datum < start,
                 Planning.shift_code.isnot(None),
@@ -231,7 +240,7 @@ class SuggestieService:
             for datum in datums:
                 if (g.id, datum) in bestaand_idx:
                     continue  # Al ingevuld
-                if self._heeft_verlof(g.id, groep_id, datum):
+                if self._heeft_verlof(g.id, datum):
                     continue  # Verlof
 
                 beste_code = suggereer_voor_weekdag(datum.weekday(), weekdag_hist)
@@ -239,15 +248,15 @@ class SuggestieService:
                     continue
 
                 try:
-                    planning_svc.sla_shift_op(g.id, groep_id, datum, beste_code)
+                    planning_svc.sla_shift_op(g.id, team_id, datum, beste_code)
                     bestaand_idx.add((g.id, datum))
                     toegepast += 1
                 except ValueError as fout:
                     logger.debug("Batch skip %s/%s: %s", g.id, datum, fout)
 
         logger.info(
-            "Batch auto-invullen groep %s %s-%02d: %d cellen ingevuld",
-            groep_id, jaar, maand, toegepast,
+            "Batch auto-invullen team %s %s-%02d: %d cellen ingevuld",
+            team_id, jaar, maand, toegepast,
         )
         return toegepast
 
@@ -255,11 +264,10 @@ class SuggestieService:
     # Privé hulpfuncties                                                  #
     # ------------------------------------------------------------------ #
 
-    def _heeft_verlof(self, gebruiker_id: int, groep_id: int, datum: date) -> bool:
+    def _heeft_verlof(self, gebruiker_id: int, datum: date) -> bool:
         """Check of de gebruiker goedgekeurd verlof heeft op de datum."""
         return self.db.query(VerlofAanvraag).filter(
             VerlofAanvraag.gebruiker_id == gebruiker_id,
-            VerlofAanvraag.groep_id == groep_id,
             VerlofAanvraag.start_datum <= datum,
             VerlofAanvraag.eind_datum >= datum,
             VerlofAanvraag.status == "goedgekeurd",

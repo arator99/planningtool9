@@ -1,0 +1,108 @@
+{% extends "layouts/app.html" %}
+{% set actief_menu = "beheer" %}
+
+{% block titel %}Nationale HR-regels — Planning Tool{% endblock %}
+
+{% block inhoud %}
+
+<div class="flex items-center justify-between mb-6">
+    <h1 class="text-xl font-bold" style="color: var(--tekst);">Nationale HR-regels</h1>
+    <a href="/beheer/hr-nationaal/nieuw"
+       class="text-sm font-medium text-white px-4 py-2 rounded-lg transition-colors"
+       style="background: var(--primair);"
+       onmouseover="this.style.background='var(--primair-hover)'"
+       onmouseout="this.style.background='var(--primair)'">
+        + Nieuwe regel
+    </a>
+</div>
+
+{% if bericht %}
+<div class="mb-4 px-4 py-2.5 rounded-lg text-sm font-medium" style="background: var(--msg-succes-bg); color: var(--succes);">{{ bericht }}</div>
+{% endif %}
+{% if fout %}
+<div class="mb-4 px-4 py-2.5 rounded-lg text-sm font-medium" style="background: var(--msg-fout-bg); color: var(--fout);">{{ fout }}</div>
+{% endif %}
+
+<p class="text-sm mb-5" style="color: var(--tekst-secundair);">
+    Nationale standaarden gelden voor alle locaties. Beheerders kunnen per locatie een <em>strengere</em> waarde instellen.
+</p>
+
+{% set ernst_cfg = {
+    "CRITICAL": {"label": "Kritiek",     "bg": "var(--hr-critical-bg)", "tekst": "var(--hr-critical-tekst)", "rand": "var(--hr-critical-rand)"},
+    "WARNING":  {"label": "Waarschuwing","bg": "var(--hr-warning-bg)",  "tekst": "var(--hr-warning-tekst)",  "rand": "var(--hr-warning-rand)"},
+    "INFO":     {"label": "Info",        "bg": "var(--hr-info-bg)",     "tekst": "var(--hr-info-tekst)",     "rand": "var(--hr-info-rand)"}
+} %}
+
+<div class="space-y-4">
+    {% for niveau in ["CRITICAL", "WARNING", "INFO"] %}
+    {% if niveau in gegroepeerd %}
+    {% set cfg = ernst_cfg[niveau] %}
+    <div class="rounded-xl shadow-sm border overflow-hidden" style="border-color: var(--rand);">
+        <div class="px-4 py-2 text-xs font-bold uppercase tracking-wide"
+             style="background: {{ cfg.bg }}; color: {{ cfg.tekst }}; border-bottom: 1px solid {{ cfg.rand }};">
+            {{ cfg.label }} <span class="font-normal opacity-70">({{ gegroepeerd[niveau]|length }})</span>
+        </div>
+        <table class="w-full text-sm border-collapse" style="background: var(--achtergrond-widget);">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--rand);">
+                    <th class="text-left px-4 py-2 font-medium" style="color: var(--tekst-secundair);">Regel</th>
+                    <th class="text-right px-4 py-2 font-medium w-24" style="color: var(--tekst-secundair);">Waarde</th>
+                    <th class="text-left px-4 py-2 font-medium w-20" style="color: var(--tekst-secundair);">Eenheid</th>
+                    <th class="text-left px-4 py-2 font-medium w-24" style="color: var(--tekst-secundair);">Richting</th>
+                    <th class="text-center px-4 py-2 font-medium w-20" style="color: var(--tekst-secundair);">Status</th>
+                    <th class="px-4 py-2 w-24"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in gegroepeerd[niveau] %}
+                <tr class="border-b" style="border-color: var(--rand); opacity: {% if r.is_actief %}1{% else %}0.5{% endif %};">
+                    <td class="px-4 py-2">
+                        <div class="font-medium" style="color: var(--tekst);">{{ r.naam }}</div>
+                        <div class="text-xs mt-0.5 font-mono" style="color: var(--tekst-secundair);">{{ r.code }}</div>
+                        {% if r.beschrijving %}
+                        <div class="text-xs mt-0.5 italic" style="color: var(--tekst-secundair);">{{ r.beschrijving }}</div>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-2 text-right tabular-nums font-semibold" style="color: var(--tekst);">{{ r.waarde }}</td>
+                    <td class="px-4 py-2 text-xs" style="color: var(--tekst-secundair);">{{ r.eenheid or '—' }}</td>
+                    <td class="px-4 py-2 text-xs">
+                        {% if r.richting == 'max' %}
+                        <span class="px-2 py-0.5 rounded text-xs" style="background: var(--achtergrond-alt); color: var(--tekst-secundair);">max ↓</span>
+                        {% else %}
+                        <span class="px-2 py-0.5 rounded text-xs" style="background: var(--achtergrond-alt); color: var(--tekst-secundair);">min ↑</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-2 text-center">
+                        {% if r.is_actief %}
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium" style="background: var(--msg-succes-bg); color: var(--succes);">
+                            <span class="w-1.5 h-1.5 rounded-full" style="background: var(--succes);"></span>Actief
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium" style="background: var(--achtergrond-alt); color: var(--tekst-secundair);">
+                            <span class="w-1.5 h-1.5 rounded-full" style="background: var(--tekst-secundair);"></span>Inactief
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-2 text-right">
+                        <a href="/beheer/hr-nationaal/{{ r.uuid }}/bewerk"
+                           class="text-xs font-medium px-2.5 py-1 rounded-md transition-colors"
+                           style="background: var(--hover-bg); color: var(--tekst-secundair);">
+                            Bewerk
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+    {% endfor %}
+
+    {% if not gegroepeerd %}
+    <div class="rounded-xl border px-4 py-8 text-center text-sm" style="border-color: var(--rand); background: var(--achtergrond-widget); color: var(--tekst-secundair);">
+        Geen nationale HR-regels gevonden.
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

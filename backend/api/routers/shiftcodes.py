@@ -28,8 +28,8 @@ def lijst(
     csrf_token: str = Depends(haal_csrf_token),
 ):
     svc = ShiftcodeService(db)
-    shiftcodes = svc.haal_alle(gebruiker.groep_id)
-    werkposten = svc.haal_werkposten(gebruiker.groep_id)
+    shiftcodes = svc.haal_alle(gebruiker.locatie_id)
+    werkposten = svc.haal_werkposten(gebruiker.locatie_id)
 
     # Groepeer per shift_type voor overzicht
     gegroepeerd: dict[str, list] = {}
@@ -65,7 +65,7 @@ def nieuw_formulier(
         "pages/shiftcodes/formulier.html",
         _context(request, gebruiker,
                  sc=None,
-                 werkposten=svc.haal_werkposten(gebruiker.groep_id),
+                 werkposten=svc.haal_werkposten(gebruiker.locatie_id),
                  shift_types=SHIFT_TYPES,
                  dag_types=DAG_TYPES,
                  csrf_token=csrf_token),
@@ -87,7 +87,7 @@ def maak_aan(
 ):
     try:
         ShiftcodeService(db).maak_aan(
-            groep_id=gebruiker.groep_id,
+            locatie_id=gebruiker.locatie_id,
             code=code,
             shift_type=shift_type,
             dag_type=dag_type,
@@ -101,32 +101,33 @@ def maak_aan(
     return RedirectResponse(url="/shiftcodes?bericht=Shiftcode+aangemaakt", status_code=303)
 
 
-@router.get("/{shiftcode_id}/bewerk", response_class=HTMLResponse)
+@router.get("/{uuid}/bewerk", response_class=HTMLResponse)
 def bewerk_formulier(
-    shiftcode_id: int,
+    uuid: str,
     request: Request,
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
 ):
     svc = ShiftcodeService(db)
-    sc = svc.haal_op_id(shiftcode_id, gebruiker.groep_id)
-    if not sc:
+    try:
+        sc = svc.haal_op_uuid(uuid)
+    except ValueError:
         return RedirectResponse(url="/shiftcodes?fout=Niet+gevonden", status_code=303)
     return sjablonen.TemplateResponse(
         "pages/shiftcodes/formulier.html",
         _context(request, gebruiker,
                  sc=sc,
-                 werkposten=svc.haal_werkposten(gebruiker.groep_id),
+                 werkposten=svc.haal_werkposten(gebruiker.locatie_id),
                  shift_types=SHIFT_TYPES,
                  dag_types=DAG_TYPES,
                  csrf_token=csrf_token),
     )
 
 
-@router.post("/{shiftcode_id}/bewerk")
+@router.post("/{uuid}/bewerk")
 def sla_bewerking_op(
-    shiftcode_id: int,
+    uuid: str,
     shift_type: str = Form(""),
     dag_type: str = Form(""),
     start_uur: str = Form(""),
@@ -137,10 +138,15 @@ def sla_bewerking_op(
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
 ):
+    svc = ShiftcodeService(db)
     try:
-        ShiftcodeService(db).bewerk(
-            shiftcode_id=shiftcode_id,
-            groep_id=gebruiker.groep_id,
+        sc = svc.haal_op_uuid(uuid)
+    except ValueError:
+        return RedirectResponse(url="/shiftcodes?fout=Niet+gevonden", status_code=303)
+    try:
+        svc.bewerk(
+            shiftcode_id=sc.id,
+            locatie_id=gebruiker.locatie_id,
             shift_type=shift_type,
             dag_type=dag_type,
             start_uur=start_uur,
@@ -149,19 +155,21 @@ def sla_bewerking_op(
             is_kritisch=is_kritisch,
         )
     except ValueError as fout:
-        return RedirectResponse(url=f"/shiftcodes/{shiftcode_id}/bewerk?fout={fout}", status_code=303)
+        return RedirectResponse(url=f"/shiftcodes/{uuid}/bewerk?fout={fout}", status_code=303)
     return RedirectResponse(url="/shiftcodes?bericht=Shiftcode+bijgewerkt", status_code=303)
 
 
-@router.post("/{shiftcode_id}/verwijder")
+@router.post("/{uuid}/verwijder")
 def verwijder(
-    shiftcode_id: int,
+    uuid: str,
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
 ):
+    svc = ShiftcodeService(db)
     try:
-        ShiftcodeService(db).verwijder(shiftcode_id, gebruiker.groep_id)
+        sc = svc.haal_op_uuid(uuid)
+        svc.verwijder(sc.id, gebruiker.locatie_id)
     except ValueError as fout:
         return RedirectResponse(url=f"/shiftcodes?fout={fout}", status_code=303)
     return RedirectResponse(url="/shiftcodes?bericht=Shiftcode+verwijderd", status_code=303)

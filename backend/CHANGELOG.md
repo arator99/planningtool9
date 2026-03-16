@@ -50,6 +50,17 @@ v0.8 dient als infrastructuurreferentie (Docker, Alembic, JWT-auth).
 - `Gebruiker.rol` enkelvoudig veld (vervangen door `GebruikerRol`)
 - `GebruikerGroep` tabel (vervangen door `GebruikerRol` met `is_reserve` vlag)
 - `passlib` dependency (EOL)
+- Legacy `backend/api/routers/groepen.py` en `backend/models/groep.py` verwijderd
+
+### Security
+- **XSS** — Changelog HTML gesaniteerd met `bleach` vóór `| safe` rendering (`help.py`)
+- **Cookie expiry** — `max_age` toegevoegd aan `toegangs_token` cookie (gelijk aan JWT-verlooptijd)
+- **HSTS** — `Strict-Transport-Security: max-age=31536000; includeSubDomains` in productie
+- **Rate limiting** — Rate limiter leest `CF-Connecting-IP` voor correct IP achter Cloudflare Tunnel
+- **Health endpoint** — Versie en omgeving alleen zichtbaar in development, niet in productie
+- **Seed** — Productieguard toegevoegd aan `seed_test_data()`; seed-wachtwoord via `SEED_ADMIN_WACHTWOORD` env var
+- **Override API** — `/planning/override` gebruikt UUID i.p.v. integer ID; team-membership check toegevoegd
+- **TOTP setup** — Foutantwoord bij onjuiste TOTP-code bevat nu CSRF-token en hergenereert het geheim niet
 
 ---
 

@@ -16,10 +16,14 @@
 <div class="mb-4 px-4 py-2.5 rounded-lg text-sm font-medium" style="background: var(--msg-fout-bg); color: var(--fout);">{{ fout }}</div>
 {% endif %}
 
+<p class="text-sm mb-5" style="color: var(--tekst-secundair);">
+    Nationale standaarden worden centraal beheerd. Als beheerder kan je voor jouw locatie een strengere waarde instellen.
+</p>
+
 {% set ernst_cfg = {
-    "CRITICAL": {"label": "Kritiek",     "bg": "var(--hr-critical-bg)", "tekst": "var(--hr-critical-tekst)", "rand": "var(--hr-critical-rand)", "badge": "bg-red-100 text-red-700"},
-    "WARNING":  {"label": "Waarschuwing","bg": "var(--hr-warning-bg)",  "tekst": "var(--hr-warning-tekst)",  "rand": "var(--hr-warning-rand)",  "badge": "bg-yellow-100 text-yellow-700"},
-    "INFO":     {"label": "Info",        "bg": "var(--hr-info-bg)",     "tekst": "var(--hr-info-tekst)",     "rand": "var(--hr-info-rand)",     "badge": "bg-blue-100 text-blue-700"}
+    "CRITICAL": {"label": "Kritiek",     "bg": "var(--hr-critical-bg)", "tekst": "var(--hr-critical-tekst)", "rand": "var(--hr-critical-rand)"},
+    "WARNING":  {"label": "Waarschuwing","bg": "var(--hr-warning-bg)",  "tekst": "var(--hr-warning-tekst)",  "rand": "var(--hr-warning-rand)"},
+    "INFO":     {"label": "Info",        "bg": "var(--hr-info-bg)",     "tekst": "var(--hr-info-tekst)",     "rand": "var(--hr-info-rand)"}
 } %}
 
 <div class="space-y-4 mb-6">
@@ -35,60 +39,67 @@
             <thead>
                 <tr style="border-bottom: 1px solid var(--rand);">
                     <th class="text-left px-4 py-2 font-medium" style="color: var(--tekst-secundair);">Regel</th>
-                    <th class="text-left px-4 py-2 font-medium w-20" style="color: var(--tekst-secundair);">Waarde</th>
+                    <th class="text-right px-4 py-2 font-medium w-28" style="color: var(--tekst-secundair);">Nationaal</th>
+                    <th class="text-right px-4 py-2 font-medium w-28" style="color: var(--tekst-secundair);">Lokaal</th>
                     <th class="text-left px-4 py-2 font-medium w-20" style="color: var(--tekst-secundair);">Eenheid</th>
-                    <th class="text-center px-4 py-2 font-medium w-24" style="color: var(--tekst-secundair);">Status</th>
-                    <th class="px-4 py-2 w-32"></th>
+                    <th class="text-center px-4 py-2 font-medium w-20" style="color: var(--tekst-secundair);">Status</th>
+                    {% if gebruiker.locatie_id %}
+                    <th class="px-4 py-2 w-28"></th>
+                    {% endif %}
                 </tr>
             </thead>
             <tbody>
-                {% for r in gegroepeerd[niveau] %}
+                {% for item in gegroepeerd[niveau] %}
+                {% set r = item.regel %}
                 <tr class="border-b" style="border-color: var(--rand); opacity: {% if r.is_actief %}1{% else %}0.5{% endif %};">
                     <td class="px-4 py-2">
                         <div class="font-medium" style="color: var(--tekst);">{{ r.naam }}</div>
-                        <div class="text-xs mt-0.5" style="color: var(--tekst-secundair);">{{ r.code }}</div>
+                        <div class="text-xs mt-0.5 font-mono" style="color: var(--tekst-secundair);">{{ r.code }}</div>
                         {% if r.beschrijving %}
                         <div class="text-xs mt-0.5 italic" style="color: var(--tekst-secundair);">{{ r.beschrijving }}</div>
                         {% endif %}
                     </td>
-                    <td class="px-4 py-2 tabular-nums font-semibold" style="color: var(--tekst);">
-                        {{ r.waarde if r.waarde is not none else '—' }}
-                        {% if r.waarde_extra %}<span class="text-xs font-normal ml-1" style="color: var(--tekst-secundair);">/{{ r.waarde_extra }}</span>{% endif %}
+                    <td class="px-4 py-2 text-right tabular-nums" style="color: var(--tekst-secundair);">
+                        {{ r.waarde }}
+                    </td>
+                    <td class="px-4 py-2 text-right tabular-nums font-semibold">
+                        {% if item.heeft_override %}
+                        <span style="color: var(--primair);">{{ item.override.waarde }}</span>
+                        {% else %}
+                        <span style="color: var(--tekst-secundair);">—</span>
+                        {% endif %}
                     </td>
                     <td class="px-4 py-2 text-xs" style="color: var(--tekst-secundair);">{{ r.eenheid or '—' }}</td>
                     <td class="px-4 py-2 text-center">
                         {% if r.is_actief %}
-                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                            <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>Actief
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium" style="background: var(--msg-succes-bg); color: var(--succes);">
+                            <span class="w-1.5 h-1.5 rounded-full" style="background: var(--succes);"></span>Actief
                         </span>
                         {% else %}
-                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
-                            <span class="w-1.5 h-1.5 rounded-full bg-gray-400"></span>Inactief
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium" style="background: var(--achtergrond-alt); color: var(--tekst-secundair);">
+                            <span class="w-1.5 h-1.5 rounded-full" style="background: var(--tekst-secundair);"></span>Inactief
                         </span>
                         {% endif %}
                     </td>
+                    {% if gebruiker.locatie_id %}
                     <td class="px-4 py-2 text-right whitespace-nowrap">
-                        <a href="/hr/{{ r.id }}/bewerk"
-                           class="text-xs font-medium px-2.5 py-1 rounded-md transition-colors mr-1"
+                        <a href="/hr/{{ r.uuid }}/override"
+                           class="text-xs font-medium px-2.5 py-1 rounded-md transition-colors"
                            style="background: var(--hover-bg); color: var(--tekst-secundair);">
-                            Bewerk
+                            {% if item.heeft_override %}Bewerk{% else %}Override{% endif %}
                         </a>
-                        {% if gebruiker.rol == 'beheerder' %}
-                        {% if r.is_actief %}
-                        <form method="post" action="/hr/{{ r.id }}/deactiveer" class="inline">
-                            <button type="submit" class="text-xs font-medium px-2.5 py-1 rounded-md bg-yellow-50 text-yellow-600 hover:bg-yellow-100 transition-colors">
-                                Uit
+                        {% if item.heeft_override %}
+                        <form method="post" action="/hr/{{ r.uuid }}/override/verwijder" class="inline ml-1">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="text-xs font-medium px-2.5 py-1 rounded-md transition-colors"
+                                    style="color: var(--fout); background: var(--msg-fout-bg);"
+                                    onclick="return confirm('Override verwijderen en nationale waarde herstellen?')">
+                                Reset
                             </button>
                         </form>
-                        {% else %}
-                        <form method="post" action="/hr/{{ r.id }}/activeer" class="inline">
-                            <button type="submit" class="text-xs font-medium px-2.5 py-1 rounded-md bg-green-50 text-green-600 hover:bg-green-100 transition-colors">
-                                Aan
-                            </button>
-                        </form>
-                        {% endif %}
                         {% endif %}
                     </td>
+                    {% endif %}
                 </tr>
                 {% endfor %}
             </tbody>
@@ -99,22 +110,19 @@
 </div>
 
 <!-- Rode Lijn configuratie -->
-{% if gebruiker.rol == 'beheerder' %}
 <div class="rounded-xl shadow-sm border p-5" style="border-color: var(--rand); background: var(--achtergrond-widget);">
-    <h2 class="text-base font-semibold mb-4" style="color: var(--tekst);">Rode Lijn Cyclus</h2>
+    <h2 class="text-base font-semibold mb-1" style="color: var(--tekst);">Rode Lijn Cyclus</h2>
+    <p class="text-xs mb-4" style="color: var(--tekst-secundair);">
+        Rode lijn datums worden berekend als <code>referentiedatum + n × 28 dagen</code>. De datum wordt nooit opgeslagen.
+    </p>
+    {% if gebruiker.locatie_id %}
     <form method="post" action="/hr/rode-lijn" class="flex flex-wrap items-end gap-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <div>
-            <label class="block text-sm font-medium mb-1" style="color: var(--tekst);">Startdatum</label>
-            <input type="date" name="start_datum" required
-                   value="{{ rode_lijn.start_datum.isoformat() if rode_lijn else '' }}"
-                   class="text-sm rounded-lg border px-3 py-2 outline-none focus:ring-2 focus:ring-blue-300"
-                   style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
-        </div>
-        <div>
-            <label class="block text-sm font-medium mb-1" style="color: var(--tekst);">Interval (dagen)</label>
-            <input type="number" name="interval_dagen" min="1" max="365" required
-                   value="{{ rode_lijn.interval_dagen if rode_lijn else 28 }}"
-                   class="w-24 text-sm rounded-lg border px-3 py-2 outline-none focus:ring-2 focus:ring-blue-300"
+            <label class="block text-sm font-medium mb-1" style="color: var(--tekst);">Referentiedatum</label>
+            <input type="date" name="referentie_datum" required
+                   value="{{ rode_lijn.referentie_datum.isoformat() if rode_lijn else '' }}"
+                   class="text-sm rounded-lg border px-3 py-2 outline-none"
                    style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
         </div>
         <button type="submit"
@@ -125,12 +133,14 @@
             Opslaan
         </button>
     </form>
+    {% endif %}
     {% if rode_lijn %}
     <p class="text-xs mt-3" style="color: var(--tekst-secundair);">
-        Huidige cyclus: elke {{ rode_lijn.interval_dagen }} dagen vanaf {{ rode_lijn.start_datum.strftime('%d/%m/%Y') }}
+        Huidige referentiedatum: {{ rode_lijn.referentie_datum.strftime('%d/%m/%Y') }}
     </p>
+    {% else %}
+    <p class="text-xs mt-3" style="color: var(--tekst-secundair);">Nog niet ingesteld.</p>
     {% endif %}
 </div>
-{% endif %}
 
 {% endblock %}

@@ -1,3 +1,6 @@
+"""Competentie modellen — vaardigheden per locatie."""
+import uuid as uuid_module
+
 from sqlalchemy import Boolean, Column, Date, DateTime, Enum as SAEnum, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import relationship
 
@@ -7,12 +10,13 @@ NIVEAUS = ("basis", "gevorderd", "expert")
 
 
 class Competentie(Basis):
-    """Competentie/vaardigheid master tabel."""
+    """Competentie/vaardigheid master tabel — per locatie."""
 
     __tablename__ = "competenties"
 
     id = Column(Integer, primary_key=True, index=True)
-    groep_id = Column(Integer, ForeignKey("groepen.id"), nullable=False, index=True)
+    uuid = Column(String(36), unique=True, nullable=False, default=lambda: str(uuid_module.uuid4()))
+    locatie_id = Column(Integer, ForeignKey("locaties.id"), nullable=False, index=True)
     naam = Column(String(150), nullable=False, index=True)
     beschrijving = Column(Text, nullable=True)
     categorie = Column(String(100), nullable=True)
@@ -21,7 +25,9 @@ class Competentie(Basis):
     gedeactiveerd_op = Column(DateTime, nullable=True)
 
     # Relaties
-    gebruiker_koppelingen = relationship("GebruikerCompetentie", back_populates="competentie", cascade="all, delete-orphan")
+    gebruiker_koppelingen = relationship(
+        "GebruikerCompetentie", back_populates="competentie", cascade="all, delete-orphan"
+    )
 
 
 class GebruikerCompetentie(Basis):
@@ -33,8 +39,12 @@ class GebruikerCompetentie(Basis):
     )
 
     id = Column(Integer, primary_key=True, index=True)
-    gebruiker_id = Column(Integer, ForeignKey("gebruikers.id", ondelete="CASCADE"), nullable=False, index=True)
-    competentie_id = Column(Integer, ForeignKey("competenties.id", ondelete="CASCADE"), nullable=False, index=True)
+    gebruiker_id = Column(
+        Integer, ForeignKey("gebruikers.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    competentie_id = Column(
+        Integer, ForeignKey("competenties.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     niveau = Column(SAEnum(*NIVEAUS, name="competentie_niveau"), nullable=True)
     geldig_tot = Column(Date, nullable=True)
     aangemaakt_op = Column(DateTime, server_default=func.now(), nullable=False)

@@ -50,14 +50,14 @@
                 </td>
                 <td class="px-4 py-2.5 text-center text-xs" style="color: var(--tekst-secundair);">
                     {% if m.totp_actief %}
-                    <span class="px-2 py-0.5 rounded bg-green-100 text-green-700 font-medium">Actief</span>
+                    <span class="px-2 py-0.5 rounded bg-succes-zacht text-succes font-medium">Actief</span>
                     {% else %}—{% endif %}
                 </td>
                 <td class="px-4 py-2.5 text-center">
                     {% if m.is_actief %}
-                    <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-700">{{ t("algemeen.actief") }}</span>
+                    <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-succes-zacht text-succes">{{ t("algemeen.actief") }}</span>
                     {% else %}
-                    <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">{{ t("algemeen.inactief") }}</span>
+                    <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-achtergrond text-tekst-zacht">{{ t("algemeen.inactief") }}</span>
                     {% endif %}
                 </td>
             </tr>

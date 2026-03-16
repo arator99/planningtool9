@@ -9,7 +9,8 @@ from i18n import maak_vertaler
 from api.dependencies import haal_db, vereiste_rol, haal_csrf_token, verifieer_csrf
 from api.sjablonen import sjablonen
 from models.gebruiker import Gebruiker
-from models.groep import Groep, GebruikerGroep
+from models.team import Team
+from models.gebruiker_rol import GebruikerRol
 from services.gebruiker_service import GebruikerService
 from services.competentie_service import CompetentieService
 from models.audit_log import AuditLog
@@ -19,9 +20,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/beheer/gebruikers", tags=["gebruikersbeheer"])
 
 
-def _log(db: Session, gebruiker_id: int, groep_id: int, actie: str, doel_id: int | None = None) -> None:
+def _log(db: Session, gebruiker_id: int, locatie_id: int, actie: str, doel_id: int | None = None) -> None:
     try:
-        db.add(AuditLog(gebruiker_id=gebruiker_id, groep_id=groep_id, actie=actie,
+        db.add(AuditLog(gebruiker_id=gebruiker_id, locatie_id=locatie_id, actie=actie,
                         doel_type="Gebruiker", doel_id=doel_id))
         db.commit()
     except Exception as exc:
@@ -50,8 +51,8 @@ def toon_lijst(
     csrf_token: str = Depends(haal_csrf_token),
 ):
     svc = GebruikerService(db)
-    gebruikers = svc.haal_gefilterd(gebruiker.groep_id, zoek=zoek, rol=rol, status=status)
-    totaal_actief = len(svc.haal_actieve_medewerkers(gebruiker.groep_id))
+    gebruikers = svc.haal_gefilterd(gebruiker.locatie_id, zoek=zoek, rol=rol, status=status)
+    totaal_actief = len(svc.haal_actieve_medewerkers(gebruiker.locatie_id))
     melding_type = "fout" if fout else "ok"
     return sjablonen.TemplateResponse(
         "pages/gebruikers/lijst.html",
@@ -75,11 +76,16 @@ def toon_lijst(
 def toon_formulier_nieuw(
     request: Request,
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
+    db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
 ):
+    alle_teams = db.query(Team).filter(
+        Team.locatie_id == gebruiker.locatie_id, Team.is_actief == True
+    ).order_by(Team.naam).all()
     return sjablonen.TemplateResponse(
         "pages/gebruikers/formulier.html",
-        _context(request, gebruiker, bewerk_modus=False, invoer={}, fout=None, csrf_token=csrf_token),
+        _context(request, gebruiker, bewerk_modus=False, invoer={}, fout=None,
+                 csrf_token=csrf_token, alle_teams=alle_teams),
     )
 
 
@@ -92,6 +98,7 @@ def verwerk_aanmaken(
     voornaam: str = Form(""),
     achternaam: str = Form(""),
     rol: str = Form(...),
+    team_id: Optional[int] = Form(None),
     startweek_typedienst: Optional[str] = Form(None),
     is_reserve: Optional[str] = Form(None),
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
@@ -106,20 +113,25 @@ def verwerk_aanmaken(
     }
     try:
         GebruikerService(db).maak_aan(
-            groep_id=gebruiker.groep_id,
+            locatie_id=gebruiker.locatie_id,
             gebruikersnaam=gebruikersnaam,
             wachtwoord=wachtwoord,
             volledige_naam=volledige_naam,
             rol=rol,
             voornaam=voornaam or None,
             achternaam=achternaam or None,
+            team_id=team_id,
             is_reserve=bool(is_reserve),
             startweek_typedienst=startweek,
         )
     except ValueError as fout:
+        alle_teams = db.query(Team).filter(
+            Team.locatie_id == gebruiker.locatie_id, Team.is_actief == True
+        ).order_by(Team.naam).all()
         return sjablonen.TemplateResponse(
             "pages/gebruikers/formulier.html",
-            _context(request, gebruiker, bewerk_modus=False, invoer=invoer, fout=str(fout)),
+            _context(request, gebruiker, bewerk_modus=False, invoer=invoer, fout=str(fout),
+                     alle_teams=alle_teams),
             status_code=422,
         )
     return RedirectResponse(
@@ -131,25 +143,32 @@ def verwerk_aanmaken(
 # Bewerken                                                             #
 # ------------------------------------------------------------------ #
 
-@router.get("/{gebruiker_id}/bewerk", response_class=HTMLResponse)
+@router.get("/{uuid}/bewerk", response_class=HTMLResponse)
 def toon_formulier_bewerk(
     request: Request,
-    gebruiker_id: int,
+    uuid: str,
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
 ):
-    bewerkt = GebruikerService(db).haal_op_id(gebruiker_id, gebruiker.groep_id)
-    if not bewerkt:
+    svc = GebruikerService(db)
+    try:
+        bewerkt = svc.haal_op_uuid(uuid)
+    except ValueError:
         return RedirectResponse(url="/beheer/gebruikers?fout=Gebruiker+niet+gevonden", status_code=303)
     comp_svc = CompetentieService(db)
-    alle_competenties = comp_svc.haal_alle(gebruiker.groep_id)
+    alle_competenties = comp_svc.haal_alle(gebruiker.locatie_id)
     gekoppelde_ids = {k.competentie_id for k in comp_svc.haal_koppelingen(bewerkt.id)}
 
-    alle_groepen = db.query(Groep).filter(Groep.is_actief == True).order_by(Groep.naam).all()
-    groep_koppelingen = {
-        k.groep_id: k
-        for k in db.query(GebruikerGroep).filter(GebruikerGroep.gebruiker_id == bewerkt.id).all()
+    alle_teams = db.query(Team).filter(
+        Team.locatie_id == gebruiker.locatie_id, Team.is_actief == True
+    ).order_by(Team.naam).all()
+    team_rollen = {
+        r.scope_id: r
+        for r in db.query(GebruikerRol).filter(
+            GebruikerRol.gebruiker_id == bewerkt.id,
+            GebruikerRol.rol.in_(["teamlid", "planner"]),
+        ).all()
     }
 
     return sjablonen.TemplateResponse(
@@ -158,48 +177,47 @@ def toon_formulier_bewerk(
                  invoer={}, fout=None, csrf_token=csrf_token,
                  alle_competenties=alle_competenties,
                  gekoppelde_ids=gekoppelde_ids,
-                 alle_groepen=alle_groepen,
-                 groep_koppelingen=groep_koppelingen),
+                 alle_teams=alle_teams,
+                 team_rollen=team_rollen),
     )
 
 
-@router.post("/{gebruiker_id}/bewerk")
+@router.post("/{uuid}/bewerk")
 def verwerk_bewerken(
     request: Request,
-    gebruiker_id: int,
+    uuid: str,
     gebruikersnaam: str = Form(...),
     volledige_naam: str = Form(...),
     voornaam: str = Form(""),
     achternaam: str = Form(""),
     rol: str = Form(...),
     startweek_typedienst: Optional[str] = Form(None),
-    is_reserve: Optional[str] = Form(None),
     competentie_ids: list[int] = Form(default=[]),
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
 ):
     service = GebruikerService(db)
-    bewerkt = service.haal_op_id(gebruiker_id, gebruiker.groep_id)
-    if not bewerkt:
+    try:
+        bewerkt = service.haal_op_uuid(uuid)
+    except ValueError:
         return RedirectResponse(url="/beheer/gebruikers?fout=Gebruiker+niet+gevonden", status_code=303)
 
     startweek = int(startweek_typedienst) if startweek_typedienst else None
     invoer = {
         "gebruikersnaam": gebruikersnaam, "volledige_naam": volledige_naam,
         "voornaam": voornaam, "achternaam": achternaam, "rol": rol,
-        "startweek_typedienst": startweek_typedienst, "is_reserve": is_reserve,
+        "startweek_typedienst": startweek_typedienst,
     }
     try:
         service.bewerk(
-            gebruiker_id=gebruiker_id,
-            groep_id=gebruiker.groep_id,
+            gebruiker_id=bewerkt.id,
+            locatie_id=gebruiker.locatie_id,
             gebruikersnaam=gebruikersnaam,
             volledige_naam=volledige_naam,
             rol=rol,
             voornaam=voornaam or None,
             achternaam=achternaam or None,
-            is_reserve=bool(is_reserve),
             startweek_typedienst=startweek,
         )
     except ValueError as fout:
@@ -208,14 +226,14 @@ def verwerk_bewerken(
             "pages/gebruikers/formulier.html",
             _context(request, gebruiker, bewerk_modus=True, bewerkt_gebruiker=bewerkt,
                      invoer=invoer, fout=str(fout),
-                     alle_competenties=comp_svc.haal_alle(gebruiker.groep_id),
+                     alle_competenties=comp_svc.haal_alle(gebruiker.locatie_id),
                      gekoppelde_ids=set(competentie_ids)),
             status_code=422,
         )
 
     CompetentieService(db).stel_koppelingen_in(
-        gebruiker_id=gebruiker_id,
-        groep_id=gebruiker.groep_id,
+        gebruiker_id=bewerkt.id,
+        locatie_id=gebruiker.locatie_id,
         competentie_ids=competentie_ids,
         niveaus={},
         geldig_tot={},
@@ -229,35 +247,39 @@ def verwerk_bewerken(
 # Activeer / Deactiveer                                                #
 # ------------------------------------------------------------------ #
 
-@router.post("/{gebruiker_id}/deactiveer")
+@router.post("/{uuid}/deactiveer")
 def deactiveer(
-    gebruiker_id: int,
+    uuid: str,
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
 ):
+    svc = GebruikerService(db)
     try:
-        GebruikerService(db).deactiveer(gebruiker_id, gebruiker.groep_id, uitvoerder_id=gebruiker.id)
+        bewerkt = svc.haal_op_uuid(uuid)
+        svc.deactiveer(bewerkt.id, gebruiker.locatie_id, uitvoerder_id=gebruiker.id)
     except ValueError as fout:
-        logger.warning("Deactiveer gebruiker %s mislukt: %s", gebruiker_id, fout)
+        logger.warning("Deactiveer gebruiker %s mislukt: %s", uuid, fout)
         return RedirectResponse(url="/beheer/gebruikers?fout=actie_mislukt", status_code=303)
-    _log(db, gebruiker.id, gebruiker.groep_id, "gebruiker.deactiveren", gebruiker_id)
+    _log(db, gebruiker.id, gebruiker.locatie_id, "gebruiker.deactiveren", bewerkt.id)
     return RedirectResponse(url="/beheer/gebruikers?melding=Gebruiker+gedeactiveerd", status_code=303)
 
 
-@router.post("/{gebruiker_id}/activeer")
+@router.post("/{uuid}/activeer")
 def activeer(
-    gebruiker_id: int,
+    uuid: str,
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
 ):
+    svc = GebruikerService(db)
     try:
-        GebruikerService(db).activeer(gebruiker_id, gebruiker.groep_id)
+        bewerkt = svc.haal_op_uuid(uuid)
+        svc.activeer(bewerkt.id, gebruiker.locatie_id)
     except ValueError as fout:
-        logger.warning("Activeer gebruiker %s mislukt: %s", gebruiker_id, fout)
+        logger.warning("Activeer gebruiker %s mislukt: %s", uuid, fout)
         return RedirectResponse(url="/beheer/gebruikers?fout=actie_mislukt", status_code=303)
-    _log(db, gebruiker.id, gebruiker.groep_id, "gebruiker.activeren", gebruiker_id)
+    _log(db, gebruiker.id, gebruiker.locatie_id, "gebruiker.activeren", bewerkt.id)
     return RedirectResponse(url="/beheer/gebruikers?melding=Gebruiker+geactiveerd", status_code=303)
 
 
@@ -265,16 +287,17 @@ def activeer(
 # Wachtwoord reset                                                     #
 # ------------------------------------------------------------------ #
 
-@router.get("/{gebruiker_id}/wachtwoord", response_class=HTMLResponse)
+@router.get("/{uuid}/wachtwoord", response_class=HTMLResponse)
 def toon_wachtwoord_formulier(
     request: Request,
-    gebruiker_id: int,
+    uuid: str,
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
 ):
-    bewerkt = GebruikerService(db).haal_op_id(gebruiker_id, gebruiker.groep_id)
-    if not bewerkt:
+    try:
+        bewerkt = GebruikerService(db).haal_op_uuid(uuid)
+    except ValueError:
         return RedirectResponse(url="/beheer/gebruikers?fout=Gebruiker+niet+gevonden", status_code=303)
     return sjablonen.TemplateResponse(
         "pages/gebruikers/wachtwoord.html",
@@ -282,21 +305,22 @@ def toon_wachtwoord_formulier(
     )
 
 
-@router.post("/{gebruiker_id}/wachtwoord")
+@router.post("/{uuid}/wachtwoord")
 def verwerk_wachtwoord_reset(
     request: Request,
-    gebruiker_id: int,
+    uuid: str,
     nieuw_wachtwoord: str = Form(...),
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
 ):
     service = GebruikerService(db)
-    bewerkt = service.haal_op_id(gebruiker_id, gebruiker.groep_id)
-    if not bewerkt:
+    try:
+        bewerkt = service.haal_op_uuid(uuid)
+    except ValueError:
         return RedirectResponse(url="/beheer/gebruikers?fout=Gebruiker+niet+gevonden", status_code=303)
     try:
-        service.reset_wachtwoord(gebruiker_id, gebruiker.groep_id, nieuw_wachtwoord)
+        service.reset_wachtwoord(bewerkt.id, gebruiker.locatie_id, nieuw_wachtwoord)
     except ValueError as fout:
         return sjablonen.TemplateResponse(
             "pages/gebruikers/wachtwoord.html",

@@ -40,7 +40,7 @@
                 <td class="px-6 py-4">
                     {% if meta.type == "bool" %}
                     <span class="text-xs font-medium px-2 py-0.5 rounded-full
-                        {% if huidige_waarde == '1' %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-500{% endif %}">
+                        {% if huidige_waarde == '1' %}bg-succes-zacht text-succes{% else %}bg-achtergrond text-tekst-zacht{% endif %}">
                         {% if huidige_waarde == '1' %}{{ t("instelling.aan") }}{% else %}{{ t("instelling.uit") }}{% endif %}
                     </span>
                     {% else %}

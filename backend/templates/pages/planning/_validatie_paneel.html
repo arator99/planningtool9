@@ -21,8 +21,8 @@
         {{ fouten | length }} overtreding{{ 'en' if fouten | length != 1 else '' }} gevonden
     </p>
     {% if kritiek %}
-    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
-        <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gevaar-zacht text-gevaar">
+        <span class="w-1.5 h-1.5 rounded-full bg-gevaar"></span>
         {{ kritiek | length }} kritiek
     </span>
     {% endif %}
@@ -33,8 +33,8 @@
     </span>
     {% endif %}
     {% if info %}
-    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-        <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-info-zacht text-info">
+        <span class="w-1.5 h-1.5 rounded-full bg-info"></span>
         {{ info | length }} info
     </span>
     {% endif %}
@@ -45,30 +45,30 @@
     {% for fout in fouten %}
     {% if not fout.heeft_override %}
     <div class="flex items-start gap-3 px-3 py-2 rounded-lg border text-sm validatie-fout-rij
-                {% if fout.ernst == 'CRITICAL' %}border-red-200 bg-red-50
+                {% if fout.ernst == 'CRITICAL' %}border-gevaar bg-gevaar-zacht
                 {% elif fout.ernst == 'WARNING' %}border-orange-200 bg-orange-50
-                {% else %}border-blue-200 bg-blue-50{% endif %}"
+                {% else %}border-info bg-info-zacht{% endif %}"
          data-uid="{{ fout.gebruiker_id }}"
          data-datum="{{ fout.datum }}"
          data-code="{{ fout.validator_code }}">
 
         <!-- Ernst indicator -->
         <span class="mt-0.5 w-2 h-2 rounded-full shrink-0
-                     {% if fout.ernst == 'CRITICAL' %}bg-red-500
+                     {% if fout.ernst == 'CRITICAL' %}bg-gevaar
                      {% elif fout.ernst == 'WARNING' %}bg-orange-400
-                     {% else %}bg-blue-400{% endif %}"></span>
+                     {% else %}bg-info{% endif %}"></span>
 
         <!-- Bericht -->
         <div class="flex-1 min-w-0">
-            <p class="{% if fout.ernst == 'CRITICAL' %}text-red-800
+            <p class="{% if fout.ernst == 'CRITICAL' %}text-gevaar
                       {% elif fout.ernst == 'WARNING' %}text-orange-800
-                      {% else %}text-blue-800{% endif %}">
+                      {% else %}text-info{% endif %}">
                 {{ fout.bericht }}
             </p>
             <p class="text-xs mt-0.5 opacity-60
-                      {% if fout.ernst == 'CRITICAL' %}text-red-700
+                      {% if fout.ernst == 'CRITICAL' %}text-gevaar
                       {% elif fout.ernst == 'WARNING' %}text-orange-700
-                      {% else %}text-blue-700{% endif %}">
+                      {% else %}text-info{% endif %}">
                 {{ fout.validator_code }}
             </p>
         </div>
@@ -76,9 +76,9 @@
         <!-- Override knop (alleen CRITICAL, alleen voor echte gebruikers) -->
         {% if fout.ernst == 'CRITICAL' and fout.gebruiker_id > 0 %}
         <button type="button"
-                onclick="toonOverrideDialog({{ fout.gebruiker_id }}, '{{ fout.datum }}', '{{ fout.validator_code }}', '{{ jaar }}', '{{ maand }}')"
+                onclick="toonOverrideDialog('{{ fout.gebruiker_uuid }}', '{{ fout.datum }}', '{{ fout.validator_code }}', '{{ jaar }}', '{{ maand }}')"
                 class="shrink-0 text-xs font-medium px-2 py-1 rounded border transition-colors
-                       border-red-300 text-red-700 hover:bg-red-100"
+                       border-gevaar text-gevaar hover:bg-gevaar-zacht"
                 title="Goedkeuren met reden">
             Afwijking toestaan
         </button>
@@ -86,13 +86,13 @@
     </div>
     {% else %}
     <!-- Override actief: grijs weergeven -->
-    <div class="flex items-start gap-3 px-3 py-2 rounded-lg border text-sm border-gray-200 bg-gray-50 opacity-60">
-        <span class="mt-0.5 w-2 h-2 rounded-full bg-gray-400 shrink-0"></span>
+    <div class="flex items-start gap-3 px-3 py-2 rounded-lg border text-sm border-rand bg-achtergrond opacity-60">
+        <span class="mt-0.5 w-2 h-2 rounded-full bg-tekst-zacht shrink-0"></span>
         <div class="flex-1 min-w-0">
-            <p class="text-gray-600 line-through">{{ fout.bericht }}</p>
-            <p class="text-xs mt-0.5 text-gray-400">{{ fout.validator_code }} — afwijking toegestaan</p>
+            <p class="text-tekst-zacht line-through">{{ fout.bericht }}</p>
+            <p class="text-xs mt-0.5 text-tekst-zacht">{{ fout.validator_code }} — afwijking toegestaan</p>
         </div>
-        <span class="shrink-0 text-xs font-medium px-2 py-1 rounded border border-gray-300 text-gray-500">
+        <span class="shrink-0 text-xs font-medium px-2 py-1 rounded border border-rand text-tekst-zacht">
             Goedgekeurd
         </span>
     </div>
@@ -116,7 +116,7 @@
           class="px-5 py-4 space-y-3"
           onsubmit="document.getElementById('override-dialog').close()">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <input type="hidden" name="gebruiker_id" id="ovr-uid">
+        <input type="hidden" name="gebruiker_uuid" id="ovr-uid">
         <input type="hidden" name="datum_str"    id="ovr-datum">
         <input type="hidden" name="regel_code"   id="ovr-code">
         <input type="hidden" name="jaar"         id="ovr-jaar">
@@ -124,7 +124,7 @@
 
         <div>
             <label class="block text-xs font-medium mb-1" style="color: var(--tekst);">
-                Reden <span class="text-red-500">*</span>
+                Reden <span class="text-gevaar">*</span>
             </label>
             <textarea name="reden" id="ovr-reden" required rows="3"
                       class="w-full text-sm rounded-lg border px-3 py-2 outline-none focus:ring-2"

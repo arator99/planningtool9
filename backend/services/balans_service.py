@@ -6,6 +6,7 @@ from datetime import date
 from sqlalchemy.orm import Session
 
 from models.gebruiker import Gebruiker
+from models.gebruiker_rol import GebruikerRol
 from models.planning import Planning
 from services.domein.balans_domein import (
     BalansResultaat,
@@ -20,9 +21,9 @@ class BalansService:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def haal_team_balans(self, groep_id: int, jaar: int, maand: int) -> list[BalansResultaat]:
+    def haal_team_balans(self, team_id: int, jaar: int, maand: int) -> list[BalansResultaat]:
         """
-        Bereken de CXW/RXW/RXF balans voor alle actieve medewerkers van de groep.
+        Bereken de CXW/RXW/RXF balans voor alle actieve teamleden.
 
         Schuld = aantal zaterdagen / zondagen / Belgische feestdagen in de maand.
         Compensatie = aantal CXW / RXW / RXF codes in de planning van die maand.
@@ -33,7 +34,13 @@ class BalansService:
 
         gebruikers = (
             self.db.query(Gebruiker)
-            .filter(Gebruiker.groep_id == groep_id, Gebruiker.is_actief == True)
+            .join(GebruikerRol, GebruikerRol.gebruiker_id == Gebruiker.id)
+            .filter(
+                GebruikerRol.scope_id == team_id,
+                GebruikerRol.rol.in_(["teamlid", "planner"]),
+                GebruikerRol.is_actief == True,
+                Gebruiker.is_actief == True,
+            )
             .order_by(Gebruiker.volledige_naam)
             .all()
         )
@@ -41,7 +48,7 @@ class BalansService:
         shifts_db = (
             self.db.query(Planning)
             .filter(
-                Planning.groep_id == groep_id,
+                Planning.team_id == team_id,
                 Planning.datum >= start,
                 Planning.datum <= eind,
             )
@@ -70,7 +77,7 @@ class BalansService:
             )
 
         logger.debug(
-            "Balans berekend voor groep %s, %s-%02d: %d medewerkers",
-            groep_id, jaar, maand, len(resultaten),
+            "Balans berekend voor team %s, %s-%02d: %d medewerkers",
+            team_id, jaar, maand, len(resultaten),
         )
         return resultaten

@@ -75,13 +75,13 @@
                 </td>
                 <td class="px-4 py-3">
                     <div class="flex items-center gap-2 justify-end">
-                        <a href="/werkposten/{{ wp.id }}/bewerk"
+                        <a href="/werkposten/{{ wp.uuid }}/bewerk"
                            class="text-xs px-3 py-1 rounded border transition-colors"
                            style="border-color: var(--rand); color: var(--tekst-secundair);">
                             {{ t("algemeen.bewerken") }}
                         </a>
                         {% if wp.is_actief %}
-                        <form method="post" action="/werkposten/{{ wp.id }}/deactiveer" class="inline">
+                        <form method="post" action="/werkposten/{{ wp.uuid }}/deactiveer" class="inline">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                             <button type="submit"
                                     class="text-xs px-3 py-1 rounded border transition-colors"
@@ -91,7 +91,7 @@
                             </button>
                         </form>
                         {% else %}
-                        <form method="post" action="/werkposten/{{ wp.id }}/activeer" class="inline">
+                        <form method="post" action="/werkposten/{{ wp.uuid }}/activeer" class="inline">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                             <button type="submit"
                                     class="text-xs px-3 py-1 rounded border transition-colors"

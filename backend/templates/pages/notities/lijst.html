@@ -90,7 +90,7 @@
                         {{ n.van_gebruiker.volledige_naam or n.van_gebruiker.gebruikersnaam }}
                     </span>
                     {% if not n.naar_gebruiker_id %}
-                    <span class="text-xs px-1.5 py-0.5 rounded" style="background: var(--grid-header); color: var(--tekst-secundair);">groep</span>
+                    <span class="text-xs px-1.5 py-0.5 rounded" style="background: var(--grid-header); color: var(--tekst-secundair);">team</span>
                     {% endif %}
                     {% if n.prioriteit == 'hoog' %}
                     <span class="text-xs font-medium px-1.5 py-0.5 rounded bg-orange-100 text-orange-600">hoog</span>
@@ -104,10 +104,10 @@
             <!-- Acties -->
             <div class="flex-shrink-0 flex items-center gap-1 ml-2">
                 {% if not n.is_gelezen %}
-                <form method="post" action="/notities/{{ n.id }}/gelezen" class="inline">
+                <form method="post" action="/notities/{{ n.uuid }}/gelezen" class="inline">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     <button type="submit" title="Markeer als gelezen"
-                            class="p-1 rounded hover:bg-gray-100 transition-colors"
+                            class="p-1 rounded hover:bg-achtergrond transition-colors"
                             style="color: var(--tekst-secundair);">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
@@ -160,11 +160,11 @@
                 {% endif %}
             </div>
             <!-- Verwijder -->
-            <form method="post" action="/notities/{{ n.id }}/verwijder" class="inline"
+            <form method="post" action="/notities/{{ n.uuid }}/verwijder" class="inline"
                   onsubmit="return confirm('Bericht verwijderen?')">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <button type="submit" title="Verwijder"
-                        class="p-1 rounded hover:bg-red-50 transition-colors"
+                        class="p-1 rounded hover:bg-gevaar-zacht transition-colors"
                         style="color: var(--tekst-secundair);">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -195,7 +195,7 @@
                     <select name="naar_id"
                             class="w-full text-sm rounded-lg border px-3 py-2 outline-none"
                             style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
-                        <option value="">Iedereen (groepsbericht)</option>
+                        <option value="">Iedereen (team mailbox)</option>
                         {% for m in medewerkers %}
                         <option value="{{ m.id }}">{{ m.volledige_naam or m.gebruikersnaam }}</option>
                         {% endfor %}

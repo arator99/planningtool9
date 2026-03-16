@@ -12,7 +12,15 @@ Webgebaseerde planningsapp voor een bedrijf met ~10 productielocaties verdeeld o
 - Plannen die taken bevatten gebruiken **Markdown-checkboxes** (`- [ ]` / `- [x]`)
 - **Vink taken af zodra ze afgewerkt zijn** — update `docs/plannen/plan_van_aanpak_v0.9.md` direct na voltooiing, niet achteraf in bulk
 - Gebruik `- [x]` voor volledig afgeronde taken; laat `- [ ]` staan voor deels gedaan of nog te doen
-- Huidige voortgang: **Fase 0 grotendeels afgerond** (zie plan voor openstaande items)
+- Huidige voortgang: **Fase 2 afgerond** (zie plan voor openstaande items)
+
+### Documentatieflow
+
+```
+Nieuw idee of RFC  →  docs/voorstellen/   (brainstorm, nog niet goedgekeurd)
+Goedgekeurd        →  docs/plannen/       (uitwerken, in uitvoering)
+Afgerond           →  docs/archief/       (historiek, niet meer bewerken)
+```
 
 ---
 
@@ -46,6 +54,33 @@ Models (models/)          — SQLAlchemy ORM only, geen businesslogica
 - Router → Service ✅ | Router → Model ❌ | Router → Domein ❌
 - Service → Model ✅ | Service → Domein ✅ | Service → andere Service ❌
 - Domein → stdlib ✅ | Domein → Model ❌ | Domein → Service ❌
+
+**Vuistregels voor plaatsing van logica:**
+
+| Vraag | Antwoord JA → laag |
+|---|---|
+| Kan de check ook rechtstreeks in SQL? | **Service** (SQLAlchemy query) |
+| Zou deze regel ook gelden als de DB anders is? | **Domein** (pure Python) |
+| Is dit enkel orkestratie — geen businessregel? | **Service** (aanroepen, combineren) |
+| Zit er HTTP-context in (request, response, status code)? | **Router** |
+
+**Error bubbling:**
+- Services gooien exceptions (`ValueError`, eigen `DomeinFout`) bij ongeldige invoer of gefaalde businessregels
+- Routers vangen op en renderen een fouttemplate of retourneren een HTTP-fout — **nooit** omgekeerd
+
+```python
+# ✅ Service: gooi een exception
+def sla_override_op(self, ...) -> LocatieHROverride:
+    if not is_strenger(richting, nationale_waarde, override_waarde):
+        raise ValueError("Override moet strenger zijn dan de nationale waarde.")
+    ...
+
+# ✅ Router: vang op, toon aan gebruiker
+try:
+    hr_service.sla_override_op(...)
+except ValueError as fout:
+    return sjablonen.TemplateResponse("...", {"fout": str(fout), ...})
+```
 
 ---
 
@@ -139,6 +174,109 @@ uuid: str  # uuid4, server-side gegenereerd, geïndexeerd
 
 ---
 
+## Codeorganisatie (NON-NEGOTIABLE)
+
+**Streefzone: 500–800 regels. Harde limiet: 1000 regels.**
+
+- Bestand nadert **800 regels** → maak een splitsvoorstel in `docs/voorstellen/` vóór verdere uitbreiding
+- Bestand overschrijdt **1000 regels** → onmiddellijk opsplitsen, niets toevoegen totdat dit gedaan is
+
+### Wanneer splitsen
+
+| Situatie | Aanpak |
+|---|---|
+| Bestand > 1000 regels | Splits op logische grens (niet willekeurig halveren) |
+| Zelfde logica in 2+ plaatsen | Extraheer naar gedeeld module |
+| Router heeft businesslogica | Verplaats naar service of domein |
+| Template heeft herhaalde UI | Extraheer naar `templates/components/` |
+| Validator van 3+ regels lang | Eigen bestand in `services/domein/validators/` |
+
+### Gedeelde basisklassen en mixins
+
+Herbruikbare basisklassen horen in een apart bestand — niet kopiëren:
+
+```
+api/
+  middleware/          — elke middleware zijn eigen bestand
+  dependencies.py      — gedeelde FastAPI Depends-functies
+services/
+  domein/
+    basis_validator.py — BasisValidator ABC (alle validators erven hiervan)
+  repository.py        — BaseRepository (alle repositories erven hiervan)
+templates/
+  components/          — herbruikbare Jinja2 macro's en partials
+  layouts/             — basislayouts (app.html, auth.html)
+```
+
+### Naamgeving bij opsplitsing
+
+- `hr_service.py` te groot → `hr_service.py` + `hr_validatie.py` + `hr_rapportage.py`
+- `planning.py` (router) te groot → `planning_lezen.py` + `planning_schrijven.py` + `planning_export.py`
+- Gebruik altijd beschrijvende namen — `utils.py` of `helpers.py` zijn verboden (te vaag)
+
+---
+
+## Codekwaliteit (NON-NEGOTIABLE)
+
+### Type hints — verplicht in service-lagen
+
+Alle parameters en return-waardes in `services/` en `api/routers/` krijgen type hints:
+
+```python
+# ✅
+def haal_effectieve_waarde(self, regel_code: str, locatie_id: int) -> int | None: ...
+
+# ❌
+def haal_effectieve_waarde(self, regel_code, locatie_id): ...
+```
+
+In templates en `main.py` zijn type hints optioneel.
+
+### Docstrings — verplicht op services
+
+Elke publieke methode in een service krijgt een korte docstring: doel + parameters:
+
+```python
+def sla_override_op(self, nationale_regel_id: int, locatie_id: int, waarde: int) -> LocatieHROverride:
+    """Sla een lokale HR-override op. Waarde moet strenger zijn dan de nationale waarde."""
+```
+
+Eén zin is genoeg. Geen roman schrijven.
+
+### DRY — geen kopieerwerk
+
+Zelfde logica op 2+ plaatsen? Extraheer:
+- Python helpers → `services/domein/` (puur) of een gedeelde service-methode
+- Jinja2 partials → `templates/components/`
+- FastAPI dependencies → `api/dependencies.py`
+
+### Geen placeholders
+
+Schrijf altijd volledige, uitvoerbare code. Verboden:
+
+```python
+# ❌
+def valideer(self, ...):
+    # ... validatielogica hier ...
+    pass
+```
+
+### Geen complexe lambda's
+
+`lambda` uitsluitend voor simpele expressies (`key=lambda x: x.naam`).
+Logica, vertakkingen of meerdere acties → gebruik een benoemde functie.
+
+```python
+# ❌
+sorted(items, key=lambda x: x.datum if x.is_actief else date.max)
+
+# ✅
+def _sorteer_sleutel(x): return x.datum if x.is_actief else date.max
+sorted(items, key=_sorteer_sleutel)
+```
+
+---
+
 ## Stijlregels (templates)
 
 **Nooit hardcoded Tailwind-kleurcodes.** Altijd semantische klassen:
@@ -196,6 +334,37 @@ raise VerlofFout(t('verlof.overlap', taal=gebruiker.taal))
 | Productie | Desktop only | Planning grid, Admin, Rapporten |
 
 Productie-views tonen een melding op schermen < 768px. Probeer geen planninggrid op mobile te bouwen.
+
+---
+
+## Caching in services
+
+Gebruik `lru_cache` (stateless functies) of een instantie-dict (per-request cache) voor dure queries:
+
+```python
+from functools import lru_cache
+
+@lru_cache(maxsize=128)
+def haal_effectieve_waarde(regel_code: str, locatie_id: int) -> int | None: ...
+```
+
+**Invalidatieregel:** elke `bewaar_*` of `verwijder_*` methode die data muteert, maakt de bijbehorende cache ongeldig. Nooit vergeten — anders krijg je verouderde data na een wijziging.
+
+---
+
+## Checklist nieuwe feature
+
+Bij elke nieuwe route + service:
+
+- [ ] Logica zit in de juiste laag (Router dun, Service orchestreert, Domein pure regels)
+- [ ] Service-methodes hebben type hints + docstring
+- [ ] Route heeft `vereiste_rol()` of `vereiste_login` dependency
+- [ ] CSRF token op alle POST-formulieren
+- [ ] `locatie_id` filter via `BaseRepository` op alle queries
+- [ ] `AuditLog` entry bij elke mutatieactie
+- [ ] Nieuwe i18n-sleutels toegevoegd in **alle drie** taalbestanden
+- [ ] Bestandsomvang gecontroleerd (nog onder 800 regels?)
+- [ ] Foutafhandeling: service gooit exception, router vangt op
 
 ---
 

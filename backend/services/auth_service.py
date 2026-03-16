@@ -112,6 +112,22 @@ class AuthService:
         )
         return {"geheim": geheim, "uri": uri}
 
+    def haal_bestaand_totp(self, gebruiker_id: int) -> dict:
+        """
+        Geeft het bestaande (nog niet bevestigde) TOTP-geheim terug zonder een nieuw aan te maken.
+
+        Raises:
+            ValueError: Als er nog geen TOTP-geheim aanwezig is.
+        """
+        gebruiker = self._haal_gebruiker_op_id(gebruiker_id)
+        if not gebruiker.totp_geheim:
+            raise ValueError("Geen TOTP-geheim beschikbaar — start instelling opnieuw")
+        uri = pyotp.TOTP(gebruiker.totp_geheim).provisioning_uri(
+            name=gebruiker.gebruikersnaam,
+            issuer_name="Planning Tool",
+        )
+        return {"geheim": gebruiker.totp_geheim, "uri": uri}
+
     def bevestig_totp_instelling(self, gebruiker_id: int, code: str) -> None:
         """
         Verifieert de eerste TOTP code en activeert 2FA voor de gebruiker.

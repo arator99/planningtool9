@@ -124,16 +124,16 @@
                 <td class="px-4 py-2.5 max-w-xs truncate" style="color: var(--tekst-secundair);">{{ a.opmerking or '—' }}</td>
                 <td class="px-4 py-2.5 text-center">
                     {% if a.status == 'pending' %}
-                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
-                        <span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>In behandeling
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-waarschuwing-zacht text-waarschuwing">
+                        <span class="w-1.5 h-1.5 rounded-full bg-waarschuwing"></span>In behandeling
                     </span>
                     {% elif a.status == 'goedgekeurd' %}
-                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                        <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>Goedgekeurd
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-succes-zacht text-succes">
+                        <span class="w-1.5 h-1.5 rounded-full bg-succes"></span>Goedgekeurd
                     </span>
                     {% else %}
-                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
-                        <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>Geweigerd
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gevaar-zacht text-gevaar">
+                        <span class="w-1.5 h-1.5 rounded-full bg-gevaar"></span>Geweigerd
                     </span>
                     {% endif %}
                 </td>
@@ -141,34 +141,34 @@
                     {% if a.behandeld_op %}
                         {{ a.behandeld_op.strftime('%d/%m/%Y') }}
                         {% if a.reden_weigering %}
-                        <div class="text-red-500 mt-0.5 truncate max-w-[160px]" title="{{ a.reden_weigering }}">{{ a.reden_weigering }}</div>
+                        <div class="text-gevaar mt-0.5 truncate max-w-[160px]" title="{{ a.reden_weigering }}">{{ a.reden_weigering }}</div>
                         {% endif %}
                     {% else %}—{% endif %}
                 </td>
                 <td class="px-4 py-2.5 text-right whitespace-nowrap">
                     {% if is_behandelaar and a.status == 'pending' %}
                     <!-- Goedkeuren -->
-                    <form method="post" action="/verlof/{{ a.id }}/goedkeuren" class="inline">
+                    <form method="post" action="/verlof/{{ a.uuid }}/goedkeuren" class="inline">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         <input type="hidden" name="code_term" value="">
                         <button type="submit"
-                                class="text-xs font-medium px-2.5 py-1 rounded-md bg-green-100 text-green-700 hover:bg-green-200 transition-colors mr-1">
+                                class="text-xs font-medium px-2.5 py-1 rounded-md bg-succes-zacht text-succes hover:bg-succes-zacht transition-colors mr-1">
                             Goedkeuren
                         </button>
                     </form>
                     <!-- Weigeren -->
                     <button type="button"
-                            onclick="toonWeigerDialog({{ a.id }})"
-                            class="text-xs font-medium px-2.5 py-1 rounded-md bg-red-100 text-red-700 hover:bg-red-200 transition-colors">
+                            onclick="toonWeigerDialog('{{ a.uuid }}')"
+                            class="text-xs font-medium px-2.5 py-1 rounded-md bg-gevaar-zacht text-gevaar hover:bg-gevaar-zacht transition-colors">
                         Weigeren
                     </button>
                     {% elif a.status == 'pending' and a.gebruiker_id == gebruiker.id %}
                     <!-- Eigen pending: intrekken -->
-                    <form method="post" action="/verlof/{{ a.id }}/verwijder" class="inline"
+                    <form method="post" action="/verlof/{{ a.uuid }}/verwijder" class="inline"
                           onsubmit="return confirm('Aanvraag verwijderen?')">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         <button type="submit"
-                                class="text-xs font-medium px-2.5 py-1 rounded-md hover:bg-red-50 text-red-500 transition-colors">
+                                class="text-xs font-medium px-2.5 py-1 rounded-md hover:bg-gevaar-zacht text-gevaar transition-colors">
                             Intrekken
                         </button>
                     </form>
@@ -208,7 +208,7 @@
                     Annuleer
                 </button>
                 <button type="submit"
-                        class="text-sm font-medium px-4 py-1.5 rounded-lg text-white transition-colors bg-red-600 hover:bg-red-700">
+                        class="text-sm font-medium px-4 py-1.5 rounded-lg text-white transition-colors bg-gevaar hover:bg-gevaar">
                     Weigeren
                 </button>
             </div>

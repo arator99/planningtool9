@@ -7,6 +7,7 @@ logger = logging.getLogger(__name__)
 
 from database import SessieKlasse
 from models.gebruiker import Gebruiker
+from models.gebruiker_rol import GebruikerRol, ROLLEN
 from services.auth_service import AuthService
 from services.domein.csrf_domein import genereer_csrf_token, verifieer_csrf_token
 
@@ -67,10 +68,115 @@ def verifieer_csrf(
 def vereiste_rol(*rollen: str):
     """
     FastAPI dependency factory: controleert of de ingelogde gebruiker
-    een van de opgegeven rollen heeft.
+    een van de opgegeven rollen heeft (denormalized Gebruiker.rol).
+
+    Gebruik voor snelle rol-checks. Voor scopegebonden checks:
+    gebruik heeft_rol_in_team() of heeft_rol_in_locatie().
     """
     def _controleer(gebruiker: Gebruiker = Depends(haal_huidige_gebruiker)) -> Gebruiker:
         if gebruiker.rol not in rollen:
             raise HTTPException(status_code=403, detail="Onvoldoende rechten")
         return gebruiker
     return _controleer
+
+
+def vereiste_super_beheerder(
+    gebruiker: Gebruiker = Depends(haal_huidige_gebruiker),
+) -> Gebruiker:
+    """FastAPI dependency: enkel super_beheerder."""
+    if gebruiker.rol != "super_beheerder":
+        raise HTTPException(status_code=403, detail="Onvoldoende rechten")
+    return gebruiker
+
+
+def vereiste_beheerder_of_hoger(
+    gebruiker: Gebruiker = Depends(haal_huidige_gebruiker),
+) -> Gebruiker:
+    """FastAPI dependency: beheerder of super_beheerder."""
+    if gebruiker.rol not in ("beheerder", "super_beheerder"):
+        raise HTTPException(status_code=403, detail="Onvoldoende rechten")
+    return gebruiker
+
+
+def vereiste_planner_of_hoger(
+    gebruiker: Gebruiker = Depends(haal_huidige_gebruiker),
+) -> Gebruiker:
+    """FastAPI dependency: planner, hr, beheerder of super_beheerder."""
+    if gebruiker.rol not in ("planner", "hr", "beheerder", "super_beheerder"):
+        raise HTTPException(status_code=403, detail="Onvoldoende rechten")
+    return gebruiker
+
+
+def vereiste_hr_of_hoger(
+    gebruiker: Gebruiker = Depends(haal_huidige_gebruiker),
+) -> Gebruiker:
+    """FastAPI dependency: hr, beheerder of super_beheerder."""
+    if gebruiker.rol not in ("hr", "beheerder", "super_beheerder"):
+        raise HTTPException(status_code=403, detail="Onvoldoende rechten")
+    return gebruiker
+
+
+def heeft_rol_in_team(
+    gebruiker_id: int,
+    team_id: int,
+    rollen: tuple[str, ...],
+    db: Session,
+) -> bool:
+    """
+    Controleer of een gebruiker een van de opgegeven rollen heeft met scope team_id.
+
+    Args:
+        gebruiker_id: De te controleren gebruiker.
+        team_id: De scope (team).
+        rollen: Tuple van geaccepteerde rollen.
+        db: Database sessie.
+
+    Returns:
+        True als een actieve GebruikerRol gevonden wordt.
+    """
+    return db.query(GebruikerRol).filter(
+        GebruikerRol.gebruiker_id == gebruiker_id,
+        GebruikerRol.scope_id == team_id,
+        GebruikerRol.rol.in_(rollen),
+        GebruikerRol.is_actief == True,
+    ).first() is not None
+
+
+def haal_primaire_team_id(gebruiker_id: int, db: Session) -> int | None:
+    """
+    Geeft het eerste actieve team-ID van een gebruiker (planner of teamlid rol).
+    Gebruikt als fallback voor het actieve team van een gebruiker totdat
+    Fase 4 een expliciete team-selector toevoegt.
+    """
+    rol = db.query(GebruikerRol).filter(
+        GebruikerRol.gebruiker_id == gebruiker_id,
+        GebruikerRol.rol.in_(["teamlid", "planner"]),
+        GebruikerRol.is_actief == True,
+    ).first()
+    return rol.scope_id if rol else None
+
+
+def heeft_rol_in_locatie(
+    gebruiker_id: int,
+    locatie_id: int,
+    rollen: tuple[str, ...],
+    db: Session,
+) -> bool:
+    """
+    Controleer of een gebruiker een van de opgegeven rollen heeft met scope locatie_id.
+
+    Args:
+        gebruiker_id: De te controleren gebruiker.
+        locatie_id: De scope (locatie).
+        rollen: Tuple van geaccepteerde rollen.
+        db: Database sessie.
+
+    Returns:
+        True als een actieve GebruikerRol gevonden wordt.
+    """
+    return db.query(GebruikerRol).filter(
+        GebruikerRol.gebruiker_id == gebruiker_id,
+        GebruikerRol.scope_id == locatie_id,
+        GebruikerRol.rol.in_(rollen),
+        GebruikerRol.is_actief == True,
+    ).first() is not None

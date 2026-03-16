@@ -49,7 +49,7 @@ def toon_logboek(
 
     query = (
         db.query(AuditLog)
-        .filter(AuditLog.groep_id == gebruiker.groep_id)
+        .filter(AuditLog.locatie_id == gebruiker.locatie_id)
     )
     if actie and actie in _BEKENDE_ACTIES:
         query = query.filter(AuditLog.actie == actie)

@@ -1,11 +1,13 @@
+"""Gebruiker model — authenticatie, autorisatie en profiel."""
 import uuid
 
-from sqlalchemy import Boolean, Column, DateTime, Enum as SAEnum, ForeignKey, Integer, String, func
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.orm import relationship
 
 from database import Basis
 
-ROLLEN = ("beheerder", "planner", "hr", "gebruiker")
+# Alle geldige rollen — ook gebruikt als denormalized display veld
+ROLLEN = ("teamlid", "planner", "hr", "beheerder", "super_beheerder")
 
 
 class Gebruiker(Basis):
@@ -14,7 +16,7 @@ class Gebruiker(Basis):
     __tablename__ = "gebruikers"
 
     id = Column(Integer, primary_key=True, index=True)
-    gebruiker_uuid = Column(String(36), unique=True, nullable=False, default=lambda: str(uuid.uuid4()))
+    uuid = Column(String(36), unique=True, nullable=False, default=lambda: str(uuid.uuid4()))
     gebruikersnaam = Column(String(50), unique=True, nullable=False, index=True)
     gehashed_wachtwoord = Column(String, nullable=False)
 
@@ -24,11 +26,14 @@ class Gebruiker(Basis):
     achternaam = Column(String(75), nullable=True)
 
     # Autorisatie
-    rol = Column(SAEnum(*ROLLEN, name="gebruiker_rol"), nullable=False)
-    groep_id = Column(Integer, ForeignKey("groepen.id"), nullable=True)  # nullable voor super-beheerder
+    # `rol` is een gedenormaliseerde weergave van de hoogste GebruikerRol —
+    # enkel voor display en snelle queries. Authorisatie altijd via GebruikerRol.
+    rol = Column(String(20), nullable=False, default="teamlid")
 
-    # Planningsinstellingen (overgenomen uit v0.7)
-    is_reserve = Column(Boolean, default=False, nullable=False)
+    # Locatie FK — de primaire locatie van de gebruiker (tenant-isolatie)
+    locatie_id = Column(Integer, ForeignKey("locaties.id"), nullable=True, index=True)
+
+    # Planningsinstellingen
     startweek_typedienst = Column(Integer, nullable=True)  # 1-6
     shift_voorkeuren = Column(String, nullable=True)       # JSON string
 
@@ -46,9 +51,13 @@ class Gebruiker(Basis):
     gedeactiveerd_op = Column(DateTime, nullable=True)
     laatste_login = Column(DateTime, nullable=True)
 
+    # Soft delete
+    verwijderd_op = Column(DateTime, nullable=True)
+    verwijderd_door_id = Column(Integer, nullable=True)
+
     # Relaties
-    groep = relationship("Groep", back_populates="gebruikers")
-    groepen = relationship("GebruikerGroep", back_populates="gebruiker", cascade="all, delete-orphan")
+    locatie = relationship("Locatie")
+    rollen = relationship("GebruikerRol", back_populates="gebruiker", cascade="all, delete-orphan")
     planning_shifts = relationship("Planning", back_populates="gebruiker", cascade="all, delete-orphan")
     verlof_aanvragen = relationship(
         "VerlofAanvraag",
@@ -57,7 +66,13 @@ class Gebruiker(Basis):
         cascade="all, delete-orphan",
     )
     competenties = relationship("GebruikerCompetentie", back_populates="gebruiker", cascade="all, delete-orphan")
-    verzonden_notities = relationship("Notitie", back_populates="van_gebruiker", foreign_keys="Notitie.van_gebruiker_id")
-    ontvangen_notities = relationship("Notitie", back_populates="naar_gebruiker", foreign_keys="Notitie.naar_gebruiker_id")
+    verzonden_notities = relationship(
+        "Notitie", back_populates="van_gebruiker", foreign_keys="Notitie.van_gebruiker_id"
+    )
+    ontvangen_notities = relationship(
+        "Notitie", back_populates="naar_gebruiker", foreign_keys="Notitie.naar_gebruiker_id"
+    )
     notificaties = relationship("Notificatie", back_populates="gebruiker", cascade="all, delete-orphan")
-    audit_acties = relationship("AuditLog", back_populates="gebruiker", foreign_keys="AuditLog.gebruiker_id")
+    audit_acties = relationship(
+        "AuditLog", back_populates="gebruiker", foreign_keys="AuditLog.gebruiker_id"
+    )

@@ -4,6 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block titel %}Planning Tool{% endblock %}</title>
+    <script>
+        tailwind = { config: {
+            darkMode: ['attribute', 'data-theme'],
+            theme: { extend: { colors: {
+                'oppervlak':      'var(--achtergrond-widget)',
+                'achtergrond':    'var(--achtergrond)',
+                'primair':        'var(--primair)',
+                'primair-hover':  'var(--primair-hover)',
+                'tekst':          'var(--tekst)',
+                'tekst-zacht':    'var(--tekst-secundair)',
+                'rand':           'var(--rand)',
+                'succes':         'var(--succes)',
+                'succes-zacht':   'var(--msg-succes-bg)',
+                'gevaar':         'var(--fout)',
+                'gevaar-zacht':   'var(--msg-fout-bg)',
+                'waarschuwing':   'var(--waarschuwing)',
+                'waarschuwing-zacht': 'var(--msg-waarschuwing-bg)',
+                'info':           'var(--info)',
+                'info-zacht':     'var(--msg-info-bg)',
+            }}}
+        };
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
     <style>{{ thema_css | safe }}</style>
@@ -22,11 +44,11 @@
 
             <!-- Logo + navigatie -->
             <div class="flex items-center gap-6">
-                <span class="text-blue-600 font-bold text-lg tracking-tight">Planning Tool</span>
+                <span class="text-primair font-bold text-lg tracking-tight">Planning Tool</span>
 
                 <!-- Menu op basis van rol -->
                 <a href="/dashboard" class="text-sm font-medium
-                    {% if actief_menu == 'dashboard' %}text-blue-600{% else %}text-gray-600 hover:text-blue-600{% endif %}">
+                    {% if actief_menu == 'dashboard' %}text-primair{% else %}text-tekst-zacht hover:text-primair{% endif %}">
                     {{ t("nav.dashboard") }}
                 </a>
                 {% if gebruiker.rol in ['beheerder', 'planner'] %}
@@ -34,7 +56,7 @@
                 <div class="relative" id="planning-wrapper">
                     <button onclick="wisselMenu('planning')"
                             class="flex items-center gap-0.5 text-sm font-medium transition-colors
-                                   {% if actief_menu in ['planning', 'mijn_planning'] %}text-blue-600{% else %}text-gray-600 hover:text-blue-600{% endif %}">
+                                   {% if actief_menu in ['planning', 'mijn_planning'] %}text-primair{% else %}text-tekst-zacht hover:text-primair{% endif %}">
                         {{ t("nav.planning") }}
                         <svg class="w-3 h-3 opacity-50 mt-px" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
@@ -62,7 +84,7 @@
                 {% else %}
                 <!-- Mijn Planning direct zichtbaar voor andere rollen -->
                 <a href="/planning/mijn" class="text-sm font-medium
-                    {% if actief_menu == 'mijn_planning' %}text-blue-600{% else %}text-gray-600 hover:text-blue-600{% endif %}">
+                    {% if actief_menu == 'mijn_planning' %}text-primair{% else %}text-tekst-zacht hover:text-primair{% endif %}">
                     {{ t("planning.mijn_planning") }}
                 </a>
                 {% endif %}
@@ -70,7 +92,7 @@
                 <div class="relative" id="verlof-wrapper">
                     <button onclick="wisselMenu('verlof')"
                             class="flex items-center gap-0.5 text-sm font-medium transition-colors
-                                   {% if actief_menu in ['verlof', 'verlof_overzicht', 'verlof_saldo'] %}text-blue-600{% else %}text-gray-600 hover:text-blue-600{% endif %}">
+                                   {% if actief_menu in ['verlof', 'verlof_overzicht', 'verlof_saldo'] %}text-primair{% else %}text-tekst-zacht hover:text-primair{% endif %}">
                         {{ t("nav.verlof") }}
                         <svg class="w-3 h-3 opacity-50 mt-px" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
@@ -104,12 +126,12 @@
                 </div>
                 {% if gebruiker.rol in ['beheerder', 'planner', 'hr'] %}
                 <a href="/rapporten" class="text-sm font-medium
-                    {% if actief_menu == 'rapporten' %}text-blue-600{% else %}text-gray-600 hover:text-blue-600{% endif %}">
+                    {% if actief_menu == 'rapporten' %}text-primair{% else %}text-tekst-zacht hover:text-primair{% endif %}">
                     {{ t("nav.rapporten") }}
                 </a>
                 {% endif %}
                 <a href="/notities" class="relative inline-flex items-center gap-1 text-sm font-medium
-                    {% if actief_menu == 'notities' %}text-blue-600{% else %}text-gray-600 hover:text-blue-600{% endif %}">
+                    {% if actief_menu == 'notities' %}text-primair{% else %}text-tekst-zacht hover:text-primair{% endif %}">
                     {{ t("nav.notities") }}
                     <span id="notities-badge"
                           hx-get="/notities/ongelezen-aantal"
@@ -122,7 +144,7 @@
                 <div class="relative" id="instellingen-wrapper">
                     <button onclick="wisselMenu('instellingen')"
                             class="flex items-center gap-0.5 text-sm font-medium transition-colors
-                                   {% if actief_menu in ['shiftcodes', 'werkposten', 'hr', 'instellingen'] %}text-blue-600{% else %}text-gray-600 hover:text-blue-600{% endif %}">
+                                   {% if actief_menu in ['shiftcodes', 'werkposten', 'hr', 'instellingen'] %}text-primair{% else %}text-tekst-zacht hover:text-primair{% endif %}">
                         {{ t("nav.instellingen") }}
                         <svg class="w-3 h-3 opacity-50 mt-px" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
@@ -175,7 +197,7 @@
                 <div class="relative" id="beheer-wrapper">
                     <button onclick="wisselMenu('beheer')"
                             class="flex items-center gap-0.5 text-sm font-medium transition-colors
-                                   {% if actief_menu in ['gebruikers', 'competenties', 'logboek', 'groepen'] %}text-blue-600{% else %}text-gray-600 hover:text-blue-600{% endif %}">
+                                   {% if actief_menu in ['gebruikers', 'competenties', 'logboek', 'teams'] %}text-primair{% else %}text-tekst-zacht hover:text-primair{% endif %}">
                         {{ t("nav.beheer") }}
                         <svg class="w-3 h-3 opacity-50 mt-px" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
@@ -200,9 +222,9 @@
                         </a>
                         {% if gebruiker.rol == 'beheerder' %}
                         <div class="border-t my-1" style="border-color: var(--rand);"></div>
-                        <a href="/groepen"
-                           class="flex items-center px-4 py-2 text-sm transition-colors {% if actief_menu == 'groepen' %}font-semibold{% endif %}"
-                           style="color: {% if actief_menu == 'groepen' %}var(--primair){% else %}var(--tekst){% endif %};"
+                        <a href="/teams"
+                           class="flex items-center px-4 py-2 text-sm transition-colors {% if actief_menu == 'teams' %}font-semibold{% endif %}"
+                           style="color: {% if actief_menu == 'teams' %}var(--primair){% else %}var(--tekst){% endif %};"
                            onmouseover="this.style.background='var(--hover-bg)'"
                            onmouseout="this.style.background='transparent'">
                             Groepen
@@ -297,7 +319,7 @@
                             <p class="text-xs font-medium truncate" style="color: var(--tekst);">
                                 {{ gebruiker.gebruikersnaam }}
                             </p>
-                            <p class="text-xs" style="color: var(--tekst-secundair);">{{ gebruiker.groep.naam }}</p>
+                            <p class="text-xs" style="color: var(--tekst-secundair);">{{ gebruiker.locatie.naam if gebruiker.locatie else gebruiker.rol }}</p>
                         </div>
 
                         <a href="/account/wachtwoord"
@@ -406,11 +428,11 @@
                onmouseout="this.style.background='{% if gebruiker.taal == code %}var(--hover-bg){% else %}transparent{% endif %}'">
             <input type="radio" name="taal" value="{{ code }}"
                    {% if gebruiker.taal == code %}checked{% endif %}
-                   class="accent-blue-600">
+                   class="accent-primair">
             <span class="text-lg leading-none">{{ vlag }}</span>
             <span class="text-sm" style="color: var(--tekst);">{{ naam }}</span>
             {% if gebruiker.taal == code %}
-            <svg class="w-4 h-4 ml-auto text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-4 h-4 ml-auto text-primair" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
             </svg>
             {% endif %}
@@ -426,7 +448,7 @@
                 {{ t("algemeen.annuleer") }}
             </button>
             <button type="submit"
-                    class="px-3 py-1.5 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors">
+                    class="px-3 py-1.5 text-sm font-medium rounded-lg bg-primair text-white hover:bg-primair-hover transition-colors">
                 {{ t("algemeen.opslaan") }}
             </button>
         </div>
@@ -452,6 +474,10 @@
         else HTML.removeAttribute('data-theme');
         localStorage.setItem('thema', nieuw);
         bijwerkIcoon(nieuw);
+        const form = new FormData();
+        form.append('thema', nieuw);
+        form.append('csrf_token', '{{ csrf_token }}');
+        fetch('/account/thema', {method: 'POST', body: form}).catch(() => {});
     };
 })();
 

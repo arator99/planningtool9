@@ -1,3 +1,4 @@
+"""Verlof saldo modellen — per gebruiker per jaar."""
 from sqlalchemy import Column, DateTime, Enum as SAEnum, ForeignKey, Integer, Text, UniqueConstraint, func
 from sqlalchemy.orm import relationship
 
@@ -14,8 +15,10 @@ class VerlofSaldo(Basis):
     __table_args__ = (UniqueConstraint("gebruiker_id", "jaar", name="uq_verlof_saldo_gebruiker_jaar"),)
 
     id = Column(Integer, primary_key=True, index=True)
-    gebruiker_id = Column(Integer, ForeignKey("gebruikers.id", ondelete="CASCADE"), nullable=False, index=True)
-    groep_id = Column(Integer, ForeignKey("groepen.id"), nullable=False, index=True)
+    gebruiker_id = Column(
+        Integer, ForeignKey("gebruikers.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    # groep_id verwijderd — locatie context via gebruiker.locatie_id
     jaar = Column(Integer, nullable=False)
 
     # VV (verlofverlof)
@@ -33,8 +36,12 @@ class VerlofSaldo(Basis):
 
     # Relaties
     gebruiker = relationship("Gebruiker", foreign_keys=[gebruiker_id])
-    mutaties = relationship("VerlofSaldoMutatie", back_populates="saldo", cascade="all, delete-orphan",
-                            order_by="VerlofSaldoMutatie.uitgevoerd_op.desc()")
+    mutaties = relationship(
+        "VerlofSaldoMutatie",
+        back_populates="saldo",
+        cascade="all, delete-orphan",
+        order_by="VerlofSaldoMutatie.uitgevoerd_op.desc()",
+    )
 
 
 class VerlofSaldoMutatie(Basis):
@@ -43,14 +50,14 @@ class VerlofSaldoMutatie(Basis):
     __tablename__ = "verlof_saldo_mutaties"
 
     id = Column(Integer, primary_key=True, index=True)
-    verlof_saldo_id = Column(Integer, ForeignKey("verlof_saldi.id", ondelete="CASCADE"), nullable=False, index=True)
-
+    verlof_saldo_id = Column(
+        Integer, ForeignKey("verlof_saldi.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     mutatie_type = Column(SAEnum(*MUTATIE_TYPES, name="saldo_mutatie_type"), nullable=False)
     veld = Column(SAEnum(*MUTATIE_VELDEN, name="saldo_mutatie_veld"), nullable=False)
     oude_waarde = Column(Integer, nullable=False)
     nieuwe_waarde = Column(Integer, nullable=False)
     reden = Column(Text, nullable=True)
-
     uitgevoerd_door = Column(Integer, ForeignKey("gebruikers.id"), nullable=True)
     uitgevoerd_op = Column(DateTime, server_default=func.now(), nullable=False)
 

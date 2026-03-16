@@ -1,3 +1,4 @@
+"""Gebruiker service — CRUD en wachtwoordbeheer binnen een locatie/team."""
 import logging
 from datetime import date
 from typing import Optional
@@ -5,8 +6,9 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from models.gebruiker import Gebruiker
-from models.groep import GebruikerGroep
+from models.gebruiker_rol import GebruikerRol
 from models.planning import Planning
+from models.team import Team
 from services.domein.auth_domein import hash_wachtwoord, valideer_wachtwoord_sterkte
 from services.domein.gebruiker_domein import valideer_gebruikersnaam_formaat
 
@@ -14,45 +16,60 @@ logger = logging.getLogger(__name__)
 
 
 class GebruikerService:
-    """Gebruikersbeheer: CRUD, validatie en wachtwoordbeheer binnen een groep."""
+    """Gebruikersbeheer: CRUD, validatie en wachtwoordbeheer binnen een locatie."""
 
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def haal_alle(self, groep_id: int) -> list[Gebruiker]:
-        """Geeft alle vaste leden van een groep via junction table, gesorteerd op naam."""
+    def haal_alle(self, locatie_id: int) -> list[Gebruiker]:
+        """Geeft alle actieve gebruikers van een locatie, gesorteerd op naam."""
         return (
             self.db.query(Gebruiker)
-            .join(GebruikerGroep, GebruikerGroep.gebruiker_id == Gebruiker.id)
-            .filter(GebruikerGroep.groep_id == groep_id, GebruikerGroep.is_reserve == False)
+            .filter(Gebruiker.locatie_id == locatie_id, Gebruiker.is_actief == True)
             .order_by(Gebruiker.volledige_naam)
             .all()
         )
 
-    def haal_reserves(self, groep_id: int) -> list[Gebruiker]:
-        """Geeft gebruikers die als reserve gekoppeld zijn aan deze groep."""
+    def haal_team_leden(self, team_id: int, inclusief_reserves: bool = False) -> list[Gebruiker]:
+        """Geeft gebruikers gekoppeld aan een team via GebruikerRol."""
+        query = (
+            self.db.query(Gebruiker)
+            .join(GebruikerRol, GebruikerRol.gebruiker_id == Gebruiker.id)
+            .filter(
+                GebruikerRol.scope_id == team_id,
+                GebruikerRol.rol.in_(["teamlid", "planner"]),
+                GebruikerRol.is_actief == True,
+                Gebruiker.is_actief == True,
+            )
+        )
+        if not inclusief_reserves:
+            query = query.filter(GebruikerRol.is_reserve == False)
+        return query.order_by(Gebruiker.volledige_naam).all()
+
+    def haal_reserves(self, team_id: int) -> list[Gebruiker]:
+        """Geeft gebruikers die als reserve gekoppeld zijn aan dit team."""
         return (
             self.db.query(Gebruiker)
-            .join(GebruikerGroep, GebruikerGroep.gebruiker_id == Gebruiker.id)
-            .filter(GebruikerGroep.groep_id == groep_id, GebruikerGroep.is_reserve == True)
-            .filter(Gebruiker.is_actief == True)
+            .join(GebruikerRol, GebruikerRol.gebruiker_id == Gebruiker.id)
+            .filter(
+                GebruikerRol.scope_id == team_id,
+                GebruikerRol.is_reserve == True,
+                GebruikerRol.is_actief == True,
+                Gebruiker.is_actief == True,
+            )
             .order_by(Gebruiker.volledige_naam)
             .all()
         )
 
     def haal_gefilterd(
         self,
-        groep_id: int,
+        locatie_id: int,
         zoek: str = "",
         rol: str = "",
         status: str = "actief",
     ) -> list[Gebruiker]:
-        """Gefilterde gebruikerslijst (vaste leden) op basis van zoekterm, rol en status."""
-        query = (
-            self.db.query(Gebruiker)
-            .join(GebruikerGroep, GebruikerGroep.gebruiker_id == Gebruiker.id)
-            .filter(GebruikerGroep.groep_id == groep_id, GebruikerGroep.is_reserve == False)
-        )
+        """Gefilterde gebruikerslijst op basis van zoekterm, rol en status."""
+        query = self.db.query(Gebruiker).filter(Gebruiker.locatie_id == locatie_id)
         if status == "actief":
             query = query.filter(Gebruiker.is_actief == True)
         elif status == "inactief":
@@ -67,42 +84,50 @@ class GebruikerService:
             )
         return query.order_by(Gebruiker.volledige_naam).all()
 
-    def haal_actieve_medewerkers(self, groep_id: int) -> list[Gebruiker]:
-        """Geeft actieve vaste leden van een groep via junction table, gesorteerd op naam."""
+    def haal_actieve_medewerkers(self, locatie_id: int) -> list[Gebruiker]:
+        """Geeft actieve gebruikers van een locatie, gesorteerd op naam."""
         return (
             self.db.query(Gebruiker)
-            .join(GebruikerGroep, GebruikerGroep.gebruiker_id == Gebruiker.id)
-            .filter(
-                GebruikerGroep.groep_id == groep_id,
-                GebruikerGroep.is_reserve == False,
-                Gebruiker.is_actief == True,
-            )
+            .filter(Gebruiker.locatie_id == locatie_id, Gebruiker.is_actief == True)
             .order_by(Gebruiker.volledige_naam)
             .all()
         )
 
-    def haal_op_id(self, gebruiker_id: int, groep_id: int) -> Optional[Gebruiker]:
-        """Geeft één gebruiker terug, alleen als die tot de groep behoort."""
+    def haal_op_id(self, gebruiker_id: int, locatie_id: int) -> Optional[Gebruiker]:
+        """Geeft één gebruiker terug, alleen als die tot de locatie behoort."""
         return (
             self.db.query(Gebruiker)
-            .filter(Gebruiker.id == gebruiker_id, Gebruiker.groep_id == groep_id)
+            .filter(Gebruiker.id == gebruiker_id, Gebruiker.locatie_id == locatie_id)
             .first()
         )
 
+    def haal_op_uuid(self, uuid: str) -> Gebruiker:
+        """Zoek een gebruiker op extern uuid. Gooit ValueError als niet gevonden."""
+        obj = (
+            self.db.query(Gebruiker)
+            .filter(Gebruiker.uuid == uuid, Gebruiker.is_actief == True)
+            .first()
+        )
+        if not obj:
+            raise ValueError(f"Gebruiker niet gevonden: {uuid}")
+        return obj
+
     def maak_aan(
         self,
-        groep_id: int,
+        locatie_id: int,
         gebruikersnaam: str,
         wachtwoord: str,
         volledige_naam: str,
         rol: str,
         voornaam: Optional[str] = None,
         achternaam: Optional[str] = None,
+        team_id: Optional[int] = None,
         is_reserve: bool = False,
         startweek_typedienst: Optional[int] = None,
     ) -> Gebruiker:
         """
-        Maakt een nieuwe gebruiker aan binnen de groep.
+        Maakt een nieuwe gebruiker aan binnen de locatie.
+        Als team_id opgegeven is, wordt ook een GebruikerRol record aangemaakt.
 
         Raises:
             ValueError: Bij validatiefouten of dubbele gebruikersnaam.
@@ -114,42 +139,44 @@ class GebruikerService:
         self._controleer_unieke_gebruikersnaam(gebruikersnaam)
 
         gebruiker = Gebruiker(
-            groep_id=groep_id,
+            locatie_id=locatie_id,
             gebruikersnaam=gebruikersnaam,
             gehashed_wachtwoord=hash_wachtwoord(wachtwoord),
             volledige_naam=volledige_naam,
             voornaam=voornaam,
             achternaam=achternaam,
             rol=rol,
-            is_reserve=is_reserve,
             startweek_typedienst=startweek_typedienst,
             is_actief=True,
             totp_actief=False,
         )
         self.db.add(gebruiker)
         self.db.flush()  # verkrijg gebruiker.id vóór commit
-        # Automatisch junction-record aanmaken
-        koppeling = GebruikerGroep(
+
+        # Rol-record aanmaken
+        scope_id = team_id if rol in ("teamlid", "planner") else locatie_id
+        koppeling = GebruikerRol(
             gebruiker_id=gebruiker.id,
-            groep_id=groep_id,
+            rol=rol,
+            scope_id=scope_id,
             is_reserve=is_reserve,
+            is_actief=True,
         )
         self.db.add(koppeling)
         self.db.commit()
         self.db.refresh(gebruiker)
-        logger.info("Gebruiker aangemaakt: %s (groep %s)", gebruikersnaam, groep_id)
+        logger.info("Gebruiker aangemaakt: %s (locatie %s)", gebruikersnaam, locatie_id)
         return gebruiker
 
     def bewerk(
         self,
         gebruiker_id: int,
-        groep_id: int,
+        locatie_id: int,
         gebruikersnaam: str,
         volledige_naam: str,
         rol: str,
         voornaam: Optional[str] = None,
         achternaam: Optional[str] = None,
-        is_reserve: bool = False,
         startweek_typedienst: Optional[int] = None,
     ) -> Gebruiker:
         """
@@ -158,7 +185,7 @@ class GebruikerService:
         Raises:
             ValueError: Bij validatiefouten, dubbele naam of niet gevonden.
         """
-        gebruiker = self._haal_op_of_fout(gebruiker_id, groep_id)
+        gebruiker = self._haal_op_of_fout(gebruiker_id, locatie_id)
         valideer_gebruikersnaam_formaat(gebruikersnaam)
         self._controleer_unieke_gebruikersnaam(gebruikersnaam, exclusief_id=gebruiker_id)
 
@@ -167,13 +194,12 @@ class GebruikerService:
         gebruiker.voornaam = voornaam
         gebruiker.achternaam = achternaam
         gebruiker.rol = rol
-        gebruiker.is_reserve = is_reserve
         gebruiker.startweek_typedienst = startweek_typedienst
         self.db.commit()
         logger.info("Gebruiker bijgewerkt: ID %s", gebruiker_id)
         return gebruiker
 
-    def deactiveer(self, gebruiker_id: int, groep_id: int, uitvoerder_id: int) -> None:
+    def deactiveer(self, gebruiker_id: int, locatie_id: int, uitvoerder_id: int) -> None:
         """
         Deactiveert een gebruiker (soft delete).
 
@@ -182,19 +208,19 @@ class GebruikerService:
         """
         if gebruiker_id == uitvoerder_id:
             raise ValueError("U kunt uzelf niet deactiveren")
-        gebruiker = self._haal_op_of_fout(gebruiker_id, groep_id)
+        gebruiker = self._haal_op_of_fout(gebruiker_id, locatie_id)
         gebruiker.is_actief = False
         self.db.commit()
         logger.info("Gebruiker gedeactiveerd: ID %s", gebruiker_id)
 
-    def activeer(self, gebruiker_id: int, groep_id: int) -> None:
+    def activeer(self, gebruiker_id: int, locatie_id: int) -> None:
         """Heractiveer een gedeactiveerde gebruiker."""
-        gebruiker = self._haal_op_of_fout(gebruiker_id, groep_id)
+        gebruiker = self._haal_op_of_fout(gebruiker_id, locatie_id)
         gebruiker.is_actief = True
         self.db.commit()
         logger.info("Gebruiker geactiveerd: ID %s", gebruiker_id)
 
-    def reset_wachtwoord(self, gebruiker_id: int, groep_id: int, nieuw_wachtwoord: str) -> None:
+    def reset_wachtwoord(self, gebruiker_id: int, locatie_id: int, nieuw_wachtwoord: str) -> None:
         """
         Reset het wachtwoord van een gebruiker (door beheerder).
 
@@ -204,7 +230,7 @@ class GebruikerService:
         fout = valideer_wachtwoord_sterkte(nieuw_wachtwoord)
         if fout:
             raise ValueError(fout)
-        gebruiker = self._haal_op_of_fout(gebruiker_id, groep_id)
+        gebruiker = self._haal_op_of_fout(gebruiker_id, locatie_id)
         gebruiker.gehashed_wachtwoord = hash_wachtwoord(nieuw_wachtwoord)
         self.db.commit()
         logger.info("Wachtwoord gereset voor gebruiker ID %s", gebruiker_id)
@@ -216,14 +242,12 @@ class GebruikerService:
         datum_tot: date,
     ) -> list[dict]:
         """
-        Geeft de geplande shifts van een reservemedewerker over alle groepen.
-        Retourneert lijst van dicts: datum, shift_code, groep_naam.
+        Geeft de geplande shifts van een reservemedewerker over alle teams.
+        Retourneert lijst van dicts: datum, shift_code, team_naam.
         """
-        from models.groep import Groep
-
         rijen = (
-            self.db.query(Planning, Groep.naam.label("groep_naam"))
-            .join(Groep, Groep.id == Planning.groep_id)
+            self.db.query(Planning, Team.naam.label("team_naam"))
+            .join(Team, Team.id == Planning.team_id)
             .filter(
                 Planning.gebruiker_id == gebruiker_id,
                 Planning.datum >= datum_van,
@@ -237,7 +261,7 @@ class GebruikerService:
             {
                 "datum": r.Planning.datum,
                 "shift_code": r.Planning.shift_code,
-                "groep_naam": r.groep_naam,
+                "team_naam": r.team_naam,
                 "status": r.Planning.status,
             }
             for r in rijen
@@ -247,8 +271,8 @@ class GebruikerService:
     # Privé helpers                                                        #
     # ------------------------------------------------------------------ #
 
-    def _haal_op_of_fout(self, gebruiker_id: int, groep_id: int) -> Gebruiker:
-        gebruiker = self.haal_op_id(gebruiker_id, groep_id)
+    def _haal_op_of_fout(self, gebruiker_id: int, locatie_id: int) -> Gebruiker:
+        gebruiker = self.haal_op_id(gebruiker_id, locatie_id)
         if not gebruiker:
             raise ValueError(f"Gebruiker {gebruiker_id} niet gevonden")
         return gebruiker

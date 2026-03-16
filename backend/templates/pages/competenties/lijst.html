@@ -63,13 +63,13 @@
                         </td>
                         <td class="px-4 py-3">
                             <div class="flex items-center gap-2 justify-end">
-                                <a href="/competenties/{{ comp.id }}/bewerk"
+                                <a href="/competenties/{{ comp.uuid }}/bewerk"
                                    class="text-xs px-3 py-1 rounded border transition-colors"
                                    style="border-color: var(--rand); color: var(--tekst-secundair);">
                                     {{ t("algemeen.bewerken") }}
                                 </a>
                                 {% if comp.is_actief %}
-                                <form method="post" action="/competenties/{{ comp.id }}/deactiveer" class="inline">
+                                <form method="post" action="/competenties/{{ comp.uuid }}/deactiveer" class="inline">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                                     <button type="submit"
                                             class="text-xs px-3 py-1 rounded border transition-colors"

@@ -15,6 +15,7 @@ from openpyxl.utils import get_column_letter
 from sqlalchemy.orm import Session
 
 from models.gebruiker import Gebruiker
+from models.gebruiker_rol import GebruikerRol
 from models.planning import Planning
 from services.domein.balans_domein import belgische_feestdagen
 from services.domein.planning_domein import MAAND_NAMEN
@@ -64,7 +65,7 @@ class ExcelExportService:
 
     def genereer_excel(
         self,
-        groep_id: int,
+        team_id: int,
         jaar: int,
         maand: int,
         fouten: list[ValidatieFout] | None = None,
@@ -73,7 +74,7 @@ class ExcelExportService:
         Genereer een .xlsx bestand in v0.7 HR-formaat.
 
         Args:
-            groep_id: Groep van de ingelogde planner.
+            team_id: Team van de ingelogde planner.
             jaar: Jaar van de te exporteren maand.
             maand: Maand (1–12) van de te exporteren maand.
             fouten: HR-validatiefouten voor Sheet 2 (optioneel).
@@ -89,14 +90,20 @@ class ExcelExportService:
 
         gebruikers = (
             self.db.query(Gebruiker)
-            .filter(Gebruiker.groep_id == groep_id, Gebruiker.is_actief == True)
+            .join(GebruikerRol, GebruikerRol.gebruiker_id == Gebruiker.id)
+            .filter(
+                GebruikerRol.scope_id == team_id,
+                GebruikerRol.rol.in_(["teamlid", "planner"]),
+                GebruikerRol.is_actief == True,
+                Gebruiker.is_actief == True,
+            )
             .order_by(Gebruiker.volledige_naam)
             .all()
         )
         shifts_db = (
             self.db.query(Planning)
             .filter(
-                Planning.groep_id == groep_id,
+                Planning.team_id == team_id,
                 Planning.datum >= datums[0],
                 Planning.datum <= datums[-1],
             )
@@ -129,8 +136,8 @@ class ExcelExportService:
         buf = io.BytesIO()
         wb.save(buf)
         logger.debug(
-            "Excel gegenereerd voor groep %s %s-%02d: %d medewerkers",
-            groep_id, jaar, maand, len(gebruikers),
+            "Excel gegenereerd voor team %s %s-%02d: %d medewerkers",
+            team_id, jaar, maand, len(gebruikers),
         )
         return buf.getvalue()
 

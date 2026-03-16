@@ -25,36 +25,41 @@ class VerlofService:
     # Lezen                                                                #
     # ------------------------------------------------------------------ #
 
-    def haal_alle(self, groep_id: int) -> list[VerlofAanvraag]:
-        """Alle aanvragen voor de groep, nieuwste eerst."""
+    def haal_alle(self, locatie_id: int) -> list[VerlofAanvraag]:
+        """Alle aanvragen voor de locatie, nieuwste eerst."""
         return (
             self.db.query(VerlofAanvraag)
-            .filter(VerlofAanvraag.groep_id == groep_id)
+            .join(Gebruiker, Gebruiker.id == VerlofAanvraag.gebruiker_id)
+            .filter(Gebruiker.locatie_id == locatie_id)
             .order_by(VerlofAanvraag.aangevraagd_op.desc())
             .all()
         )
 
-    def haal_eigen(self, gebruiker_id: int, groep_id: int) -> list[VerlofAanvraag]:
+    def haal_eigen(self, gebruiker_id: int) -> list[VerlofAanvraag]:
         """Aanvragen van één gebruiker, nieuwste eerst."""
         return (
             self.db.query(VerlofAanvraag)
-            .filter(
-                VerlofAanvraag.gebruiker_id == gebruiker_id,
-                VerlofAanvraag.groep_id == groep_id,
-            )
+            .filter(VerlofAanvraag.gebruiker_id == gebruiker_id)
             .order_by(VerlofAanvraag.aangevraagd_op.desc())
             .all()
         )
 
-    def haal_op_id(self, aanvraag_id: int, groep_id: int) -> VerlofAanvraag | None:
+    def haal_op_id(self, aanvraag_id: int, locatie_id: int) -> VerlofAanvraag | None:
         return (
             self.db.query(VerlofAanvraag)
-            .filter(VerlofAanvraag.id == aanvraag_id, VerlofAanvraag.groep_id == groep_id)
+            .join(Gebruiker, Gebruiker.id == VerlofAanvraag.gebruiker_id)
+            .filter(VerlofAanvraag.id == aanvraag_id, Gebruiker.locatie_id == locatie_id)
             .first()
         )
 
+    def haal_op_uuid(self, uuid: str) -> VerlofAanvraag:
+        """Zoek een verlofaanvraag op extern uuid. Gooit ValueError als niet gevonden."""
+        obj = self.db.query(VerlofAanvraag).filter(VerlofAanvraag.uuid == uuid).first()
+        if not obj:
+            raise ValueError(f"VerlofAanvraag niet gevonden: {uuid}")
+        return obj
+
     def haal_verlofcodes(self) -> list[SpecialCode]:
-        """Geeft speciale codes die als verloftype gebruikt kunnen worden."""
         return (
             self.db.query(SpecialCode)
             .filter(SpecialCode.term.isnot(None))
@@ -69,31 +74,16 @@ class VerlofService:
     def maak_aanvraag(
         self,
         gebruiker_id: int,
-        groep_id: int,
         start_datum: date,
         eind_datum: date,
         opmerking: str | None,
         ingediend_door_id: int | None = None,
     ) -> VerlofAanvraag:
-        """
-        Dien een verlofaanvraag in.
-
-        Raises:
-            ValueError: Bij ongeldige datums.
-        """
         valideer_verlof_periode(start_datum, eind_datum)
-
-        # Controleer of de gebruiker tot de groep behoort
-        if not self.db.query(Gebruiker).filter(
-            Gebruiker.id == gebruiker_id, Gebruiker.groep_id == groep_id
-        ).first():
-            raise ValueError("Gebruiker niet gevonden in deze groep.")
-
         aantal = bereken_verlof_dagen(start_datum, eind_datum)
 
         aanvraag = VerlofAanvraag(
             gebruiker_id=gebruiker_id,
-            groep_id=groep_id,
             start_datum=start_datum,
             eind_datum=eind_datum,
             aantal_dagen=aantal,
@@ -114,17 +104,11 @@ class VerlofService:
     def goedkeuren(
         self,
         aanvraag_id: int,
-        groep_id: int,
+        locatie_id: int,
         behandelaar_id: int,
         code_term: str | None = None,
     ) -> VerlofAanvraag:
-        """
-        Keur een verlofaanvraag goed.
-
-        Raises:
-            ValueError: Als aanvraag niet bestaat of al behandeld is.
-        """
-        aanvraag = self._haal_pending(aanvraag_id, groep_id)
+        aanvraag = self._haal_pending(aanvraag_id, locatie_id)
         aanvraag.status = "goedgekeurd"
         aanvraag.behandeld_door = behandelaar_id
         aanvraag.behandeld_op = datetime.now()
@@ -136,19 +120,13 @@ class VerlofService:
     def weigeren(
         self,
         aanvraag_id: int,
-        groep_id: int,
+        locatie_id: int,
         behandelaar_id: int,
         reden: str,
     ) -> VerlofAanvraag:
-        """
-        Weiger een verlofaanvraag.
-
-        Raises:
-            ValueError: Als aanvraag niet bestaat of al behandeld is.
-        """
         if not reden or not reden.strip():
             raise ValueError("Reden van weigering is verplicht.")
-        aanvraag = self._haal_pending(aanvraag_id, groep_id)
+        aanvraag = self._haal_pending(aanvraag_id, locatie_id)
         aanvraag.status = "geweigerd"
         aanvraag.behandeld_door = behandelaar_id
         aanvraag.behandeld_op = datetime.now()
@@ -157,45 +135,36 @@ class VerlofService:
         logger.info("Verlofaanvraag %s geweigerd door %s", aanvraag_id, behandelaar_id)
         return aanvraag
 
-    def verwijder(self, aanvraag_id: int, gebruiker_id: int, groep_id: int) -> None:
-        """
-        Verwijder eigen pending aanvraag.
-
-        Raises:
-            ValueError: Als aanvraag niet pending is of niet van deze gebruiker.
-        """
-        aanvraag = self.haal_op_id(aanvraag_id, groep_id)
+    def verwijder(self, aanvraag_id: int, gebruiker_id: int) -> None:
+        aanvraag = (
+            self.db.query(VerlofAanvraag)
+            .filter(VerlofAanvraag.id == aanvraag_id, VerlofAanvraag.gebruiker_id == gebruiker_id)
+            .first()
+        )
         if not aanvraag:
             raise ValueError("Aanvraag niet gevonden.")
-        if aanvraag.gebruiker_id != gebruiker_id:
-            raise ValueError("Je kan enkel je eigen aanvraag verwijderen.")
         if aanvraag.status != "pending":
             raise ValueError("Enkel pending aanvragen kunnen verwijderd worden.")
         self.db.delete(aanvraag)
         self.db.commit()
 
-    def haal_maand_overzicht(self, groep_id: int, jaar: int, maand: int) -> dict:
-        """
-        Maandgrid: per medewerker per dag welke verlofstatus (pending/goedgekeurd).
-
-        Returns:
-            dict met 'medewerkers', 'datums', 'verlof_per_dag' {gebruiker_id: {datum_str: status}}
-        """
+    def haal_maand_overzicht(self, locatie_id: int, jaar: int, maand: int) -> dict:
         laatste_dag = calendar.monthrange(jaar, maand)[1]
         eerste = date(jaar, maand, 1)
         laatste = date(jaar, maand, laatste_dag)
 
         medewerkers = (
             self.db.query(Gebruiker)
-            .filter(Gebruiker.groep_id == groep_id, Gebruiker.is_actief == True)
+            .filter(Gebruiker.locatie_id == locatie_id, Gebruiker.is_actief == True)
             .order_by(Gebruiker.volledige_naam)
             .all()
         )
 
         aanvragen = (
             self.db.query(VerlofAanvraag)
+            .join(Gebruiker, Gebruiker.id == VerlofAanvraag.gebruiker_id)
             .filter(
-                VerlofAanvraag.groep_id == groep_id,
+                Gebruiker.locatie_id == locatie_id,
                 VerlofAanvraag.start_datum <= laatste,
                 VerlofAanvraag.eind_datum >= eerste,
                 VerlofAanvraag.status.in_(["pending", "goedgekeurd"]),
@@ -218,11 +187,12 @@ class VerlofService:
             "verlof_per_dag": verlof_per_dag,
         }
 
-    def haal_pending_count(self, groep_id: int) -> int:
-        """Aantal openstaande (pending) verlofaanvragen voor de groep."""
+    def haal_pending_count(self, locatie_id: int) -> int:
+        """Aantal openstaande verlofaanvragen voor de locatie."""
         return (
             self.db.query(VerlofAanvraag)
-            .filter(VerlofAanvraag.groep_id == groep_id, VerlofAanvraag.status == "pending")
+            .join(Gebruiker, Gebruiker.id == VerlofAanvraag.gebruiker_id)
+            .filter(Gebruiker.locatie_id == locatie_id, VerlofAanvraag.status == "pending")
             .count()
         )
 
@@ -230,8 +200,8 @@ class VerlofService:
     # Intern                                                               #
     # ------------------------------------------------------------------ #
 
-    def _haal_pending(self, aanvraag_id: int, groep_id: int) -> VerlofAanvraag:
-        aanvraag = self.haal_op_id(aanvraag_id, groep_id)
+    def _haal_pending(self, aanvraag_id: int, locatie_id: int) -> VerlofAanvraag:
+        aanvraag = self.haal_op_id(aanvraag_id, locatie_id)
         if not aanvraag:
             raise ValueError("Aanvraag niet gevonden.")
         if aanvraag.status != "pending":

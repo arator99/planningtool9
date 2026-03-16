@@ -6,7 +6,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from i18n import maak_vertaler
-from api.dependencies import haal_db, vereiste_login, haal_csrf_token, verifieer_csrf
+from api.dependencies import haal_db, haal_primaire_team_id, vereiste_login, haal_csrf_token, verifieer_csrf
 from api.sjablonen import sjablonen
 from models.gebruiker import Gebruiker
 from models.notitie import PRIORITEITEN
@@ -20,10 +20,10 @@ def _context(request: Request, gebruiker: Gebruiker, **extra) -> dict:
     return {"request": request, "gebruiker": gebruiker, "t": maak_vertaler(gebruiker.taal if gebruiker else "nl"), **extra}
 
 
-def _medewerkers(db: Session, groep_id: int, eigen_id: int) -> list[Gebruiker]:
+def _medewerkers(db: Session, locatie_id: int, eigen_id: int) -> list[Gebruiker]:
     return (
         db.query(Gebruiker)
-        .filter(Gebruiker.groep_id == groep_id, Gebruiker.is_actief == True, Gebruiker.id != eigen_id)
+        .filter(Gebruiker.locatie_id == locatie_id, Gebruiker.is_actief == True, Gebruiker.id != eigen_id)
         .order_by(Gebruiker.volledige_naam)
         .all()
     )
@@ -38,12 +38,13 @@ def inbox(
     csrf_token: str = Depends(haal_csrf_token),
 ):
     svc = NotitieService(db)
+    team_id = haal_primaire_team_id(gebruiker.id, db)
     return sjablonen.TemplateResponse(
         "pages/notities/lijst.html",
         _context(request, gebruiker,
-                 inbox=svc.haal_inbox(gebruiker.id, gebruiker.groep_id),
-                 verzonden=svc.haal_verzonden(gebruiker.id, gebruiker.groep_id),
-                 medewerkers=_medewerkers(db, gebruiker.groep_id, gebruiker.id),
+                 inbox=svc.haal_inbox(gebruiker.id, team_id) if team_id else [],
+                 verzonden=svc.haal_verzonden(gebruiker.id, team_id) if team_id else [],
+                 medewerkers=_medewerkers(db, gebruiker.locatie_id, gebruiker.id),
                  prioriteiten=PRIORITEITEN,
                  actieve_tab=tab,
                  bericht=request.query_params.get("bericht"),
@@ -61,21 +62,31 @@ def stuur(
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
 ):
+    team_id = haal_primaire_team_id(gebruiker.id, db)
+    if not team_id:
+        return RedirectResponse(url="/notities?fout=geen_team", status_code=303)
     try:
-        NotitieService(db).stuur(gebruiker.id, gebruiker.groep_id, bericht, naar_id, prioriteit)
+        NotitieService(db).stuur(gebruiker.id, team_id, bericht, naar_id, prioriteit)
     except ValueError as fout:
         return RedirectResponse(url=f"/notities?fout={fout}", status_code=303)
     return RedirectResponse(url="/notities?bericht=Bericht+verzonden", status_code=303)
 
 
-@router.post("/{notitie_id}/gelezen")
+@router.post("/{uuid}/gelezen")
 def markeer_gelezen(
-    notitie_id: int,
+    uuid: str,
     gebruiker: Gebruiker = Depends(vereiste_login),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
 ):
-    NotitieService(db).markeer_gelezen(notitie_id, gebruiker.id, gebruiker.groep_id)
+    svc = NotitieService(db)
+    team_id = haal_primaire_team_id(gebruiker.id, db)
+    if team_id:
+        try:
+            notitie = svc.haal_op_uuid(uuid)
+            svc.markeer_gelezen(notitie.id, gebruiker.id, team_id)
+        except ValueError:
+            pass
     return RedirectResponse(url="/notities", status_code=303)
 
 
@@ -85,7 +96,9 @@ def alles_gelezen(
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
 ):
-    NotitieService(db).markeer_alles_gelezen(gebruiker.id, gebruiker.groep_id)
+    team_id = haal_primaire_team_id(gebruiker.id, db)
+    if team_id:
+        NotitieService(db).markeer_alles_gelezen(gebruiker.id, team_id)
     return RedirectResponse(url="/notities?bericht=Alles+gemarkeerd+als+gelezen", status_code=303)
 
 
@@ -95,21 +108,27 @@ def ongelezen_aantal(
     db: Session = Depends(haal_db),
 ):
     """HTMX fragment: badge met ongelezen notities of leeg."""
-    aantal = NotitieService(db).haal_ongelezen_aantal(gebruiker.id, gebruiker.groep_id)
+    team_id = haal_primaire_team_id(gebruiker.id, db)
+    aantal = NotitieService(db).haal_ongelezen_aantal(gebruiker.id, team_id) if team_id else 0
     if aantal > 0:
         return HTMLResponse(f'<span class="inline-flex items-center justify-center w-4 h-4 text-xs font-bold text-white bg-red-500 rounded-full">{aantal}</span>')
     return HTMLResponse("")
 
 
-@router.post("/{notitie_id}/verwijder")
+@router.post("/{uuid}/verwijder")
 def verwijder(
-    notitie_id: int,
+    uuid: str,
     gebruiker: Gebruiker = Depends(vereiste_login),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
 ):
+    svc = NotitieService(db)
+    team_id = haal_primaire_team_id(gebruiker.id, db)
+    if not team_id:
+        return RedirectResponse(url="/notities?tab=verzonden&fout=geen_team", status_code=303)
     try:
-        NotitieService(db).verwijder(notitie_id, gebruiker.id, gebruiker.groep_id)
+        notitie = svc.haal_op_uuid(uuid)
+        svc.verwijder(notitie.id, gebruiker.id, team_id)
     except ValueError as fout:
         return RedirectResponse(url=f"/notities?tab=verzonden&fout={fout}", status_code=303)
     return RedirectResponse(url="/notities?tab=verzonden&bericht=Verwijderd", status_code=303)

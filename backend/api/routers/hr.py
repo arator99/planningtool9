@@ -1,10 +1,11 @@
+"""HR router — beheerder: nationale defaults bekijken + lokale overrides instellen."""
 import logging
 from datetime import date
+from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
-from typing import Optional
 
 from i18n import maak_vertaler
 from api.dependencies import haal_db, vereiste_rol, haal_csrf_token, verifieer_csrf
@@ -19,7 +20,12 @@ router = APIRouter(prefix="/hr", tags=["hr"])
 
 
 def _context(request: Request, gebruiker: Gebruiker, **extra) -> dict:
-    return {"request": request, "gebruiker": gebruiker, "t": maak_vertaler(gebruiker.taal if gebruiker else "nl"), **extra}
+    return {
+        "request": request,
+        "gebruiker": gebruiker,
+        "t": maak_vertaler(gebruiker.taal if gebruiker else "nl"),
+        **extra,
+    }
 
 
 @router.get("", response_class=HTMLResponse)
@@ -30,107 +36,120 @@ def overzicht(
     csrf_token: str = Depends(haal_csrf_token),
 ):
     svc = HRService(db)
-    regels = svc.haal_alle_regels(gebruiker.groep_id)
-    rode_lijn = svc.haal_rode_lijn(gebruiker.groep_id)
+    nationale_regels = svc.haal_alle_nationale_regels()
+    overrides = {
+        o.nationale_regel_id: o
+        for o in svc.haal_overrides_voor_locatie(gebruiker.locatie_id)
+    }
+    rode_lijn = svc.haal_rode_lijn_config()
 
-    gegroepeerd = {}
-    for r in regels:
-        gegroepeerd.setdefault(r.ernst_niveau, []).append(r)
+    # Bouw gecombineerde weergave: nationale regel + eventuele lokale override
+    regels_met_override = []
+    for regel in nationale_regels:
+        override = overrides.get(regel.id)
+        regels_met_override.append({
+            "regel": regel,
+            "override": override,
+            "effectieve_waarde": override.waarde if override else regel.waarde,
+            "heeft_override": override is not None,
+        })
+
+    # Groepeer op ernst-niveau
+    gegroepeerd: dict[str, list] = {}
+    for item in regels_met_override:
+        niveau = item["regel"].ernst_niveau
+        gegroepeerd.setdefault(niveau, []).append(item)
 
     return sjablonen.TemplateResponse(
         "pages/hr/lijst.html",
-        _context(request, gebruiker,
-                 gegroepeerd=gegroepeerd,
-                 ernst_niveaus=ERNST_NIVEAUS,
-                 rode_lijn=rode_lijn,
-                 bericht=request.query_params.get("bericht"),
-                 fout=request.query_params.get("fout"),
-                 csrf_token=csrf_token),
+        _context(
+            request, gebruiker,
+            gegroepeerd=gegroepeerd,
+            ernst_niveaus=ERNST_NIVEAUS,
+            rode_lijn=rode_lijn,
+            bericht=request.query_params.get("bericht"),
+            fout=request.query_params.get("fout"),
+            csrf_token=csrf_token,
+        ),
     )
 
 
-@router.get("/{regel_id}/bewerk", response_class=HTMLResponse)
-def bewerk_formulier(
-    regel_id: int,
+@router.get("/{uuid}/override", response_class=HTMLResponse)
+def override_formulier(
+    uuid: str,
     request: Request,
-    gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "hr")),
+    gebruiker: Gebruiker = Depends(vereiste_rol("beheerder")),
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
 ):
-    regel = HRService(db).haal_regel(regel_id, gebruiker.groep_id)
-    if not regel:
+    svc = HRService(db)
+    try:
+        regel = svc.haal_op_uuid(uuid)
+    except ValueError:
         return RedirectResponse(url="/hr?fout=Niet+gevonden", status_code=303)
+    override = svc.haal_override(regel.id, gebruiker.locatie_id)
     return sjablonen.TemplateResponse(
-        "pages/hr/formulier.html",
-        _context(request, gebruiker, regel=regel, ernst_niveaus=ERNST_NIVEAUS, csrf_token=csrf_token),
+        "pages/hr/override_formulier.html",
+        _context(
+            request, gebruiker,
+            regel=regel,
+            override=override,
+            csrf_token=csrf_token,
+        ),
     )
 
 
-@router.post("/{regel_id}/bewerk")
-def sla_op(
-    regel_id: int,
-    waarde: Optional[int] = Form(None),
-    waarde_extra: str = Form(""),
-    ernst_niveau: str = Form("WARNING"),
-    is_actief: bool = Form(False),
-    beschrijving: str = Form(""),
-    gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "hr")),
+@router.post("/{uuid}/override")
+def sla_override_op(
+    uuid: str,
+    waarde: int = Form(...),
+    gebruiker: Gebruiker = Depends(vereiste_rol("beheerder")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
 ):
+    svc = HRService(db)
     try:
-        HRService(db).bewerk_regel(
-            regel_id=regel_id,
-            groep_id=gebruiker.groep_id,
+        regel = svc.haal_op_uuid(uuid)
+    except ValueError:
+        return RedirectResponse(url="/hr?fout=Niet+gevonden", status_code=303)
+    try:
+        svc.sla_override_op(
+            nationale_regel_id=regel.id,
+            locatie_id=gebruiker.locatie_id,
             waarde=waarde,
-            waarde_extra=waarde_extra,
-            ernst_niveau=ernst_niveau,
-            is_actief=is_actief,
-            beschrijving=beschrijving,
         )
     except ValueError as fout:
-        return RedirectResponse(url=f"/hr/{regel_id}/bewerk?fout={fout}", status_code=303)
-    return RedirectResponse(url="/hr?bericht=Regel+bijgewerkt", status_code=303)
+        return RedirectResponse(
+            url=f"/hr/{uuid}/override?fout={fout}", status_code=303
+        )
+    return RedirectResponse(url="/hr?bericht=Override+opgeslagen", status_code=303)
 
 
-@router.post("/{regel_id}/activeer")
-def activeer(
-    regel_id: int,
-    gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "hr")),
+@router.post("/{uuid}/override/verwijder")
+def verwijder_override(
+    uuid: str,
+    gebruiker: Gebruiker = Depends(vereiste_rol("beheerder")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
 ):
+    svc = HRService(db)
     try:
-        HRService(db).activeer(regel_id, gebruiker.groep_id)
-    except ValueError as fout:
-        return RedirectResponse(url=f"/hr?fout={fout}", status_code=303)
-    return RedirectResponse(url="/hr?bericht=Regel+geactiveerd", status_code=303)
-
-
-@router.post("/{regel_id}/deactiveer")
-def deactiveer(
-    regel_id: int,
-    gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "hr")),
-    db: Session = Depends(haal_db),
-    _csrf: None = Depends(verifieer_csrf),
-):
-    try:
-        HRService(db).deactiveer(regel_id, gebruiker.groep_id)
-    except ValueError as fout:
-        return RedirectResponse(url=f"/hr?fout={fout}", status_code=303)
-    return RedirectResponse(url="/hr?bericht=Regel+gedeactiveerd", status_code=303)
+        regel = svc.haal_op_uuid(uuid)
+    except ValueError:
+        return RedirectResponse(url="/hr?fout=Niet+gevonden", status_code=303)
+    svc.verwijder_override(regel.id, gebruiker.locatie_id)
+    return RedirectResponse(url="/hr?bericht=Override+verwijderd", status_code=303)
 
 
 @router.post("/rode-lijn")
 def sla_rode_lijn_op(
-    start_datum: date = Form(...),
-    interval_dagen: int = Form(...),
+    referentie_datum: date = Form(...),
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
 ):
     try:
-        HRService(db).sla_rode_lijn_op(gebruiker.groep_id, start_datum, interval_dagen)
+        HRService(db).sla_rode_lijn_config_op(referentie_datum)
     except ValueError as fout:
         return RedirectResponse(url=f"/hr?fout={fout}", status_code=303)
     return RedirectResponse(url="/hr?bericht=Rode+lijn+opgeslagen", status_code=303)

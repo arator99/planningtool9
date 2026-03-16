@@ -25,7 +25,7 @@
 
     <div class="rounded-xl shadow-sm border p-6" style="border-color: var(--rand); background: var(--achtergrond-widget);">
         <form method="post"
-              action="{% if bewerk_modus %}/werkposten/{{ wp.id }}/bewerk{% else %}/werkposten/nieuw{% endif %}"
+              action="{% if bewerk_modus %}/werkposten/{{ wp.uuid }}/bewerk{% else %}/werkposten/nieuw{% endif %}"
               class="space-y-4">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 

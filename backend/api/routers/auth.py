@@ -5,6 +5,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from api.dependencies import haal_db, haal_huidige_gebruiker, haal_csrf_token, verifieer_csrf
+from services.domein.csrf_domein import genereer_csrf_token
 from api.rate_limiter import limiter
 from api.sjablonen import sjablonen
 from config import instellingen
@@ -41,7 +42,7 @@ def _login_js_vertalingen() -> dict:
 
 
 @router.get("/login", response_class=HTMLResponse)
-def toon_login(request: Request):
+def toon_login(request: Request) -> HTMLResponse:
     """Toont de loginpagina. Pre-selecteert de taal uit cookie indien aanwezig."""
     geselecteerde_taal = request.cookies.get("taal", "nl")
     return sjablonen.TemplateResponse(
@@ -92,7 +93,8 @@ def verwerk_inloggen(
 
     antwoord = RedirectResponse(url="/dashboard", status_code=303)
     antwoord.set_cookie(key="toegangs_token", value=resultaat["token"],
-                        httponly=True, samesite="strict", secure=_SECURE)
+                        httponly=True, samesite="strict", secure=_SECURE,
+                        max_age=instellingen.toegangs_token_verlopen_minuten * 60)
     antwoord.set_cookie(key="taal", value=taal, samesite="lax", secure=_SECURE,
                         max_age=60 * 60 * 24 * 365)
     logger.info("Gebruiker '%s' ingelogd (taal: %s)", gebruikersnaam, taal)
@@ -102,7 +104,7 @@ def verwerk_inloggen(
 @router.post("/auth/uitloggen")
 def uitloggen(
     _csrf: None = Depends(verifieer_csrf),
-):
+) -> RedirectResponse:
     """Verwijdert sessie cookies en stuurt terug naar loginpagina."""
     antwoord = RedirectResponse(url="/login", status_code=303)
     antwoord.delete_cookie("toegangs_token")
@@ -151,6 +153,7 @@ def verwerk_totp_verificatie(
         httponly=True,
         samesite="strict",
         secure=_SECURE,
+        max_age=instellingen.toegangs_token_verlopen_minuten * 60,
     )
     antwoord.delete_cookie("totp_temp_token")
     return antwoord
@@ -197,7 +200,10 @@ def bevestig_totp_instellen(
     try:
         AuthService(db).bevestig_totp_instelling(huidige_gebruiker.id, code)
     except ValueError as fout:
-        resultaat = AuthService(db).start_totp_instelling(huidige_gebruiker.id)
+        try:
+            resultaat = AuthService(db).haal_bestaand_totp(huidige_gebruiker.id)
+        except ValueError:
+            resultaat = AuthService(db).start_totp_instelling(huidige_gebruiker.id)
         return sjablonen.TemplateResponse(
             "pages/totp_instellen.html",
             {
@@ -206,6 +212,7 @@ def bevestig_totp_instellen(
                 "totp_uri": resultaat["uri"],
                 "totp_geheim": resultaat["geheim"],
                 "fout": str(fout),
+                "csrf_token": genereer_csrf_token(str(huidige_gebruiker.id)),
             },
             status_code=400,
         )

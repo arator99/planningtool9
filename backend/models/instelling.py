@@ -1,3 +1,4 @@
+"""AppInstelling model — locatie-specifieke app-instellingen."""
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, UniqueConstraint, func
 from sqlalchemy.orm import relationship
 
@@ -11,13 +12,13 @@ INSTELLING_SLEUTELS = {
 
 
 class AppInstelling(Basis):
-    """Groep-specifieke app-instellingen als key-value paren."""
+    """Locatie-specifieke app-instellingen als key-value paren."""
 
     __tablename__ = "app_instellingen"
-    __table_args__ = (UniqueConstraint("groep_id", "sleutel", name="uq_instelling_groep_sleutel"),)
+    __table_args__ = (UniqueConstraint("locatie_id", "sleutel", name="uq_instelling_locatie_sleutel"),)
 
     id = Column(Integer, primary_key=True, index=True)
-    groep_id = Column(Integer, ForeignKey("groepen.id"), nullable=False, index=True)
+    locatie_id = Column(Integer, ForeignKey("locaties.id"), nullable=False, index=True)
     sleutel = Column(String(100), nullable=False)
     waarde = Column(String(500), nullable=False, default="")
     bijgewerkt_op = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)

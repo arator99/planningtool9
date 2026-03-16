@@ -9,30 +9,30 @@
 <div class="flex items-center justify-between mb-5">
     <div class="flex items-center gap-4">
         <a href="/planning/mijn?jaar={{ vorige.jaar }}&maand={{ vorige.maand }}"
-           class="p-2 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 shadow-sm">
+           class="p-2 rounded-lg bg-oppervlak border border-rand hover:bg-achtergrond text-tekst-zacht shadow-sm">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
             </svg>
         </a>
-        <h1 class="text-xl font-bold text-gray-800 capitalize">{{ maand_naam }} {{ jaar }}</h1>
+        <h1 class="text-xl font-bold text-tekst capitalize">{{ maand_naam }} {{ jaar }}</h1>
         <a href="/planning/mijn?jaar={{ volgende.jaar }}&maand={{ volgende.maand }}"
-           class="p-2 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 shadow-sm">
+           class="p-2 rounded-lg bg-oppervlak border border-rand hover:bg-achtergrond text-tekst-zacht shadow-sm">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
             </svg>
         </a>
     </div>
-    <span class="text-sm font-medium text-gray-400">{{ t("planning.mijn_planning") }}</span>
+    <span class="text-sm font-medium text-tekst-zacht">{{ t("planning.mijn_planning") }}</span>
 </div>
 
 <!-- Kalenderraster -->
-<div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+<div class="bg-oppervlak rounded-xl shadow-sm border border-rand overflow-hidden">
 
     <!-- Dag-headers -->
-    <div class="grid grid-cols-7 border-b border-gray-200 bg-gray-50">
+    <div class="grid grid-cols-7 border-b border-rand bg-achtergrond">
         {% for naam in ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'] %}
         <div class="text-center text-xs font-semibold py-2
-                    {% if loop.index >= 6 %}text-blue-500{% else %}text-gray-500{% endif %}">
+                    {% if loop.index >= 6 %}text-blue-500{% else %}text-tekst-zacht{% endif %}">
             {{ naam }}
         </div>
         {% endfor %}
@@ -42,25 +42,25 @@
     <div class="grid grid-cols-7">
         {# Lege cellen vóór de eerste dag van de maand #}
         {% for i in range(dag_info[0].weekdag) %}
-        <div class="h-16 border-b border-r border-gray-100 bg-gray-50/50"></div>
+        <div class="h-16 border-b border-r border-rand bg-achtergrond/50"></div>
         {% endfor %}
 
         {% for dag in dag_info %}
         {% set code = shifts.get(dag.datum) %}
-        <div class="h-16 border-b border-r border-gray-100 p-1.5 flex flex-col
-                    {% if dag.is_weekend %}bg-blue-50/40{% endif %}
-                    {% if dag.is_vandaag %}outline outline-2 outline-blue-400 outline-offset-[-2px]{% endif %}">
+        <div class="h-16 border-b border-r border-rand p-1.5 flex flex-col
+                    {% if dag.is_weekend %}bg-info-zacht/40{% endif %}
+                    {% if dag.is_vandaag %}outline outline-2 outline-primair outline-offset-[-2px]{% endif %}">
             <span class="text-xs font-medium
-                         {% if dag.is_vandaag %}text-blue-600 font-bold
+                         {% if dag.is_vandaag %}text-primair font-bold
                          {% elif dag.is_weekend %}text-blue-400
-                         {% else %}text-gray-400{% endif %}">
+                         {% else %}text-tekst-zacht{% endif %}">
                 {{ dag.dag }}
             </span>
             {% if code %}
             <span class="mt-auto text-sm font-bold text-center rounded px-1 py-0.5
                          {% if code in ['N'] %}bg-indigo-100 text-indigo-700
-                         {% elif code in ['RXW', 'RXF', 'CXW', 'CXA', 'V', 'VV', 'KD', 'ADV', 'Z', 'R', 'RUST'] %}bg-gray-100 text-gray-400
-                         {% else %}bg-green-50 text-green-700{% endif %}">
+                         {% elif code in ['RXW', 'RXF', 'CXW', 'CXA', 'V', 'VV', 'KD', 'ADV', 'Z', 'R', 'RUST'] %}bg-achtergrond text-tekst-zacht
+                         {% else %}bg-succes-zacht text-succes{% endif %}">
                 {{ code }}
             </span>
             {% endif %}
@@ -69,13 +69,13 @@
 
         {# Lege cellen na de laatste dag om de laatste rij op te vullen #}
         {% for i in range(6 - dag_info[-1].weekdag) %}
-        <div class="h-16 border-b border-r border-gray-100 bg-gray-50/50"></div>
+        <div class="h-16 border-b border-r border-rand bg-achtergrond/50"></div>
         {% endfor %}
     </div>
 </div>
 
 {% if not shifts %}
-<p class="mt-4 text-sm text-center text-gray-400">{{ t("planning.geen_gepubliceerde_shifts") }}</p>
+<p class="mt-4 text-sm text-center text-tekst-zacht">{{ t("planning.geen_gepubliceerde_shifts") }}</p>
 {% endif %}
 
 {% endblock %}

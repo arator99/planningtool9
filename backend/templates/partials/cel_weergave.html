@@ -1,6 +1,6 @@
 <td id="cel-{{ cel_gebruiker_id }}-{{ datum }}"
-    class="border border-gray-200 text-center p-0 cursor-pointer min-w-[48px] h-8
-           hover:bg-blue-50 transition-colors duration-100"
+    class="border border-rand text-center p-0 cursor-pointer min-w-[48px] h-8
+           hover:bg-info-zacht transition-colors duration-100"
     hx-get="/planning/cel/{{ cel_gebruiker_id }}/{{ datum }}"
     hx-target="#cel-{{ cel_gebruiker_id }}-{{ datum }}"
     hx-swap="outerHTML"
@@ -8,8 +8,8 @@
     {% if code %}
     <span class="text-xs font-semibold
         {% if code in ['N'] %}text-indigo-700
-        {% elif code in ['RXW', 'RXF', 'V'] %}text-gray-400
-        {% else %}text-gray-800{% endif %}">
+        {% elif code in ['RXW', 'RXF', 'V'] %}text-tekst-zacht
+        {% else %}text-tekst{% endif %}">
         {{ code }}
     </span>
     {% endif %}

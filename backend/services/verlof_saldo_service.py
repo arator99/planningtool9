@@ -35,13 +35,12 @@ class VerlofSaldoService:
             .first()
         )
 
-    def haal_of_maak_saldo(self, gebruiker_id: int, groep_id: int, jaar: int) -> VerlofSaldo:
+    def haal_of_maak_saldo(self, gebruiker_id: int, jaar: int) -> VerlofSaldo:
         """Haal saldo op of maak nieuw aan als het niet bestaat."""
         saldo = self.haal_saldo(gebruiker_id, jaar)
         if not saldo:
             saldo = VerlofSaldo(
                 gebruiker_id=gebruiker_id,
-                groep_id=groep_id,
                 jaar=jaar,
             )
             self.db.add(saldo)
@@ -49,14 +48,14 @@ class VerlofSaldoService:
             self.db.refresh(saldo)
         return saldo
 
-    def haal_alle_saldi(self, groep_id: int, jaar: int) -> list[dict]:
+    def haal_alle_saldi(self, locatie_id: int, jaar: int) -> list[dict]:
         """
-        Alle saldi voor een groep in een jaar, inclusief berekende restanten.
+        Alle saldi voor een locatie in een jaar, inclusief berekende restanten.
         Medewerkers zonder saldo record krijgen nullen.
         """
         medewerkers = (
             self.db.query(Gebruiker)
-            .filter(Gebruiker.groep_id == groep_id, Gebruiker.is_actief == True)
+            .filter(Gebruiker.locatie_id == locatie_id, Gebruiker.is_actief == True)
             .order_by(Gebruiker.volledige_naam)
             .all()
         )
@@ -69,7 +68,7 @@ class VerlofSaldoService:
             resultaat.append(overzicht)
         return resultaat
 
-    def bereken_overzicht(self, gebruiker_id: int, groep_id: int, jaar: int) -> dict:
+    def bereken_overzicht(self, gebruiker_id: int, jaar: int) -> dict:
         """
         Volledig saldo overzicht voor één gebruiker:
         saldo, FIFO verdeling VV + KD, en eventuele 1-mei-waarschuwing.
@@ -86,7 +85,6 @@ class VerlofSaldoService:
     def pas_saldo_aan(
         self,
         gebruiker_id: int,
-        groep_id: int,
         jaar: int,
         veld: str,
         nieuwe_waarde: int,
@@ -101,7 +99,7 @@ class VerlofSaldoService:
         """
         valideer_saldo_aanpassing(veld, nieuwe_waarde, reden)
 
-        saldo = self.haal_of_maak_saldo(gebruiker_id, groep_id, jaar)
+        saldo = self.haal_of_maak_saldo(gebruiker_id, jaar)
         oude_waarde = getattr(saldo, veld)
 
         if oude_waarde == nieuwe_waarde:
@@ -134,13 +132,13 @@ class VerlofSaldoService:
 
     def voer_jaar_overdracht_uit(
         self,
-        groep_id: int,
+        locatie_id: int,
         van_jaar: int,
         naar_jaar: int,
         uitgevoerd_door_id: int,
     ) -> dict:
         """
-        Voer jaar overdracht uit voor alle medewerkers van de groep.
+        Voer jaar overdracht uit voor alle medewerkers van de locatie.
 
         Business rules:
         - VV: alle resterende dagen worden overgedragen
@@ -152,7 +150,7 @@ class VerlofSaldoService:
         """
         medewerkers = (
             self.db.query(Gebruiker)
-            .filter(Gebruiker.groep_id == groep_id, Gebruiker.is_actief == True)
+            .filter(Gebruiker.locatie_id == locatie_id, Gebruiker.is_actief == True)
             .all()
         )
 
@@ -168,7 +166,7 @@ class VerlofSaldoService:
         for m in medewerkers:
             try:
                 vv_over, kd_over, kd_verf, heeft_negatief = self._verwerk_overdracht(
-                    m.id, groep_id, van_jaar, naar_jaar, uitgevoerd_door_id
+                    m.id, van_jaar, naar_jaar, uitgevoerd_door_id
                 )
                 stats["aantal_gebruikers"] += 1
                 stats["totaal_vv_overgedragen"] += vv_over
@@ -195,17 +193,23 @@ class VerlofSaldoService:
     # 1 mei verval                                                         #
     # ------------------------------------------------------------------ #
 
-    def verwerk_1_mei_verval(self, groep_id: int, jaar: int, uitgevoerd_door_id: int) -> int:
+    def verwerk_1_mei_verval(self, locatie_id: int, jaar: int, uitgevoerd_door_id: int) -> int:
         """
-        Zet verlof_overgedragen op 0 voor alle medewerkers (na 1 mei).
+        Zet verlof_overgedragen op 0 voor alle medewerkers van de locatie (na 1 mei).
 
         Returns:
             Aantal medewerkers met vervallen dagen
         """
+        # Haal gebruiker_ids op voor de locatie
+        gebruiker_ids = [
+            g.id for g in self.db.query(Gebruiker)
+            .filter(Gebruiker.locatie_id == locatie_id, Gebruiker.is_actief == True)
+            .all()
+        ]
         saldi = (
             self.db.query(VerlofSaldo)
             .filter(
-                VerlofSaldo.groep_id == groep_id,
+                VerlofSaldo.gebruiker_id.in_(gebruiker_ids),
                 VerlofSaldo.jaar == jaar,
                 VerlofSaldo.verlof_overgedragen > 0,
             )
@@ -313,7 +317,6 @@ class VerlofSaldoService:
     def _verwerk_overdracht(
         self,
         gebruiker_id: int,
-        groep_id: int,
         van_jaar: int,
         naar_jaar: int,
         uitgevoerd_door_id: int,
@@ -344,7 +347,7 @@ class VerlofSaldoService:
         kd_aftrek = abs(min(0, kd_restant))
 
         # Haal of maak saldo voor naar_jaar
-        naar_saldo = self.haal_of_maak_saldo(gebruiker_id, groep_id, naar_jaar)
+        naar_saldo = self.haal_of_maak_saldo(gebruiker_id, naar_jaar)
 
         def _update(veld: str, nieuwe_waarde: int, reden: str) -> None:
             oude = getattr(naar_saldo, veld)

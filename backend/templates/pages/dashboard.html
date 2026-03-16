@@ -10,7 +10,7 @@
     <h1 class="text-2xl font-bold" style="color: var(--tekst);">
         {{ t("dashboard.welkom", naam=(gebruiker.volledige_naam or gebruiker.gebruikersnaam)) }}
     </h1>
-    <p class="text-sm mt-1" style="color: var(--tekst-secundair);">{{ gebruiker.groep.naam }}</p>
+    <p class="text-sm mt-1" style="color: var(--tekst-secundair);">{{ gebruiker.locatie.naam if gebruiker.locatie else '' }}</p>
 </div>
 
 <!-- Live widgets -->
@@ -30,12 +30,12 @@
             <p class="text-xs" style="color: var(--tekst-secundair);">{{ t("nav.notities") }}</p>
         </div>
         {% if ongelezen_notities > 0 %}
-        <span class="ml-auto text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-700">Nieuw</span>
+        <span class="ml-auto text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-700">{{ t('algemeen.nieuw') }}</span>
         {% endif %}
     </a>
 
     <!-- Pending verlofaanvragen (voor planners/beheerder/hr) -->
-    {% if gebruiker.rol in ['beheerder', 'planner', 'hr'] %}
+    {% if is_behandelaar %}
     <a href="/verlof" class="flex items-center gap-4 p-4 rounded-xl border transition-colors hover:shadow-sm"
        style="background: var(--achtergrond-widget); border-color: var(--rand);">
         <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
@@ -192,31 +192,31 @@
 
     <!-- Tegels zichtbaar per rol -->
 
-    {% if gebruiker.rol in ['beheerder', 'planner'] %}
+    {% if kan_planning %}
     {{ tegel(t("nav.planning"), t("dashboard.planning_omschrijving"), "/planning", "blue", icoon_planning) }}
     {% endif %}
 
     {{ tegel(t("nav.verlof"), t("dashboard.verlof_omschrijving"), "/verlof", "green", icoon_verlof) }}
 
-    {% if gebruiker.rol == 'beheerder' %}
+    {% if is_beheerder %}
     {{ tegel(t("nav.gebruikers"), t("dashboard.gebruikers_omschrijving"), "/beheer/gebruikers", "purple", icoon_gebruikers) }}
     {% endif %}
 
-    {% if gebruiker.rol in ['beheerder', 'planner'] %}
+    {% if kan_planning %}
     {{ tegel(t("nav.shiftcodes"), t("dashboard.shiftcodes_omschrijving"), "/shiftcodes", "indigo", icoon_shiftcodes) }}
     {% endif %}
 
-    {% if gebruiker.rol in ['beheerder', 'hr'] %}
+    {% if kan_hr %}
     {{ tegel(t("nav.hr"), t("dashboard.hr_omschrijving"), "/hr", "orange", icoon_hr) }}
     {% endif %}
 
-    {% if gebruiker.rol in ['beheerder', 'planner', 'hr'] %}
+    {% if kan_rapporten %}
     {{ tegel(t("nav.rapporten"), t("dashboard.rapporten_omschrijving"), "/rapporten", "teal", icoon_rapporten) }}
     {% endif %}
 
     {{ tegel(t("nav.notities"), t("dashboard.notities_omschrijving"), "/notities", "yellow", icoon_notities) }}
 
-    {% if gebruiker.rol == 'beheerder' %}
+    {% if is_beheerder %}
     {{ tegel(t("nav.instellingen"), t("dashboard.instellingen_omschrijving"), "/instellingen", "gray", icoon_instellingen) }}
     {% endif %}
 

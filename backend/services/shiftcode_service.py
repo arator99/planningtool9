@@ -1,5 +1,6 @@
 """Shiftcode service — CRUD voor shiftcodes en werkposten."""
 import logging
+from typing import Optional
 
 from sqlalchemy.orm import Session
 
@@ -17,10 +18,10 @@ class ShiftcodeService:
     # Werkposten                                                           #
     # ------------------------------------------------------------------ #
 
-    def haal_werkposten(self, groep_id: int) -> list[Werkpost]:
+    def haal_werkposten(self, locatie_id: int) -> list[Werkpost]:
         return (
             self.db.query(Werkpost)
-            .filter(Werkpost.groep_id == groep_id, Werkpost.is_actief == True)
+            .filter(Werkpost.locatie_id == locatie_id, Werkpost.is_actief == True)
             .order_by(Werkpost.naam)
             .all()
         )
@@ -29,20 +30,33 @@ class ShiftcodeService:
     # Shiftcodes lezen                                                     #
     # ------------------------------------------------------------------ #
 
-    def haal_alle(self, groep_id: int) -> list[Shiftcode]:
+    def haal_alle(self, locatie_id: int) -> list[Shiftcode]:
+        """Geeft alle shiftcodes voor de locatie inclusief nationale codes (locatie_id IS NULL)."""
         return (
             self.db.query(Shiftcode)
-            .filter(Shiftcode.groep_id == groep_id)
+            .filter(
+                (Shiftcode.locatie_id == locatie_id) | (Shiftcode.locatie_id.is_(None))
+            )
             .order_by(Shiftcode.shift_type, Shiftcode.code)
             .all()
         )
 
-    def haal_op_id(self, shiftcode_id: int, groep_id: int) -> Shiftcode | None:
+    def haal_op_id(self, shiftcode_id: int, locatie_id: int) -> Shiftcode | None:
         return (
             self.db.query(Shiftcode)
-            .filter(Shiftcode.id == shiftcode_id, Shiftcode.groep_id == groep_id)
+            .filter(
+                Shiftcode.id == shiftcode_id,
+                (Shiftcode.locatie_id == locatie_id) | (Shiftcode.locatie_id.is_(None)),
+            )
             .first()
         )
+
+    def haal_op_uuid(self, uuid: str) -> Shiftcode:
+        """Zoek een shiftcode op extern uuid. Gooit ValueError als niet gevonden."""
+        obj = self.db.query(Shiftcode).filter(Shiftcode.uuid == uuid).first()
+        if not obj:
+            raise ValueError(f"Shiftcode niet gevonden: {uuid}")
+        return obj
 
     # ------------------------------------------------------------------ #
     # Aanmaken                                                             #
@@ -50,26 +64,29 @@ class ShiftcodeService:
 
     def maak_aan(
         self,
-        groep_id: int,
+        locatie_id: int,
         code: str,
-        shift_type: str | None,
-        dag_type: str | None,
-        start_uur: str | None,
-        eind_uur: str | None,
-        werkpost_id: int | None,
+        shift_type: Optional[str],
+        dag_type: Optional[str],
+        start_uur: Optional[str],
+        eind_uur: Optional[str],
+        werkpost_id: Optional[int],
         is_kritisch: bool,
+        telt_als_werkdag: bool = True,
+        is_nachtprestatie: bool = False,
+        reset_nacht: bool = False,
     ) -> Shiftcode:
         code = normaliseer_shiftcode(code)
         if not code:
             raise ValueError("Code mag niet leeg zijn.")
         bestaand = self.db.query(Shiftcode).filter(
-            Shiftcode.groep_id == groep_id, Shiftcode.code == code
+            Shiftcode.locatie_id == locatie_id, Shiftcode.code == code
         ).first()
         if bestaand:
             raise ValueError(f"Code '{code}' bestaat al.")
 
         sc = Shiftcode(
-            groep_id=groep_id,
+            locatie_id=locatie_id,
             code=code,
             shift_type=shift_type or None,
             dag_type=dag_type or None,
@@ -77,11 +94,14 @@ class ShiftcodeService:
             eind_uur=eind_uur or None,
             werkpost_id=werkpost_id or None,
             is_kritisch=is_kritisch,
+            telt_als_werkdag=telt_als_werkdag,
+            is_nachtprestatie=is_nachtprestatie,
+            reset_nacht=reset_nacht,
         )
         self.db.add(sc)
         self.db.commit()
         self.db.refresh(sc)
-        logger.info("Shiftcode aangemaakt: %s (groep %s)", code, groep_id)
+        logger.info("Shiftcode aangemaakt: %s (locatie %s)", code, locatie_id)
         return sc
 
     # ------------------------------------------------------------------ #
@@ -91,21 +111,27 @@ class ShiftcodeService:
     def bewerk(
         self,
         shiftcode_id: int,
-        groep_id: int,
-        shift_type: str | None,
-        dag_type: str | None,
-        start_uur: str | None,
-        eind_uur: str | None,
-        werkpost_id: int | None,
+        locatie_id: int,
+        shift_type: Optional[str],
+        dag_type: Optional[str],
+        start_uur: Optional[str],
+        eind_uur: Optional[str],
+        werkpost_id: Optional[int],
         is_kritisch: bool,
+        telt_als_werkdag: bool = True,
+        is_nachtprestatie: bool = False,
+        reset_nacht: bool = False,
     ) -> Shiftcode:
-        sc = self._haal_of_fout(shiftcode_id, groep_id)
+        sc = self._haal_of_fout(shiftcode_id, locatie_id)
         sc.shift_type = shift_type or None
         sc.dag_type = dag_type or None
         sc.start_uur = start_uur or None
         sc.eind_uur = eind_uur or None
         sc.werkpost_id = werkpost_id or None
         sc.is_kritisch = is_kritisch
+        sc.telt_als_werkdag = telt_als_werkdag
+        sc.is_nachtprestatie = is_nachtprestatie
+        sc.reset_nacht = reset_nacht
         self.db.commit()
         logger.info("Shiftcode %s bijgewerkt", sc.code)
         return sc
@@ -114,8 +140,8 @@ class ShiftcodeService:
     # Verwijderen                                                          #
     # ------------------------------------------------------------------ #
 
-    def verwijder(self, shiftcode_id: int, groep_id: int) -> None:
-        sc = self._haal_of_fout(shiftcode_id, groep_id)
+    def verwijder(self, shiftcode_id: int, locatie_id: int) -> None:
+        sc = self._haal_of_fout(shiftcode_id, locatie_id)
         self.db.delete(sc)
         self.db.commit()
         logger.info("Shiftcode %s verwijderd", sc.code)
@@ -124,8 +150,8 @@ class ShiftcodeService:
     # Intern                                                               #
     # ------------------------------------------------------------------ #
 
-    def _haal_of_fout(self, shiftcode_id: int, groep_id: int) -> Shiftcode:
-        sc = self.haal_op_id(shiftcode_id, groep_id)
+    def _haal_of_fout(self, shiftcode_id: int, locatie_id: int) -> Shiftcode:
+        sc = self.haal_op_id(shiftcode_id, locatie_id)
         if not sc:
             raise ValueError("Shiftcode niet gevonden.")
         return sc

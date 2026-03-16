@@ -38,6 +38,22 @@ def wachtwoord_formulier(
     )
 
 
+@router.post("/thema")
+def thema_wijzigen(
+    thema: str = Form(...),
+    gebruiker: Gebruiker = Depends(vereiste_login),
+    db: Session = Depends(haal_db),
+    _csrf: None = Depends(verifieer_csrf),
+):
+    if thema not in ("light", "dark", "systeem"):
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=400, content={"fout": "ongeldig thema"})
+    gebruiker.thema = thema
+    db.commit()
+    from fastapi.responses import JSONResponse
+    return JSONResponse(status_code=200, content={"thema": thema})
+
+
 @router.post("/taal")
 def taal_wijzigen(
     taal: str = Form(...),

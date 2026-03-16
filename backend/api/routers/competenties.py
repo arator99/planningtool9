@@ -30,7 +30,7 @@ def lijst(
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
 ):
-    competenties = CompetentieService(db).haal_alle(gebruiker.groep_id, ook_inactief=True)
+    competenties = CompetentieService(db).haal_alle(gebruiker.locatie_id, ook_inactief=True)
     bericht = request.query_params.get("bericht")
     fout = request.query_params.get("fout")
     return sjablonen.TemplateResponse(
@@ -73,7 +73,7 @@ def maak_aan(
 ):
     try:
         CompetentieService(db).maak_aan(
-            groep_id=gebruiker.groep_id,
+            locatie_id=gebruiker.locatie_id,
             naam=naam,
             beschrijving=beschrijving or None,
             categorie=categorie or None,
@@ -88,16 +88,17 @@ def maak_aan(
 # Bewerken                                                             #
 # ------------------------------------------------------------------ #
 
-@router.get("/{competentie_id}/bewerk", response_class=HTMLResponse)
+@router.get("/{uuid}/bewerk", response_class=HTMLResponse)
 def bewerk_formulier(
-    competentie_id: int,
+    uuid: str,
     request: Request,
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
 ):
-    comp = CompetentieService(db).haal_op_id(competentie_id, gebruiker.groep_id)
-    if not comp:
+    try:
+        comp = CompetentieService(db).haal_op_uuid(uuid)
+    except ValueError:
         return RedirectResponse(url="/competenties?fout=niet_gevonden", status_code=303)
     return sjablonen.TemplateResponse(
         "pages/competenties/formulier.html",
@@ -108,9 +109,9 @@ def bewerk_formulier(
     )
 
 
-@router.post("/{competentie_id}/bewerk")
+@router.post("/{uuid}/bewerk")
 def bewerk(
-    competentie_id: int,
+    uuid: str,
     naam: str = Form(...),
     beschrijving: str = Form(""),
     categorie: str = Form(""),
@@ -118,17 +119,22 @@ def bewerk(
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
 ):
+    svc = CompetentieService(db)
     try:
-        CompetentieService(db).bewerk(
-            competentie_id=competentie_id,
-            groep_id=gebruiker.groep_id,
+        comp = svc.haal_op_uuid(uuid)
+    except ValueError:
+        return RedirectResponse(url="/competenties?fout=niet_gevonden", status_code=303)
+    try:
+        svc.bewerk(
+            competentie_id=comp.id,
+            locatie_id=gebruiker.locatie_id,
             naam=naam,
             beschrijving=beschrijving or None,
             categorie=categorie or None,
         )
     except ValueError as fout:
         logger.warning("Competentie bewerken mislukt: %s", fout)
-        return RedirectResponse(url=f"/competenties/{competentie_id}/bewerk?fout=bewerken_mislukt", status_code=303)
+        return RedirectResponse(url=f"/competenties/{uuid}/bewerk?fout=bewerken_mislukt", status_code=303)
     return RedirectResponse(url="/competenties?bericht=Competentie+opgeslagen", status_code=303)
 
 
@@ -136,15 +142,17 @@ def bewerk(
 # Deactiveren                                                          #
 # ------------------------------------------------------------------ #
 
-@router.post("/{competentie_id}/deactiveer")
+@router.post("/{uuid}/deactiveer")
 def deactiveer(
-    competentie_id: int,
+    uuid: str,
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
 ):
+    svc = CompetentieService(db)
     try:
-        CompetentieService(db).deactiveer(competentie_id, gebruiker.groep_id)
+        comp = svc.haal_op_uuid(uuid)
+        svc.deactiveer(comp.id, gebruiker.locatie_id)
     except ValueError as fout:
         logger.warning("Competentie deactiveren mislukt: %s", fout)
         return RedirectResponse(url="/competenties?fout=actie_mislukt", status_code=303)

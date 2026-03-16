@@ -1,3 +1,4 @@
+"""AuditLog model — wie heeft wat gewijzigd en wanneer."""
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import relationship
 
@@ -12,11 +13,12 @@ class AuditLog(Basis):
     id = Column(Integer, primary_key=True, index=True)
     tijdstip = Column(DateTime, server_default=func.now(), nullable=False, index=True)
     gebruiker_id = Column(Integer, ForeignKey("gebruikers.id"), nullable=True, index=True)
-    groep_id = Column(Integer, ForeignKey("groepen.id"), nullable=True, index=True)
-    actie = Column(String(100), nullable=False, index=True)   # bijv. "shift.aanmaken", "verlof.goedkeuren"
-    doel_type = Column(String(50), nullable=True)              # bijv. "Planning", "VerlofAanvraag"
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=True, index=True)
+    locatie_id = Column(Integer, ForeignKey("locaties.id"), nullable=True, index=True)
+    actie = Column(String(100), nullable=False, index=True)
+    doel_type = Column(String(50), nullable=True)
     doel_id = Column(Integer, nullable=True)
-    detail = Column(Text, nullable=True)                       # JSON string met voor/na waarden
+    detail = Column(Text, nullable=True)                   # JSON string met voor/na waarden
 
     # Relatie
     gebruiker = relationship("Gebruiker", back_populates="audit_acties", foreign_keys=[gebruiker_id])

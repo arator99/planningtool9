@@ -3,11 +3,12 @@ import logging
 from calendar import monthrange
 from datetime import date, timedelta
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from models.gebruiker import Gebruiker
-from models.hr import HRRegel, RodeLijn
-from models.planning import Planning, PlanningOverride, Shiftcode, SpecialCode
+from models.hr import NationaleHRRegel, LocatieHROverride
+from models.planning import Planning, PlanningOverride, RodeLijnConfig, Shiftcode, SpecialCode
 from services.domein.validatie_domein import (
     ValidatieFout,
     VALIDATORS,
@@ -18,13 +19,13 @@ logger = logging.getLogger(__name__)
 
 
 class ValidatieService:
-    """Valideert de maandplanning van een groep tegen de actieve HR-regels."""
+    """Valideert de maandplanning van een team tegen de actieve HR-regels."""
 
     def __init__(self, db: Session) -> None:
         self.db = db
 
     def valideer_maand(
-        self, groep_id: int, jaar: int, maand: int
+        self, team_id: int, locatie_id: int, jaar: int, maand: int
     ) -> list[ValidatieFout]:
         """Draai alle actieve validators en geef gecombineerde resultaten terug."""
         _, dagen = monthrange(jaar, maand)
@@ -36,7 +37,7 @@ class ValidatieService:
         shifts_db = (
             self.db.query(Planning)
             .filter(
-                Planning.groep_id == groep_id,
+                Planning.team_id == team_id,
                 Planning.datum >= context_start,
                 Planning.datum <= maand_eind,
             )
@@ -46,14 +47,16 @@ class ValidatieService:
         gebruikers: dict[int, Gebruiker] = {
             g.id: g
             for g in self.db.query(Gebruiker)
-            .filter(Gebruiker.groep_id == groep_id, Gebruiker.is_actief == True)
+            .filter(Gebruiker.locatie_id == locatie_id, Gebruiker.is_actief == True)
             .all()
         }
 
         sc_lut: dict[str, Shiftcode] = {
             sc.code: sc
             for sc in self.db.query(Shiftcode)
-            .filter(Shiftcode.groep_id == groep_id)
+            .filter(
+                or_(Shiftcode.locatie_id == locatie_id, Shiftcode.locatie_id.is_(None))
+            )
             .all()
         }
 
@@ -61,18 +64,36 @@ class ValidatieService:
             sp.code: sp for sp in self.db.query(SpecialCode).all()
         }
 
-        regels: dict[str, HRRegel] = {
+        # Bouw effectieve regels dict: nationale waarde, eventueel overschreven door locatie-override.
+        # Validators verwachten objecten met .waarde en .ernst_niveau.
+        from dataclasses import dataclass
+
+        @dataclass
+        class _EffectieveRegel:
+            waarde: int
+            ernst_niveau: str
+
+        _nationale = {
             r.code: r
-            for r in self.db.query(HRRegel)
-            .filter(HRRegel.groep_id == groep_id, HRRegel.is_actief == True)
+            for r in self.db.query(NationaleHRRegel)
+            .filter(NationaleHRRegel.is_actief == True)
             .all()
         }
+        _overrides = {
+            o.nationale_regel_id: o.waarde
+            for o in self.db.query(LocatieHROverride)
+            .filter(LocatieHROverride.locatie_id == locatie_id)
+            .all()
+        }
+        regels: dict[str, _EffectieveRegel] = {
+            code: _EffectieveRegel(
+                waarde=_overrides.get(r.id, r.waarde),
+                ernst_niveau=r.ernst_niveau,
+            )
+            for code, r in _nationale.items()
+        }
 
-        rode_lijn: RodeLijn | None = (
-            self.db.query(RodeLijn)
-            .filter(RodeLijn.groep_id == groep_id, RodeLijn.is_actief == True)
-            .first()
-        )
+        rode_lijn_config: RodeLijnConfig | None = self.db.query(RodeLijnConfig).first()
 
         # Actieve overrides: set van (gebruiker_id, datum, validator_code)
         overrides: set[tuple[int, date, str]] = set()
@@ -94,7 +115,8 @@ class ValidatieService:
 
         # ── Validators draaien ────────────────────────────────────────
         ctx = dict(
-            groep_id=groep_id,
+            team_id=team_id,
+            locatie_id=locatie_id,
             maand_start=maand_start,
             maand_eind=maand_eind,
             context_start=context_start,
@@ -104,7 +126,7 @@ class ValidatieService:
             sc_lut=sc_lut,
             sp_lut=sp_lut,
             regels=regels,
-            rode_lijn=rode_lijn,
+            rode_lijn_config=rode_lijn_config,
             overrides=overrides,
         )
 
@@ -115,11 +137,17 @@ class ValidatieService:
             except Exception as e:
                 logger.error("Validator %s crashte: %s", fn.__name__, e, exc_info=True)
 
+        # UUID invullen per fout (voor veilige API-paden in de template)
+        for fout in fouten:
+            g = gebruikers.get(fout.gebruiker_id)
+            if g:
+                fout.gebruiker_uuid = g.uuid
+
         return sorteer_fouten(fouten)
 
     def maak_override(
         self,
-        groep_id: int,
+        team_id: int,
         gebruiker_id: int,
         datum: date,
         regel_code: str,
@@ -131,7 +159,7 @@ class ValidatieService:
             self.db.query(Planning)
             .filter(
                 Planning.gebruiker_id == gebruiker_id,
-                Planning.groep_id == groep_id,
+                Planning.team_id == team_id,
                 Planning.datum == datum,
             )
             .first()
@@ -161,3 +189,7 @@ class ValidatieService:
             )
             self.db.add(override)
         self.db.commit()
+
+    def haal_validator_codes(self) -> frozenset[str]:
+        """Geef de set van geldige validator-codes terug (voor route-validatie)."""
+        return frozenset(VALIDATORS.keys())

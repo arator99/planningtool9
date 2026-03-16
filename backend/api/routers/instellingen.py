@@ -27,7 +27,7 @@ def toon_instellingen(
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
 ):
-    waarden = InstellingService(db).haal_alle(gebruiker.groep_id)
+    waarden = InstellingService(db).haal_alle(gebruiker.locatie_id)
     return sjablonen.TemplateResponse(
         "pages/instellingen/lijst.html",
         _context(
@@ -50,7 +50,7 @@ def sla_instelling_op(
     _csrf: None = Depends(verifieer_csrf),
 ):
     try:
-        InstellingService(db).sla_op(gebruiker.groep_id, sleutel, waarde, gebruiker.id)
+        InstellingService(db).sla_op(gebruiker.locatie_id, sleutel, waarde, gebruiker.id)
     except ValueError:
         return RedirectResponse(url="/instellingen?fout=instelling_onbekend", status_code=303)
     except Exception:

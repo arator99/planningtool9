@@ -9,14 +9,14 @@
 <div class="flex items-center justify-between mb-5">
     <div class="flex items-center gap-4">
         <a href="/planning?jaar={{ vorige.jaar }}&maand={{ vorige.maand }}"
-           class="p-2 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 shadow-sm">
+           class="p-2 rounded-lg bg-oppervlak border border-rand hover:bg-achtergrond text-tekst-zacht shadow-sm">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
             </svg>
         </a>
-        <h1 class="text-xl font-bold text-gray-800 capitalize">{{ maand_naam }} {{ jaar }}</h1>
+        <h1 class="text-xl font-bold text-tekst capitalize">{{ maand_naam }} {{ jaar }}</h1>
         <a href="/planning?jaar={{ volgende.jaar }}&maand={{ volgende.maand }}"
-           class="p-2 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 shadow-sm">
+           class="p-2 rounded-lg bg-oppervlak border border-rand hover:bg-achtergrond text-tekst-zacht shadow-sm">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
             </svg>
@@ -30,13 +30,13 @@
                 hx-target="#validatie-paneel"
                 hx-swap="innerHTML"
                 hx-indicator="#valideer-spinner"
-                class="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm font-medium px-3 py-1.5 rounded-lg shadow-sm transition-colors flex items-center gap-1.5">
+                class="bg-oppervlak border border-rand hover:bg-achtergrond text-tekst text-sm font-medium px-3 py-1.5 rounded-lg shadow-sm transition-colors flex items-center gap-1.5">
             <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
             {{ t("planning.valideer") }}
-            <svg id="valideer-spinner" class="htmx-indicator w-3.5 h-3.5 animate-spin text-gray-400"
+            <svg id="valideer-spinner" class="htmx-indicator w-3.5 h-3.5 animate-spin text-tekst-zacht"
                  fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="10" stroke-width="3" stroke-opacity="0.25"/>
                 <path d="M12 2a10 10 0 0110 10" stroke-width="3"/>
@@ -51,7 +51,7 @@
             <input type="hidden" name="jaar" value="{{ jaar }}">
             <input type="hidden" name="maand" value="{{ maand }}">
             <button type="submit"
-                    class="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm font-medium px-3 py-1.5 rounded-lg shadow-sm transition-colors flex items-center gap-1.5">
+                    class="bg-oppervlak border border-rand hover:bg-achtergrond text-tekst text-sm font-medium px-3 py-1.5 rounded-lg shadow-sm transition-colors flex items-center gap-1.5">
                 <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                           d="M13 10V3L4 14h7v7l9-11h-7z"/>
@@ -63,7 +63,7 @@
 
         {% if shiftcodes_gegroepeerd %}
         <button id="hud-toggle-knop" onclick="toggleHUD()"
-                class="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm font-medium px-3 py-1.5 rounded-lg shadow-sm transition-colors flex items-center gap-1.5">
+                class="bg-oppervlak border border-rand hover:bg-achtergrond text-tekst text-sm font-medium px-3 py-1.5 rounded-lg shadow-sm transition-colors flex items-center gap-1.5">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
@@ -73,8 +73,8 @@
         {% endif %}
 
         <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium
-            {% if is_gepubliceerd %}bg-green-100 text-green-700{% else %}bg-yellow-100 text-yellow-700{% endif %}">
-            <span class="w-1.5 h-1.5 rounded-full {% if is_gepubliceerd %}bg-green-500{% else %}bg-yellow-500{% endif %}"></span>
+            {% if is_gepubliceerd %}bg-succes-zacht text-succes{% else %}bg-waarschuwing-zacht text-waarschuwing{% endif %}">
+            <span class="w-1.5 h-1.5 rounded-full {% if is_gepubliceerd %}bg-succes{% else %}bg-waarschuwing{% endif %}"></span>
             {% if is_gepubliceerd %}Gepubliceerd{% else %}Concept{% endif %}
         </span>
 
@@ -84,7 +84,7 @@
             <input type="hidden" name="jaar" value="{{ jaar }}">
             <input type="hidden" name="maand" value="{{ maand }}">
             <button type="submit"
-                    class="bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-4 py-1.5 rounded-lg transition-colors">
+                    class="bg-succes hover:bg-succes text-white text-sm font-medium px-4 py-1.5 rounded-lg transition-colors">
                 Publiceer
             </button>
         </form>
@@ -95,7 +95,7 @@
             <input type="hidden" name="jaar" value="{{ jaar }}">
             <input type="hidden" name="maand" value="{{ maand }}">
             <button type="submit"
-                    class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium px-4 py-1.5 rounded-lg transition-colors">
+                    class="bg-achtergrond hover:bg-rand text-tekst text-sm font-medium px-4 py-1.5 rounded-lg transition-colors">
                 Naar concept
             </button>
         </form>
@@ -104,25 +104,25 @@
 </div>
 
 {% if bericht == 'batch_klaar' %}
-<div class="mb-4 px-4 py-2.5 rounded-lg text-sm font-medium bg-green-50 text-green-700">
+<div class="mb-4 px-4 py-2.5 rounded-lg text-sm font-medium bg-succes-zacht text-succes">
     {{ t("planning.batch_klaar") }}{% if batch_aantal %} ({{ batch_aantal }}){% endif %}
 </div>
 {% elif fout %}
-<div class="mb-4 px-4 py-2.5 rounded-lg text-sm font-medium bg-red-50 text-red-700">
+<div class="mb-4 px-4 py-2.5 rounded-lg text-sm font-medium bg-gevaar-zacht text-gevaar">
     {{ t("fout." + fout) }}
 </div>
 {% endif %}
 
 {% if grid %}
-<div class="overflow-x-auto rounded-xl shadow-sm border border-gray-200">
-    <table class="border-collapse bg-white text-sm" id="planningtabel" style="min-width: max-content;">
+<div class="overflow-x-auto rounded-xl shadow-sm border border-rand">
+    <table class="border-collapse bg-oppervlak text-sm" id="planningtabel" style="min-width: max-content;">
         <thead>
-            <tr class="bg-gray-50 border-b border-gray-200">
-                <th class="sticky left-0 z-10 bg-gray-50 text-left px-4 py-2 font-medium text-gray-600
-                           border-r border-gray-200 min-w-[160px]">Medewerker</th>
+            <tr class="bg-achtergrond border-b border-rand">
+                <th class="sticky left-0 z-10 bg-achtergrond text-left px-4 py-2 font-medium text-tekst-zacht
+                           border-r border-rand min-w-[160px]">Medewerker</th>
                 {% for dag in dag_info %}
                 <th class="text-center px-0 py-2 font-medium min-w-[44px] w-[44px]
-                           {% if dag.is_weekend %}text-blue-500 bg-blue-50{% else %}text-gray-500{% endif %}">
+                           {% if dag.is_weekend %}text-blue-500 bg-info-zacht{% else %}text-tekst-zacht{% endif %}">
                     <div class="text-xs leading-none">{{ dag.dag_naam }}</div>
                     <div class="text-sm font-bold leading-tight">{{ dag.dag }}</div>
                 </th>
@@ -131,30 +131,30 @@
         </thead>
         <tbody>
             {% for rij in grid %}
-            <tr class="border-b border-gray-100">
-                <td class="sticky left-0 z-10 bg-white px-4 py-0 font-medium text-gray-800
-                           border-r border-gray-200 whitespace-nowrap h-8">
+            <tr class="border-b border-rand">
+                <td class="sticky left-0 z-10 bg-oppervlak px-4 py-0 font-medium text-tekst
+                           border-r border-rand whitespace-nowrap h-8">
                     {{ rij.naam }}
                 </td>
                 {% for dag in dag_info %}
                 {% set shift = rij.shifts[dag.datum] %}
-                <td class="border-r border-gray-100 p-0 h-8
-                           {% if dag.is_weekend %}bg-blue-50/50{% endif %}">
+                <td class="border-r border-rand p-0 h-8
+                           {% if dag.is_weekend %}bg-info-zacht/50{% endif %}">
                     <input
                         type="text"
-                        id="cel-{{ rij.id }}-{{ dag.datum }}"
+                        id="cel-{{ rij.uuid }}-{{ dag.datum }}"
                         name="shift_code"
                         value="{{ shift.code or '' }}"
                         maxlength="10"
-                        data-uid="{{ rij.id }}"
+                        data-uid="{{ rij.uuid }}"
                         data-datum="{{ dag.datum }}"
                         class="plancel w-full h-8 text-center text-xs font-semibold uppercase bg-transparent
                                border-0 outline-none cursor-pointer
-                               focus:bg-blue-50 focus:ring-1 focus:ring-inset focus:ring-blue-400 focus:cursor-text
+                               focus:bg-info-zacht focus:ring-1 focus:ring-inset focus:ring-primair focus:cursor-text
                                {% if shift.code in ['N'] %}text-indigo-700
-                               {% elif shift.code in ['RXW', 'RXF', 'V'] %}text-gray-400
-                               {% else %}text-gray-700{% endif %}"
-                        hx-post="/planning/cel/{{ rij.id }}/{{ dag.datum }}"
+                               {% elif shift.code in ['RXW', 'RXF', 'V'] %}text-tekst-zacht
+                               {% else %}text-tekst{% endif %}"
+                        hx-post="/planning/cel/{{ rij.uuid }}/{{ dag.datum }}"
                         hx-trigger="change"
                         hx-swap="none"
                         hx-include="this"
@@ -173,10 +173,10 @@
 </div>
 
 {% else %}
-<div class="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center text-gray-400">
+<div class="bg-oppervlak rounded-xl shadow-sm border border-rand p-12 text-center text-tekst-zacht">
     <p class="text-lg font-medium mb-1">Geen medewerkers gevonden</p>
     <p class="text-sm">Voeg eerst gebruikers toe via
-        <a href="/beheer/gebruikers" class="text-blue-600 hover:underline">Gebruikersbeheer</a>.
+        <a href="/beheer/gebruikers" class="text-primair hover:underline">Gebruikersbeheer</a>.
     </p>
 </div>
 {% endif %}
@@ -202,7 +202,7 @@
             <thead>
                 <tr style="background: var(--achtergrond-alt); border-bottom: 1px solid var(--rand);">
                     <th class="text-left px-4 py-2 font-medium" style="color: var(--tekst-secundair);">Naam</th>
-                    <th class="text-left px-4 py-2 font-medium" style="color: var(--tekst-secundair);">Primaire groep</th>
+                    <th class="text-left px-4 py-2 font-medium" style="color: var(--tekst-secundair);">Locatie</th>
                     <th class="px-4 py-2"></th>
                 </tr>
             </thead>
@@ -211,12 +211,12 @@
                 <tr style="border-bottom: 1px solid var(--rand);">
                     <td class="px-4 py-2 font-medium" style="color: var(--tekst);">{{ rv.volledige_naam or rv.gebruikersnaam }}</td>
                     <td class="px-4 py-2 text-xs" style="color: var(--tekst-secundair);">
-                        {{ rv.groep.naam if rv.groep else '—' }}
+                        {{ rv.locatie.naam if rv.locatie else '—' }}
                     </td>
                     <td class="px-4 py-2 text-right">
                         <button type="button"
-                                hx-get="/planning/reserve/{{ rv.id }}/beschikbaarheid?jaar={{ jaar }}&maand={{ maand }}"
-                                hx-target="#reserve-detail-{{ rv.id }}"
+                                hx-get="/planning/reserve/{{ rv.uuid }}/beschikbaarheid?jaar={{ jaar }}&maand={{ maand }}"
+                                hx-target="#reserve-detail-{{ rv.uuid }}"
                                 hx-swap="innerHTML"
                                 class="text-xs px-2 py-1 rounded border transition-colors"
                                 style="border-color: var(--rand); color: var(--tekst-secundair);">
@@ -224,7 +224,7 @@
                         </button>
                     </td>
                 </tr>
-                <tr id="reserve-detail-{{ rv.id }}" style="border-bottom: 1px solid var(--rand);">
+                <tr id="reserve-detail-{{ rv.uuid }}" style="border-bottom: 1px solid var(--rand);">
                     <td colspan="3" class="px-4 py-0"></td>
                 </tr>
                 {% endfor %}
@@ -244,7 +244,7 @@
 <!-- ================================================================ -->
 <!-- Suggestie Paneel                                                  -->
 <!-- ================================================================ -->
-<div id="suggestie-paneel" class="mt-3 hidden rounded-xl border border-blue-100 bg-white shadow-sm">
+<div id="suggestie-paneel" class="mt-3 hidden rounded-xl border border-rand bg-oppervlak shadow-sm">
     <!-- Gevuld via HTMX na cel-focus -->
 </div>
 
@@ -253,20 +253,20 @@
 <!-- ================================================================ -->
 {% if shiftcodes_gegroepeerd %}
 <div id="shiftcode-hud"
-     class="hidden fixed z-50 bg-white rounded-xl shadow-xl border border-gray-200 select-none"
+     class="hidden fixed z-50 bg-oppervlak rounded-xl shadow-xl border border-rand select-none"
      style="width: 320px; top: 80px; right: 24px;">
 
     <!-- Titelbalk (drag handle) -->
     <div id="hud-header"
-         class="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-200 rounded-t-xl cursor-move">
-        <span class="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
+         class="flex items-center justify-between px-3 py-2 bg-achtergrond border-b border-rand rounded-t-xl cursor-move">
+        <span class="text-sm font-semibold text-tekst flex items-center gap-1.5">
             <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
             </svg>
             Shiftcodes
         </span>
-        <button onclick="toggleHUD()" class="text-gray-400 hover:text-red-500 transition-colors text-lg leading-none">&times;</button>
+        <button onclick="toggleHUD()" class="text-tekst-zacht hover:text-gevaar transition-colors text-lg leading-none">&times;</button>
     </div>
 
     <!-- Inhoud -->
@@ -363,10 +363,10 @@
 
     function pasKleurAan(cel) {
         const v = cel.value;
-        cel.classList.remove('text-indigo-700', 'text-gray-400', 'text-gray-700');
+        cel.classList.remove('text-indigo-700', 'text-tekst-zacht', 'text-tekst');
         if (v === 'N') cel.classList.add('text-indigo-700');
-        else if (['RXW', 'RXF', 'V'].includes(v)) cel.classList.add('text-gray-400');
-        else cel.classList.add('text-gray-700');
+        else if (['RXW', 'RXF', 'V'].includes(v)) cel.classList.add('text-tekst-zacht');
+        else cel.classList.add('text-tekst');
     }
 
     document.body.addEventListener('htmx:afterRequest', function (e) {

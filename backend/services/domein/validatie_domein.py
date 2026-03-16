@@ -30,6 +30,7 @@ class ValidatieFout:
     ernst: str               # "INFO", "WARNING", "CRITICAL"
     bericht: str
     heeft_override: bool = False
+    gebruiker_uuid: str = ""  # ingevuld door ValidatieService na lookup
 
 
 # ------------------------------------------------------------------ #

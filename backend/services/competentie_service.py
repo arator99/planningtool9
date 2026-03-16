@@ -18,18 +18,29 @@ class CompetentieService:
     # Competenties lezen                                                   #
     # ------------------------------------------------------------------ #
 
-    def haal_alle(self, groep_id: int, ook_inactief: bool = False) -> list[Competentie]:
-        q = self.db.query(Competentie).filter(Competentie.groep_id == groep_id)
+    def haal_alle(self, locatie_id: int, ook_inactief: bool = False) -> list[Competentie]:
+        q = self.db.query(Competentie).filter(Competentie.locatie_id == locatie_id)
         if not ook_inactief:
             q = q.filter(Competentie.is_actief == True)
         return q.order_by(Competentie.categorie.nullslast(), Competentie.naam).all()
 
-    def haal_op_id(self, competentie_id: int, groep_id: int) -> Competentie | None:
+    def haal_op_id(self, competentie_id: int, locatie_id: int) -> Competentie | None:
         return (
             self.db.query(Competentie)
-            .filter(Competentie.id == competentie_id, Competentie.groep_id == groep_id)
+            .filter(Competentie.id == competentie_id, Competentie.locatie_id == locatie_id)
             .first()
         )
+
+    def haal_op_uuid(self, uuid: str) -> Competentie:
+        """Zoek een competentie op extern uuid. Gooit ValueError als niet gevonden."""
+        obj = (
+            self.db.query(Competentie)
+            .filter(Competentie.uuid == uuid, Competentie.is_actief == True)
+            .first()
+        )
+        if not obj:
+            raise ValueError(f"Competentie niet gevonden: {uuid}")
+        return obj
 
     # ------------------------------------------------------------------ #
     # Aanmaken                                                             #
@@ -37,7 +48,7 @@ class CompetentieService:
 
     def maak_aan(
         self,
-        groep_id: int,
+        locatie_id: int,
         naam: str,
         beschrijving: str | None,
         categorie: str | None,
@@ -46,13 +57,13 @@ class CompetentieService:
         if not naam:
             raise ValueError("Naam is verplicht.")
         bestaand = self.db.query(Competentie).filter(
-            Competentie.groep_id == groep_id, Competentie.naam == naam
+            Competentie.locatie_id == locatie_id, Competentie.naam == naam
         ).first()
         if bestaand:
             raise ValueError(f"Competentie '{naam}' bestaat al.")
 
         comp = Competentie(
-            groep_id=groep_id,
+            locatie_id=locatie_id,
             naam=naam,
             beschrijving=beschrijving or None,
             categorie=categorie.strip() if categorie else None,
@@ -60,7 +71,7 @@ class CompetentieService:
         self.db.add(comp)
         self.db.commit()
         self.db.refresh(comp)
-        logger.info("Competentie aangemaakt: %s (groep %s)", naam, groep_id)
+        logger.info("Competentie aangemaakt: %s (groep %s)", naam, locatie_id)
         return comp
 
     # ------------------------------------------------------------------ #
@@ -70,17 +81,17 @@ class CompetentieService:
     def bewerk(
         self,
         competentie_id: int,
-        groep_id: int,
+        locatie_id: int,
         naam: str,
         beschrijving: str | None,
         categorie: str | None,
     ) -> Competentie:
-        comp = self._haal_of_fout(competentie_id, groep_id)
+        comp = self._haal_of_fout(competentie_id, locatie_id)
         naam = naam.strip()
         if not naam:
             raise ValueError("Naam is verplicht.")
         conflict = self.db.query(Competentie).filter(
-            Competentie.groep_id == groep_id,
+            Competentie.locatie_id == locatie_id,
             Competentie.naam == naam,
             Competentie.id != competentie_id,
         ).first()
@@ -97,8 +108,8 @@ class CompetentieService:
     # Deactiveren                                                          #
     # ------------------------------------------------------------------ #
 
-    def deactiveer(self, competentie_id: int, groep_id: int) -> None:
-        comp = self._haal_of_fout(competentie_id, groep_id)
+    def deactiveer(self, competentie_id: int, locatie_id: int) -> None:
+        comp = self._haal_of_fout(competentie_id, locatie_id)
         if not comp.is_actief:
             raise ValueError("Competentie is al inactief.")
         comp.is_actief = False
@@ -120,7 +131,7 @@ class CompetentieService:
     def stel_koppelingen_in(
         self,
         gebruiker_id: int,
-        groep_id: int,
+        locatie_id: int,
         competentie_ids: list[int],
         niveaus: dict[int, str | None],
         geldig_tot: dict[int, date | None],
@@ -134,7 +145,7 @@ class CompetentieService:
         """
         # Controleer groep eigenaarschap van competenties
         geldige_ids = {
-            c.id for c in self.haal_alle(groep_id)
+            c.id for c in self.haal_alle(locatie_id)
         }
         competentie_ids = [cid for cid in competentie_ids if cid in geldige_ids]
 
@@ -173,8 +184,8 @@ class CompetentieService:
     # Intern                                                               #
     # ------------------------------------------------------------------ #
 
-    def _haal_of_fout(self, competentie_id: int, groep_id: int) -> Competentie:
-        comp = self.haal_op_id(competentie_id, groep_id)
+    def _haal_of_fout(self, competentie_id: int, locatie_id: int) -> Competentie:
+        comp = self.haal_op_id(competentie_id, locatie_id)
         if not comp:
             raise ValueError("Competentie niet gevonden.")
         return comp
