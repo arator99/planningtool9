@@ -1040,27 +1040,27 @@ Je kan bestaande bcrypt-hashes niet proactief omzetten zonder de plaintext. Opti
 **Doel:** Locaties beheerscherm voor super_beheerder; notities correct gescoopt per team
 
 **Locatiebeheer (rollen zijn al aangemaakt in Fase 1):**
-- [ ] Router `/beheer/locaties` (super_beheerder): locaties aanmaken/bewerken, beheerders toewijzen
-- [ ] Router `/beheer/gebruikers` uitbreiden: rollen toewijzen UI (tabel: gebruiker → rollen + scopes)
-- [ ] Menu: super_beheerder krijgt sectie "Nationaal Beheer"
-- [ ] Gebruikersbeheer template: toon alle rollen van een gebruiker als badges (bv. "planner (PAT)", "teamlid (TO)")
+- [x] Router `/beheer/locaties` (super_beheerder): locaties aanmaken/bewerken, beheerders toewijzen
+- [x] Router `/beheer/gebruikers` uitbreiden: rollen toewijzen UI (tabel: gebruiker → rollen + scopes)
+- [x] Menu: super_beheerder krijgt sectie "Nationaal Beheer"
+- [x] Gebruikersbeheer template: toon alle rollen van een gebruiker als badges (bv. "planner (PAT)", "teamlid (TO)")
 
 **Notities herbouw (referentie: `code_v07/src/services/applicatie/notitie_service.py`):**
-- [ ] `Notitie` model herbouwen met `naar_gebruiker_id` (nullable) + `naar_rol` + `naar_scope_id`
-- [ ] Constraint: precies één van `(naar_gebruiker_id, naar_rol)` is ingevuld
-- [ ] `NotitieService` herbouwen:
+- [x] `Notitie` model herbouwen met `naar_gebruiker_id` (nullable) + `naar_rol` + `naar_scope_id`
+- [x] Constraint: precies één van `(naar_gebruiker_id, naar_rol)` is ingevuld
+- [x] `NotitieService` herbouwen:
   - `stuur_naar_gebruiker(van, naar_gebruiker_id, bericht, prioriteit)`
   - `stuur_naar_mailbox(van, naar_rol, naar_scope_id, bericht, prioriteit)`
   - `haal_persoonlijke_inbox(gebruiker_id)` — direct ontvangen berichten
   - `haal_mailbox(naar_rol, naar_scope_id)` — gedeelde rolmailbox
   - `haal_alle_inboxen(gebruiker_id)` — alles per tab (persoonlijk + mailboxen obv rollen)
-- [ ] Router `/notities`: tabs per mailbox die de gebruiker kan zien:
+- [x] Router `/notities`: tabs per mailbox die de gebruiker kan zien:
   - Tab "Inbox" (persoonlijke berichten)
   - Tab "Planners [Team X]" (als je planner bent van Team X)
   - Tab "Beheerders [Locatie Y]" (als je beheerder bent van Locatie Y)
   - Tab "Super_beheerders" (als je super_beheerder bent)
-- [ ] Sturen: dropdown "Naar wie?" toont opties obv rol van afzender
-- [ ] Badges in navbar: totaal ongelezen berichten over alle inboxen
+- [x] Sturen: dropdown "Naar wie?" toont opties obv rol van afzender
+- [x] Badges in navbar: totaal ongelezen berichten over alle inboxen
 
 **Verificatie:** Teamlid → planners mailbox PAT; planner → beheerders mailbox locatie; beheerder → super mailbox; tabs kloppen per rol; hr ziet geen mailbox-tabs (enkel leesrechten op planning)
 

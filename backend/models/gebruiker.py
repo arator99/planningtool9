@@ -57,7 +57,7 @@ class Gebruiker(Basis):
 
     # Relaties
     locatie = relationship("Locatie")
-    rollen = relationship("GebruikerRol", back_populates="gebruiker", cascade="all, delete-orphan")
+    rollen = relationship("GebruikerRol", back_populates="gebruiker", cascade="all, delete-orphan", lazy="selectin")
     planning_shifts = relationship("Planning", back_populates="gebruiker", cascade="all, delete-orphan")
     verlof_aanvragen = relationship(
         "VerlofAanvraag",

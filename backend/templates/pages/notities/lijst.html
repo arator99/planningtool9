@@ -1,20 +1,20 @@
 {% extends "layouts/app.html" %}
 {% set actief_menu = "notities" %}
 
-{% block titel %}Notities — Planning Tool{% endblock %}
+{% block titel %}{{ t("nav.notities") }} — Planning Tool{% endblock %}
 
 {% block inhoud %}
 
 <div class="flex items-center justify-between mb-6">
-    <h1 class="text-xl font-bold" style="color: var(--tekst);">Notities</h1>
+    <h1 class="text-xl font-bold" style="color: var(--tekst);">{{ t("nav.notities") }}</h1>
     <div class="flex items-center gap-2">
-        {% if inbox | selectattr('is_gelezen', 'equalto', false) | list %}
+        {% if persoonlijk | selectattr('is_gelezen', 'equalto', false) | list %}
         <form method="post" action="/notities/alles-gelezen" class="inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button type="submit"
                     class="text-sm px-3 py-1.5 rounded-lg border transition-colors"
                     style="border-color: var(--rand); color: var(--tekst-secundair);">
-                Alles gelezen
+                {{ t("notitie.markeer_gelezen") }}
             </button>
         </form>
         {% endif %}
@@ -23,7 +23,7 @@
                 style="background: var(--primair);"
                 onmouseover="this.style.background='var(--primair-hover)'"
                 onmouseout="this.style.background='var(--primair)'">
-            + Nieuw bericht
+            + {{ t("notitie.nieuw") }}
         </button>
     </div>
 </div>
@@ -39,46 +39,70 @@
 </div>
 {% endif %}
 
-<!-- Tabs + filter -->
-<div class="flex items-center gap-1 mb-4 border-b" style="border-color: var(--rand);">
-    <button onclick="wisselTab('inbox')"
-            id="tab-inbox"
-            class="tab-knop text-sm font-medium px-4 py-2 border-b-2 transition-colors"
-            style="{% if actieve_tab == 'inbox' %}border-color: var(--primair); color: var(--primair);{% else %}border-color: transparent; color: var(--tekst-secundair);{% endif %}">
-        Inbox
-        {% set ongelezen = inbox | selectattr('is_gelezen', 'equalto', false) | list | length %}
-        {% if ongelezen %}
-        <span class="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full text-xs text-white bg-yellow-500">{{ ongelezen }}</span>
+<!-- Tabs -->
+<div class="flex items-center gap-1 mb-4 border-b overflow-x-auto" style="border-color: var(--rand);">
+    {# Tab: Persoonlijk #}
+    <button onclick="wisselTab('persoonlijk')"
+            id="tab-persoonlijk"
+            class="tab-knop flex-shrink-0 text-sm font-medium px-4 py-2 border-b-2 transition-colors"
+            style="{% if actieve_tab == 'persoonlijk' %}border-color: var(--primair); color: var(--primair);{% else %}border-color: transparent; color: var(--tekst-secundair);{% endif %}">
+        {{ t("notitie.persoonlijk") }}
+        {% set ongelezen_p = persoonlijk | selectattr('is_gelezen', 'equalto', false) | list | length %}
+        {% if ongelezen_p %}
+        <span class="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full text-xs text-white bg-yellow-500">{{ ongelezen_p }}</span>
         {% endif %}
     </button>
+
+    {# Mailbox tabs per rol #}
+    {% for mailbox in mailboxen %}
+    {% set tab_id = "mailbox-" ~ loop.index %}
+    <button onclick="wisselTab('{{ tab_id }}')"
+            id="tab-{{ tab_id }}"
+            class="tab-knop flex-shrink-0 text-sm font-medium px-4 py-2 border-b-2 transition-colors"
+            style="{% if actieve_tab == tab_id %}border-color: var(--primair); color: var(--primair);{% else %}border-color: transparent; color: var(--tekst-secundair);{% endif %}">
+        {% if mailbox.rol == 'planners' %}
+            {{ t("notitie.naar_planners", team=mailbox.display_label) }}
+        {% elif mailbox.rol == 'beheerders' %}
+            {{ t("notitie.naar_beheerders", locatie=mailbox.display_label) }}
+        {% else %}
+            {{ t("notitie.naar_super") }}
+        {% endif %}
+        {% set ongelezen_m = mailbox.notities | selectattr('is_gelezen', 'equalto', false) | list | length %}
+        {% if ongelezen_m %}
+        <span class="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full text-xs text-white bg-yellow-500">{{ ongelezen_m }}</span>
+        {% endif %}
+    </button>
+    {% endfor %}
+
+    {# Tab: Verzonden #}
     <button onclick="wisselTab('verzonden')"
             id="tab-verzonden"
-            class="tab-knop text-sm font-medium px-4 py-2 border-b-2 transition-colors"
+            class="tab-knop flex-shrink-0 text-sm font-medium px-4 py-2 border-b-2 transition-colors"
             style="{% if actieve_tab == 'verzonden' %}border-color: var(--primair); color: var(--primair);{% else %}border-color: transparent; color: var(--tekst-secundair);{% endif %}">
-        Verzonden
+        {{ t("notitie.verzonden") }}
     </button>
-    <div class="ml-auto pb-1 self-end">
+
+    <div class="ml-auto pb-1 self-end flex-shrink-0">
         <select id="inbox-filter" onchange="filterInbox(this.value)"
                 class="text-sm rounded-lg border px-2 py-1 outline-none"
                 style="border-color: var(--rand); background: var(--achtergrond-widget); color: var(--tekst);">
-            <option value="alle">Alle</option>
-            <option value="ongelezen">Ongelezen</option>
-            <option value="hoog">Hoog</option>
+            <option value="alle">{{ t("verlof.filter_alle") }}</option>
+            <option value="ongelezen">{{ t("status.nieuw") }}</option>
+            <option value="hoog">{{ t("notitie.prioriteit") }} hoog</option>
         </select>
     </div>
 </div>
 
-<!-- Inbox tab -->
-<div id="tab-inhoud-inbox" {% if actieve_tab != 'inbox' %}class="hidden"{% endif %}>
-{% if inbox %}
+<!-- Tab inhoud: Persoonlijk -->
+<div id="tab-inhoud-persoonlijk" {% if actieve_tab != 'persoonlijk' %}class="hidden"{% endif %}>
+{% if persoonlijk %}
 <div class="rounded-xl shadow-sm border overflow-hidden" style="border-color: var(--rand); background: var(--achtergrond-widget);">
     <div class="divide-y" style="border-color: var(--rand);">
-        {% for n in inbox %}
+        {% for n in persoonlijk %}
         <div class="notitie-item flex items-start gap-3 px-4 py-3 {% if not n.is_gelezen %}font-medium{% endif %}"
              data-gelezen="{{ 'ja' if n.is_gelezen else 'nee' }}"
              data-prioriteit="{{ n.prioriteit }}"
              style="background: {% if not n.is_gelezen %}var(--msg-info-bg){% else %}transparent{% endif %};">
-            <!-- Prioriteit indicator -->
             <div class="mt-1 flex-shrink-0 w-2 h-2 rounded-full
                 {% if n.prioriteit == 'hoog' %}bg-orange-400
                 {% elif n.prioriteit == 'laag' %}bg-gray-200
@@ -89,11 +113,8 @@
                     <span class="text-sm" style="color: var(--tekst-secundair);">
                         {{ n.van_gebruiker.volledige_naam or n.van_gebruiker.gebruikersnaam }}
                     </span>
-                    {% if not n.naar_gebruiker_id %}
-                    <span class="text-xs px-1.5 py-0.5 rounded" style="background: var(--grid-header); color: var(--tekst-secundair);">team</span>
-                    {% endif %}
                     {% if n.prioriteit == 'hoog' %}
-                    <span class="text-xs font-medium px-1.5 py-0.5 rounded bg-orange-100 text-orange-600">hoog</span>
+                    <span class="text-xs font-medium px-1.5 py-0.5 rounded bg-orange-100 text-orange-600">{{ t("notitie.prioriteit") }}</span>
                     {% endif %}
                     <span class="ml-auto text-xs" style="color: var(--tekst-secundair);">
                         {{ n.aangemaakt_op.strftime('%d/%m/%Y %H:%M') }}
@@ -101,12 +122,11 @@
                 </div>
                 <p class="text-sm break-words" style="color: var(--tekst);">{{ n.bericht }}</p>
             </div>
-            <!-- Acties -->
             <div class="flex-shrink-0 flex items-center gap-1 ml-2">
                 {% if not n.is_gelezen %}
                 <form method="post" action="/notities/{{ n.uuid }}/gelezen" class="inline">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                    <button type="submit" title="Markeer als gelezen"
+                    <button type="submit" title="{{ t('notitie.markeer_gelezen') }}"
                             class="p-1 rounded hover:bg-achtergrond transition-colors"
                             style="color: var(--tekst-secundair);">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -122,13 +142,70 @@
 </div>
 {% else %}
 <div class="rounded-xl border p-10 text-center" style="border-color: var(--rand); background: var(--achtergrond-widget); color: var(--tekst-secundair);">
-    <p class="font-medium">Inbox is leeg</p>
-    <p class="text-sm mt-1">Je hebt nog geen berichten ontvangen.</p>
+    <p class="font-medium">{{ t("notitie.geen_berichten") }}</p>
 </div>
 {% endif %}
 </div>
 
-<!-- Verzonden tab -->
+<!-- Tab inhoud: Mailboxen -->
+{% for mailbox in mailboxen %}
+{% set tab_id = "mailbox-" ~ loop.index %}
+<div id="tab-inhoud-{{ tab_id }}" {% if actieve_tab != tab_id %}class="hidden"{% endif %}>
+{% if mailbox.notities %}
+<div class="rounded-xl shadow-sm border overflow-hidden" style="border-color: var(--rand); background: var(--achtergrond-widget);">
+    <div class="divide-y" style="border-color: var(--rand);">
+        {% for n in mailbox.notities %}
+        <div class="notitie-item flex items-start gap-3 px-4 py-3 {% if not n.is_gelezen %}font-medium{% endif %}"
+             data-gelezen="{{ 'ja' if n.is_gelezen else 'nee' }}"
+             data-prioriteit="{{ n.prioriteit }}"
+             style="background: {% if not n.is_gelezen %}var(--msg-info-bg){% else %}transparent{% endif %};">
+            <div class="mt-1 flex-shrink-0 w-2 h-2 rounded-full
+                {% if n.prioriteit == 'hoog' %}bg-orange-400
+                {% elif n.prioriteit == 'laag' %}bg-gray-200
+                {% else %}bg-blue-400{% endif %}">
+            </div>
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-0.5">
+                    <span class="text-sm" style="color: var(--tekst-secundair);">
+                        {{ n.van_gebruiker.volledige_naam or n.van_gebruiker.gebruikersnaam }}
+                    </span>
+                    <span class="text-xs px-1.5 py-0.5 rounded" style="background: var(--grid-header); color: var(--tekst-secundair);">{{ t("notitie.mailbox") }}</span>
+                    {% if n.prioriteit == 'hoog' %}
+                    <span class="text-xs font-medium px-1.5 py-0.5 rounded bg-orange-100 text-orange-600">hoog</span>
+                    {% endif %}
+                    <span class="ml-auto text-xs" style="color: var(--tekst-secundair);">
+                        {{ n.aangemaakt_op.strftime('%d/%m/%Y %H:%M') }}
+                    </span>
+                </div>
+                <p class="text-sm break-words" style="color: var(--tekst);">{{ n.bericht }}</p>
+            </div>
+            <div class="flex-shrink-0 flex items-center gap-1 ml-2">
+                {% if not n.is_gelezen %}
+                <form method="post" action="/notities/{{ n.uuid }}/gelezen" class="inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" title="{{ t('notitie.markeer_gelezen') }}"
+                            class="p-1 rounded hover:bg-achtergrond transition-colors"
+                            style="color: var(--tekst-secundair);">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+<div class="rounded-xl border p-10 text-center" style="border-color: var(--rand); background: var(--achtergrond-widget); color: var(--tekst-secundair);">
+    <p class="font-medium">{{ t("notitie.geen_berichten") }}</p>
+</div>
+{% endif %}
+</div>
+{% endfor %}
+
+<!-- Tab inhoud: Verzonden -->
 <div id="tab-inhoud-verzonden" {% if actieve_tab != 'verzonden' %}class="hidden"{% endif %}>
 {% if verzonden %}
 <div class="rounded-xl shadow-sm border overflow-hidden" style="border-color: var(--rand); background: var(--achtergrond-widget);">
@@ -143,7 +220,14 @@
             <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 mb-0.5">
                     <span class="text-sm" style="color: var(--tekst-secundair);">
-                        Aan: {% if n.naar_gebruiker_id %}{{ n.naar_gebruiker.volledige_naam or n.naar_gebruiker.gebruikersnaam }}{% else %}<em>iedereen</em>{% endif %}
+                        {{ t("notitie.aan") }}:
+                        {% if n.naar_gebruiker_id %}
+                            {{ n.naar_gebruiker.volledige_naam or n.naar_gebruiker.gebruikersnaam }}
+                        {% elif n.naar_rol %}
+                            <em>{{ n.naar_rol }}</em>
+                        {% else %}
+                            <em>—</em>
+                        {% endif %}
                     </span>
                     {% if n.prioriteit == 'hoog' %}
                     <span class="text-xs font-medium px-1.5 py-0.5 rounded bg-orange-100 text-orange-600">hoog</span>
@@ -153,17 +237,18 @@
                     </span>
                 </div>
                 <p class="text-sm break-words" style="color: var(--tekst);">{{ n.bericht }}</p>
-                {% if n.is_gelezen %}
-                <p class="text-xs mt-0.5" style="color: var(--succes);">Gelezen op {{ n.gelezen_op.strftime('%d/%m/%Y %H:%M') }}</p>
-                {% elif n.naar_gebruiker_id %}
-                <p class="text-xs mt-0.5" style="color: var(--tekst-secundair);">Nog niet gelezen</p>
+                {% if n.naar_gebruiker_id %}
+                    {% if n.is_gelezen %}
+                    <p class="text-xs mt-0.5" style="color: var(--succes);">{{ t("status.gelezen") }} {{ n.gelezen_op.strftime('%d/%m/%Y %H:%M') }}</p>
+                    {% else %}
+                    <p class="text-xs mt-0.5" style="color: var(--tekst-secundair);">{{ t("status.nieuw") }}</p>
+                    {% endif %}
                 {% endif %}
             </div>
-            <!-- Verwijder -->
             <form method="post" action="/notities/{{ n.uuid }}/verwijder" class="inline"
-                  onsubmit="return confirm('Bericht verwijderen?')">
+                  onsubmit="return confirm('{{ t('algemeen.verwijder') }}?')">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                <button type="submit" title="Verwijder"
+                <button type="submit" title="{{ t('algemeen.verwijder') }}"
                         class="p-1 rounded hover:bg-gevaar-zacht transition-colors"
                         style="color: var(--tekst-secundair);">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -178,7 +263,7 @@
 </div>
 {% else %}
 <div class="rounded-xl border p-10 text-center" style="border-color: var(--rand); background: var(--achtergrond-widget); color: var(--tekst-secundair);">
-    <p class="font-medium">Geen verzonden berichten</p>
+    <p class="font-medium">{{ t("notitie.geen_berichten") }}</p>
 </div>
 {% endif %}
 </div>
@@ -186,23 +271,45 @@
 <!-- Nieuw bericht dialog -->
 <div id="nieuw-dialog" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40">
     <div class="rounded-xl shadow-xl p-6 w-full max-w-lg" style="background: var(--achtergrond-widget);">
-        <h2 class="text-base font-semibold mb-4" style="color: var(--tekst);">Nieuw bericht</h2>
+        <h2 class="text-base font-semibold mb-4" style="color: var(--tekst);">{{ t("notitie.nieuw") }}</h2>
         <form method="post" action="/notities/stuur">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <div class="space-y-3">
                 <div>
-                    <label class="block text-sm font-medium mb-1" style="color: var(--tekst);">Aan</label>
-                    <select name="naar_id"
+                    <label class="block text-sm font-medium mb-1" style="color: var(--tekst);">{{ t("notitie.naar_type") }}</label>
+                    <select id="naar-type-select" name="naar_type" onchange="wisselNaarType(this.value)"
                             class="w-full text-sm rounded-lg border px-3 py-2 outline-none"
                             style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
-                        <option value="">Iedereen (team mailbox)</option>
+                        <option value="gebruiker">{{ t("nav.gebruikers") }}</option>
+                        {% for optie in stuur_opties %}
+                        <option value="mailbox_{{ loop.index }}"
+                                data-naar-rol="{{ optie.naar_rol }}"
+                                data-naar-scope-id="{{ optie.naar_scope_id }}">
+                            {{ t("notitie.stuur_naar_mailbox") }}: {{ optie.label }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                {# Gebruiker selectie (zichtbaar bij naar_type=gebruiker) #}
+                <div id="gebruiker-selectie">
+                    <label class="block text-sm font-medium mb-1" style="color: var(--tekst);">{{ t("notitie.aan") }}</label>
+                    <select name="naar_gebruiker_id"
+                            class="w-full text-sm rounded-lg border px-3 py-2 outline-none"
+                            style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
+                        <option value="">— {{ t("notitie.aan") }} —</option>
                         {% for m in medewerkers %}
                         <option value="{{ m.id }}">{{ m.volledige_naam or m.gebruikersnaam }}</option>
                         {% endfor %}
                     </select>
                 </div>
+
+                {# Verborgen velden voor mailbox #}
+                <input type="hidden" id="naar-rol-hidden" name="naar_rol" value="">
+                <input type="hidden" id="naar-scope-id-hidden" name="naar_scope_id" value="">
+
                 <div>
-                    <label class="block text-sm font-medium mb-1" style="color: var(--tekst);">Prioriteit</label>
+                    <label class="block text-sm font-medium mb-1" style="color: var(--tekst);">{{ t("notitie.prioriteit") }}</label>
                     <select name="prioriteit"
                             class="w-full text-sm rounded-lg border px-3 py-2 outline-none"
                             style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
@@ -212,25 +319,25 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium mb-1" style="color: var(--tekst);">Bericht</label>
+                    <label class="block text-sm font-medium mb-1" style="color: var(--tekst);">{{ t("notitie.bericht") }}</label>
                     <textarea name="bericht" rows="4" required
                               class="w-full text-sm rounded-lg border px-3 py-2 outline-none resize-none"
                               style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);"
-                              placeholder="Typ je bericht..."></textarea>
+                              placeholder="..."></textarea>
                 </div>
             </div>
             <div class="flex justify-end gap-2 mt-4">
                 <button type="button" onclick="sluitNieuwDialog()"
                         class="text-sm px-4 py-1.5 rounded-lg border transition-colors"
                         style="border-color: var(--rand); color: var(--tekst-secundair);">
-                    Annuleer
+                    {{ t("algemeen.annuleer") }}
                 </button>
                 <button type="submit"
                         class="text-sm font-medium px-4 py-1.5 rounded-lg text-white transition-colors"
                         style="background: var(--primair);"
                         onmouseover="this.style.background='var(--primair-hover)'"
                         onmouseout="this.style.background='var(--primair)'">
-                    Verstuur
+                    {{ t("notitie.verzenden") }}
                 </button>
             </div>
         </form>
@@ -240,10 +347,16 @@
 <script>
 const PRIMAIR = 'var(--primair)';
 
+// Bouw een lijst van alle tab-ids
+const ALL_TABS = ['persoonlijk', 'verzonden'
+    {% for mailbox in mailboxen %}, 'mailbox-{{ loop.index }}'{% endfor %}
+];
+
 function wisselTab(tab) {
-    ['inbox', 'verzonden'].forEach(t => {
+    ALL_TABS.forEach(function(t) {
         const btn = document.getElementById('tab-' + t);
         const inhoud = document.getElementById('tab-inhoud-' + t);
+        if (!btn || !inhoud) return;
         if (t === tab) {
             btn.style.borderColor = PRIMAIR;
             btn.style.color = PRIMAIR;
@@ -261,14 +374,34 @@ function toonNieuwDialog() {
     d.classList.remove('hidden');
     d.classList.add('flex');
 }
+
 function sluitNieuwDialog() {
     const d = document.getElementById('nieuw-dialog');
     d.classList.add('hidden');
     d.classList.remove('flex');
 }
 
+function wisselNaarType(val) {
+    const gebruikerSel = document.getElementById('gebruiker-selectie');
+    const naarRolHidden = document.getElementById('naar-rol-hidden');
+    const naarScopeHidden = document.getElementById('naar-scope-id-hidden');
+    const select = document.getElementById('naar-type-select');
+
+    if (val === 'gebruiker') {
+        gebruikerSel.classList.remove('hidden');
+        naarRolHidden.value = '';
+        naarScopeHidden.value = '';
+    } else {
+        gebruikerSel.classList.add('hidden');
+        // Haal data-attributen op van geselecteerde optie
+        const opt = select.options[select.selectedIndex];
+        naarRolHidden.value = opt.dataset.naarRol || '';
+        naarScopeHidden.value = opt.dataset.naarScopeId || '';
+    }
+}
+
 function filterInbox(filter) {
-    document.querySelectorAll('.notitie-item').forEach(item => {
+    document.querySelectorAll('.notitie-item').forEach(function(item) {
         const gelezen = item.dataset.gelezen === 'ja';
         const prioriteit = item.dataset.prioriteit;
         let toon = true;
@@ -278,9 +411,14 @@ function filterInbox(filter) {
     });
 }
 
-// Open verzonden tab als URL param aanwezig
+// Open juiste tab op basis van URL param
 const params = new URLSearchParams(location.search);
-if (params.get('tab') === 'verzonden') wisselTab('verzonden');
+const tabParam = params.get('tab');
+if (tabParam) wisselTab(tabParam);
+
+// Sync naar_type formulier on load
+const initNaarType = document.getElementById('naar-type-select');
+if (initNaarType) wisselNaarType(initNaarType.value);
 </script>
 
 {% endblock %}

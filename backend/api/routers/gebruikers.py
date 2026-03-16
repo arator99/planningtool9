@@ -10,6 +10,7 @@ from api.dependencies import haal_db, vereiste_rol, haal_csrf_token, verifieer_c
 from api.sjablonen import sjablonen
 from models.gebruiker import Gebruiker
 from models.team import Team
+from models.locatie import Locatie
 from models.gebruiker_rol import GebruikerRol
 from services.gebruiker_service import GebruikerService
 from services.competentie_service import CompetentieService
@@ -54,6 +55,9 @@ def toon_lijst(
     gebruikers = svc.haal_gefilterd(gebruiker.locatie_id, zoek=zoek, rol=rol, status=status)
     totaal_actief = len(svc.haal_actieve_medewerkers(gebruiker.locatie_id))
     melding_type = "fout" if fout else "ok"
+    # Teams en locaties als lookup voor rollen-badges in template
+    alle_teams = {t.id: t for t in db.query(Team).filter(Team.locatie_id == gebruiker.locatie_id).all()}
+    alle_locaties = {l.id: l for l in db.query(Locatie).all()}
     return sjablonen.TemplateResponse(
         "pages/gebruikers/lijst.html",
         _context(request, gebruiker,
@@ -64,6 +68,8 @@ def toon_lijst(
                  status=status,
                  melding=fout or melding,
                  melding_type=melding_type,
+                 alle_teams=alle_teams,
+                 alle_locaties=alle_locaties,
                  csrf_token=csrf_token),
     )
 

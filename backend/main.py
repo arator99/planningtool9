@@ -16,7 +16,7 @@ from api.routers import (
     rapporten, account, help, werkposten, competenties, logboek, teams,
 )
 from api.routers import instellingen as instellingen_router
-from api.routers import beheer_hr, dashboard
+from api.routers import beheer_hr, dashboard, locaties
 from api.seed import seed_test_data
 from config import instellingen
 from database import Basis, motor
@@ -74,6 +74,7 @@ app.include_router(logboek.router)
 app.include_router(instellingen_router.router)
 app.include_router(teams.router)
 app.include_router(beheer_hr.router)
+app.include_router(locaties.router)
 
 
 @app.get("/")

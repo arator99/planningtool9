@@ -1,0 +1,92 @@
+{% extends "layouts/app.html" %}
+{% set actief_menu = "locaties" %}
+
+{% block titel %}{{ t("locatie.titel") }} — Planning Tool{% endblock %}
+
+{% block inhoud %}
+<div class="flex items-center justify-between mb-4">
+    <div>
+        <h1 class="text-2xl font-bold text-tekst">{{ t("locatie.titel") }}</h1>
+    </div>
+    <a href="/beheer/locaties/nieuw"
+       class="inline-flex items-center gap-2 bg-primair hover:bg-primair-hover text-white
+              text-sm font-medium px-4 py-2 rounded-lg transition-colors duration-150">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        {{ t("locatie.nieuw") }}
+    </a>
+</div>
+
+{% if melding %}
+<div class="mb-5 px-4 py-3 rounded-lg text-sm bg-succes-zacht border"
+     style="border-color: var(--succes); color: var(--succes);">
+    {{ melding }}
+</div>
+{% endif %}
+{% if fout %}
+<div class="mb-5 px-4 py-3 rounded-lg text-sm bg-gevaar-zacht border"
+     style="border-color: var(--gevaar); color: var(--gevaar);">
+    {{ fout }}
+</div>
+{% endif %}
+
+<div class="bg-oppervlak rounded-xl shadow-sm overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-achtergrond border-b border-rand">
+            <tr>
+                <th class="text-left px-5 py-3 font-medium text-tekst-zacht">{{ t("locatie.naam") }}</th>
+                <th class="text-left px-5 py-3 font-medium text-tekst-zacht">{{ t("locatie.code") }}</th>
+                <th class="text-left px-5 py-3 font-medium text-tekst-zacht">{{ t("locatie.area") }}</th>
+                <th class="text-left px-5 py-3 font-medium text-tekst-zacht">{{ t("algemeen.status") }}</th>
+                <th class="px-5 py-3"></th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-rand">
+            {% for loc in locaties %}
+            <tr class="hover:bg-achtergrond {% if not loc.is_actief %}opacity-50{% endif %}">
+                <td class="px-5 py-3 font-medium text-tekst">{{ loc.naam }}</td>
+                <td class="px-5 py-3 text-tekst-zacht">
+                    <span class="font-mono text-xs px-1.5 py-0.5 rounded"
+                          style="background: var(--grid-header);">{{ loc.code }}</span>
+                </td>
+                <td class="px-5 py-3 text-tekst-zacht">{{ loc.area_label or "—" }}</td>
+                <td class="px-5 py-3">
+                    {% if loc.is_actief %}
+                    <span class="text-succes font-medium">{{ t("locatie.actief") }}</span>
+                    {% else %}
+                    <span class="text-gevaar">{{ t("locatie.inactief") }}</span>
+                    {% endif %}
+                </td>
+                <td class="px-5 py-3">
+                    <div class="flex items-center justify-end gap-3">
+                        <a href="/beheer/locaties/{{ loc.uuid }}/bewerk"
+                           class="text-primair hover:text-primair-hover font-medium">{{ t("algemeen.bewerken") }}</a>
+                        {% if loc.is_actief %}
+                        <form method="post" action="/beheer/locaties/{{ loc.uuid }}/deactiveer"
+                              onsubmit="return confirm('{{ loc.naam }} deactiveren?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="text-gevaar hover:opacity-80">
+                                {{ t("locatie.deactiveer") }}
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="px-5 py-8 text-center text-tekst-zacht">
+                    {{ t("algemeen.geen_resultaten") }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% if locaties %}
+    <div class="px-5 py-3 border-t border-rand bg-achtergrond text-xs text-tekst-zacht">
+        {{ locaties | length }} {{ t("locatie.titel") | lower }}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

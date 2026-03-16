@@ -22,7 +22,10 @@ v0.8 dient als infrastructuurreferentie (Docker, Alembic, JWT-auth).
 - `RodeLijnConfig`: één nationaal record met `referentie_datum`; cyclussen berekend als `n × 28 dagen`
 - `Shiftcode.telt_als_werkdag`, `is_nachtprestatie`, `reset_nacht` flags
 - Blokgrootte rode lijn configureerbaar via `NationaleHRRegel(code='RODE_LIJN_BLOK_GROOTTE')`
-- Notities mailboxhiërarchie: teamlid → planners → beheerders → super_beheerders
+- Notities mailboxhiërarchie: teamlid → planners → beheerders → super_beheerders; `naar_rol` + `naar_scope_id` vervangt `team_id`
+- Locatiebeheer router `/beheer/locaties` (super_beheerder only): CRUD via UUID
+- `LocatieService`: haal_alle, maak_aan, bewerk, deactiveer
+- Gebruikerslijst toont rollen als gekleurde badges met scope-code
 - Planner kan verlof indienen namens teamlid (`ingediend_door_id` + verplichte `reden_namens`)
 - Light/dark thema via CSS custom properties (`static/css/theme.css`); voorkeur per gebruiker
 - Herbruikbare UI-componenten: `knop.html`, `kaart.html`, `formulier_veld.html`, `badge.html`, `alert.html`

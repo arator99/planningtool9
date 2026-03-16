@@ -1,0 +1,97 @@
+{% extends "layouts/app.html" %}
+{% set actief_menu = "locaties" %}
+
+{% block titel %}
+    {% if bewerk_modus %}{{ t("locatie.bewerk") }}{% else %}{{ t("locatie.nieuw") }}{% endif %}
+    — Planning Tool
+{% endblock %}
+
+{% block inhoud %}
+<div class="flex items-center gap-3 mb-6">
+    <a href="/beheer/locaties"
+       class="text-sm text-tekst-zacht hover:text-tekst transition-colors">
+        ← {{ t("locatie.titel") }}
+    </a>
+    <span class="text-tekst-zacht">/</span>
+    <h1 class="text-xl font-bold text-tekst">
+        {% if bewerk_modus %}{{ t("locatie.bewerk") }}{% else %}{{ t("locatie.nieuw") }}{% endif %}
+    </h1>
+</div>
+
+{% if fout %}
+<div class="mb-5 px-4 py-3 rounded-lg text-sm bg-gevaar-zacht border"
+     style="border-color: var(--gevaar); color: var(--gevaar);">
+    {{ fout }}
+</div>
+{% endif %}
+
+<div class="max-w-lg bg-oppervlak rounded-xl shadow-sm border border-rand p-6">
+    <form method="post"
+          action="{% if bewerk_modus %}/beheer/locaties/{{ locatie.uuid }}/bewerk{% else %}/beheer/locaties/nieuw{% endif %}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium mb-1 text-tekst">
+                    {{ t("locatie.naam") }} <span class="text-gevaar">*</span>
+                </label>
+                <input type="text" name="naam" required
+                       value="{{ locatie.naam if bewerk_modus else (invoer.naam or '') }}"
+                       class="w-full text-sm rounded-lg border border-rand px-3 py-2 outline-none
+                              focus:ring-2"
+                       style="background: var(--achtergrond-alt); color: var(--tekst);"
+                       placeholder="{{ t('locatie.naam') }}">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-1 text-tekst">
+                    {{ t("locatie.code") }} <span class="text-gevaar">*</span>
+                </label>
+                {% if bewerk_modus %}
+                <input type="text" name="code"
+                       value="{{ locatie.code }}"
+                       readonly
+                       class="w-full text-sm rounded-lg border border-rand px-3 py-2 outline-none
+                              font-mono cursor-not-allowed opacity-70"
+                       style="background: var(--achtergrond); color: var(--tekst-secundair);">
+                <p class="text-xs mt-1 text-tekst-zacht">{{ t("locatie.code") }} is niet wijzigbaar na aanmaken.</p>
+                {% else %}
+                <input type="text" name="code" required
+                       value="{{ invoer.code or '' }}"
+                       class="w-full text-sm rounded-lg border border-rand px-3 py-2 outline-none
+                              focus:ring-2 font-mono uppercase"
+                       style="background: var(--achtergrond-alt); color: var(--tekst);"
+                       placeholder="bijv. LOC1"
+                       oninput="this.value = this.value.toUpperCase()">
+                {% endif %}
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-1 text-tekst">
+                    {{ t("locatie.area") }}
+                    <span class="text-tekst-zacht text-xs ml-1">({{ t("algemeen.optioneel") }})</span>
+                </label>
+                <input type="text" name="area_label"
+                       value="{{ locatie.area_label if bewerk_modus else (invoer.area_label or '') }}"
+                       class="w-full text-sm rounded-lg border border-rand px-3 py-2 outline-none
+                              focus:ring-2"
+                       style="background: var(--achtergrond-alt); color: var(--tekst);"
+                       placeholder="{{ t('locatie.area') }}">
+            </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-rand">
+            <a href="/beheer/locaties"
+               class="text-sm px-4 py-2 rounded-lg border border-rand text-tekst-zacht
+                      hover:text-tekst transition-colors">
+                {{ t("algemeen.annuleer") }}
+            </a>
+            <button type="submit"
+                    class="text-sm font-medium px-5 py-2 rounded-lg bg-primair hover:bg-primair-hover
+                           text-white transition-colors">
+                {{ t("algemeen.opslaan") }}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -76,13 +76,31 @@
                 <td class="px-5 py-3 font-medium text-tekst">{{ g.volledige_naam or g.gebruikersnaam }}</td>
                 <td class="px-5 py-3 text-tekst-zacht">{{ g.gebruikersnaam }}</td>
                 <td class="px-5 py-3">
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                        {% if g.rol == 'beheerder' %}bg-purple-100 text-purple-700
-                        {% elif g.rol == 'planner' %}bg-blue-100 text-blue-700
-                        {% elif g.rol == 'hr' %}bg-orange-100 text-orange-700
-                        {% else %}bg-gray-100 text-gray-600{% endif %}">
-                        {{ g.rol }}
-                    </span>
+                    <div class="flex flex-wrap gap-1">
+                        {% for rol_record in g.rollen %}
+                        {% if rol_record.is_actief %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
+                            {% if rol_record.rol == 'super_beheerder' %}bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300
+                            {% elif rol_record.rol == 'beheerder' %}bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300
+                            {% elif rol_record.rol == 'planner' %}bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300
+                            {% elif rol_record.rol == 'hr' %}bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300
+                            {% else %}bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300{% endif %}">
+                            {{ t("rol." + rol_record.rol) }}
+                            {% if rol_record.rol in ('teamlid', 'planner') %}
+                                {% if alle_teams and alle_teams[rol_record.scope_id] is defined %}
+                                    <span class="ml-0.5 opacity-70">({{ alle_teams[rol_record.scope_id].code }})</span>
+                                {% endif %}
+                            {% elif rol_record.rol in ('beheerder', 'hr') %}
+                                {% if alle_locaties and alle_locaties[rol_record.scope_id] is defined %}
+                                    <span class="ml-0.5 opacity-70">({{ alle_locaties[rol_record.scope_id].code }})</span>
+                                {% endif %}
+                            {% endif %}
+                        </span>
+                        {% endif %}
+                        {% else %}
+                        <span class="text-tekst-zacht text-xs">—</span>
+                        {% endfor %}
+                    </div>
                 </td>
                 <td class="px-5 py-3">
                     {% if g.totp_actief %}

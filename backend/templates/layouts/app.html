@@ -227,7 +227,7 @@
                            style="color: {% if actief_menu == 'teams' %}var(--primair){% else %}var(--tekst){% endif %};"
                            onmouseover="this.style.background='var(--hover-bg)'"
                            onmouseout="this.style.background='transparent'">
-                            Groepen
+                            {{ t("nav.teams") }}
                         </a>
                         <a href="/logboek"
                            class="flex items-center px-4 py-2 text-sm transition-colors {% if actief_menu == 'logboek' %}font-semibold{% endif %}"
@@ -237,6 +237,38 @@
                             {{ t("nav.logboek") }}
                         </a>
                         {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Nationaal Beheer dropdown (super_beheerder only) -->
+                {% if gebruiker.rol == 'super_beheerder' %}
+                <div class="relative" id="nationaal-wrapper">
+                    <button onclick="wisselMenu('nationaal')"
+                            class="flex items-center gap-0.5 text-sm font-medium transition-colors
+                                   {% if actief_menu in ['locaties', 'hr_nationaal'] %}text-primair{% else %}text-tekst-zacht hover:text-primair{% endif %}">
+                        {{ t("nav.nationaal_beheer") }}
+                        <svg class="w-3 h-3 opacity-50 mt-px" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+                    <div id="nationaal-menu"
+                         class="hidden absolute left-0 mt-2 w-52 rounded-xl shadow-lg border py-1 z-50"
+                         style="background: var(--achtergrond-widget); border-color: var(--rand);">
+                        <a href="/beheer/locaties"
+                           class="flex items-center px-4 py-2 text-sm transition-colors {% if actief_menu == 'locaties' %}font-semibold{% endif %}"
+                           style="color: {% if actief_menu == 'locaties' %}var(--primair){% else %}var(--tekst){% endif %};"
+                           onmouseover="this.style.background='var(--hover-bg)'"
+                           onmouseout="this.style.background='transparent'">
+                            {{ t("nav.locaties") }}
+                        </a>
+                        <a href="/beheer/hr-nationaal"
+                           class="flex items-center px-4 py-2 text-sm transition-colors {% if actief_menu == 'hr_nationaal' %}font-semibold{% endif %}"
+                           style="color: {% if actief_menu == 'hr_nationaal' %}var(--primair){% else %}var(--tekst){% endif %};"
+                           onmouseover="this.style.background='var(--hover-bg)'"
+                           onmouseout="this.style.background='transparent'">
+                            {{ t("nav.hr_nationaal") }}
+                        </a>
                     </div>
                 </div>
                 {% endif %}
@@ -481,7 +513,7 @@
     };
 })();
 
-const _MENUS = ['account', 'help', 'planning', 'verlof', 'instellingen', 'beheer'];
+const _MENUS = ['account', 'help', 'planning', 'verlof', 'instellingen', 'beheer', 'nationaal'];
 
 window.wisselMenu = function (id) {
     _MENUS.forEach(function (m) {
