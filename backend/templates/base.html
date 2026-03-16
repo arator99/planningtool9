@@ -8,7 +8,7 @@
     {# ── Theme-init: zet dark-class VOOR Tailwind laadt om flash te voorkomen ── #}
     <script>
         (function () {
-            var voorkeur = "{{ huidige_gebruiker.thema | default('systeem') }}";
+            var voorkeur = "{{ (huidige_gebruiker.thema if huidige_gebruiker is defined and huidige_gebruiker else 'systeem') }}";
             if (voorkeur === 'dark' ||
                 (voorkeur === 'systeem' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
                 document.documentElement.classList.add('dark');

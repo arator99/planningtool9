@@ -20,7 +20,7 @@ def dashboard(
     db=Depends(haal_db),
 ):
     team_id = haal_primaire_team_id(gebruiker.id, db)
-    ongelezen = NotitieService(db).haal_ongelezen_aantal(gebruiker.id, team_id)
+    ongelezen = NotitieService(db).haal_ongelezen_totaal(gebruiker.id, gebruiker.rollen, gebruiker.locatie_id)
     komende_shifts = PlanningService(db).haal_komende_shifts(gebruiker.id, team_id)
 
     locatie_id = gebruiker.locatie_id

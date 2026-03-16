@@ -14,6 +14,21 @@ depends_on = None
 
 
 def upgrade() -> None:
+    # Drop eventuele FK van planning_overrides → hr_regels (oudere migratie-versie)
+    # Gebruik DO $$ zodat de check atomisch is en de transactie niet breekt bij afwezig constraint
+    op.execute("""
+        DO $$
+        BEGIN
+            IF EXISTS (
+                SELECT 1 FROM information_schema.table_constraints
+                WHERE constraint_name = 'planning_overrides_regel_code_fkey'
+                  AND table_name = 'planning_overrides'
+            ) THEN
+                ALTER TABLE planning_overrides DROP CONSTRAINT planning_overrides_regel_code_fkey;
+            END IF;
+        END $$;
+    """)
+
     # Verwijder de tijdelijke hr_regels tabel (aangemaakt in 001)
     op.drop_table("hr_regels")
 
