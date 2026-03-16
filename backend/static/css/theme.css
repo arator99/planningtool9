@@ -72,3 +72,43 @@ html.dark {
   --kleur-info:            56 189 248;   /* sky-400   #38bdf8 */
   --kleur-info-zacht:      8 47 73;      /* sky-950   #082f49 */
 }
+
+/* ── Semantische kleurklassen — direct gedefinieerd, onafhankelijk van Tailwind CDN ── */
+
+.bg-primair            { background-color: rgb(var(--kleur-primair)); }
+.bg-primair-hover      { background-color: rgb(var(--kleur-primair-hover)); }
+.bg-primair-zacht      { background-color: rgb(var(--kleur-primair-zacht)); }
+.hover\:bg-primair-hover:hover { background-color: rgb(var(--kleur-primair-hover)); }
+.hover\:bg-primair-zacht:hover { background-color: rgb(var(--kleur-primair-zacht)); }
+.bg-achtergrond        { background-color: rgb(var(--kleur-achtergrond)); }
+.bg-oppervlak          { background-color: rgb(var(--kleur-oppervlak)); }
+.bg-oppervlak-hover    { background-color: rgb(var(--kleur-oppervlak-hover)); }
+.hover\:bg-oppervlak-hover:hover { background-color: rgb(var(--kleur-oppervlak-hover)); }
+.hover\:bg-achtergrond:hover     { background-color: rgb(var(--kleur-achtergrond)); }
+.bg-succes-zacht       { background-color: rgb(var(--kleur-succes-zacht)); }
+.bg-gevaar-zacht       { background-color: rgb(var(--kleur-gevaar-zacht)); }
+.bg-waarschuwing-zacht { background-color: rgb(var(--kleur-waarschuwing-zacht)); }
+.bg-info-zacht         { background-color: rgb(var(--kleur-info-zacht)); }
+
+.text-primair          { color: rgb(var(--kleur-primair)); }
+.text-primair-tekst    { color: rgb(var(--kleur-primair-tekst)); }
+.text-tekst            { color: rgb(var(--kleur-tekst)); }
+.text-tekst-zacht      { color: rgb(var(--kleur-tekst-zacht)); }
+.text-succes           { color: rgb(var(--kleur-succes)); }
+.text-gevaar           { color: rgb(var(--kleur-gevaar)); }
+.text-waarschuwing     { color: rgb(var(--kleur-waarschuwing)); }
+.text-info             { color: rgb(var(--kleur-info)); }
+.hover\:text-primair:hover { color: rgb(var(--kleur-primair)); }
+
+.border-rand           { border-color: rgb(var(--kleur-rand)); }
+.border-rand-sterk     { border-color: rgb(var(--kleur-rand-sterk)); }
+.border-primair        { border-color: rgb(var(--kleur-primair)); }
+.border-succes         { border-color: rgb(var(--kleur-succes)); }
+.border-gevaar         { border-color: rgb(var(--kleur-gevaar)); }
+.border-waarschuwing   { border-color: rgb(var(--kleur-waarschuwing)); }
+.border-info           { border-color: rgb(var(--kleur-info)); }
+
+.divide-rand > :not([hidden]) ~ :not([hidden]) { border-color: rgb(var(--kleur-rand)); }
+
+.ring-primair          { --tw-ring-color: rgb(var(--kleur-primair)); }
+.focus\:ring-primair:focus { --tw-ring-color: rgb(var(--kleur-primair)); }
