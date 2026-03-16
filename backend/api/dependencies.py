@@ -146,16 +146,35 @@ def heeft_rol_in_team(
 
 def haal_primaire_team_id(gebruiker_id: int, db: Session) -> int | None:
     """
-    Geeft het eerste actieve team-ID van een gebruiker (planner of teamlid rol).
-    Gebruikt als fallback voor het actieve team van een gebruiker totdat
-    Fase 4 een expliciete team-selector toevoegt.
+    Geeft het eerste actieve team-ID van een gebruiker.
+    - planner/teamlid: via GebruikerRol.scope_id (= team_id)
+    - beheerder/super_beheerder: eerste team van hun locatie als fallback
     """
+    from models.team import Team
+
     rol = db.query(GebruikerRol).filter(
         GebruikerRol.gebruiker_id == gebruiker_id,
         GebruikerRol.rol.in_(["teamlid", "planner"]),
         GebruikerRol.is_actief == True,
     ).first()
-    return rol.scope_id if rol else None
+    if rol:
+        return rol.scope_id
+
+    # Beheerder/super_beheerder: geen teamrol — neem eerste team van hun locatie
+    beheer_rol = db.query(GebruikerRol).filter(
+        GebruikerRol.gebruiker_id == gebruiker_id,
+        GebruikerRol.rol.in_(["beheerder", "super_beheerder"]),
+        GebruikerRol.is_actief == True,
+    ).first()
+    if beheer_rol:
+        gebruiker = db.query(Gebruiker).filter(Gebruiker.id == gebruiker_id).first()
+        if gebruiker and gebruiker.locatie_id:
+            team = db.query(Team).filter(
+                Team.locatie_id == gebruiker.locatie_id,
+                Team.is_actief == True,
+            ).first()
+            return team.id if team else None
+    return None
 
 
 def heeft_rol_in_locatie(
