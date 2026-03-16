@@ -37,8 +37,7 @@ services:
       migrate:
         condition: service_completed_successfully
     volumes:
-      - static_files:/app/static
+      - ./backend/static:/app/static:ro
 
 volumes:
   postgres_data:
-  static_files:
