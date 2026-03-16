@@ -75,40 +75,40 @@ html.dark {
 
 /* ── Semantische kleurklassen — direct gedefinieerd, onafhankelijk van Tailwind CDN ── */
 
-.bg-primair            { background-color: rgb(var(--kleur-primair)); }
-.bg-primair-hover      { background-color: rgb(var(--kleur-primair-hover)); }
-.bg-primair-zacht      { background-color: rgb(var(--kleur-primair-zacht)); }
-.hover\:bg-primair-hover:hover { background-color: rgb(var(--kleur-primair-hover)); }
-.hover\:bg-primair-zacht:hover { background-color: rgb(var(--kleur-primair-zacht)); }
-.bg-achtergrond        { background-color: rgb(var(--kleur-achtergrond)); }
-.bg-oppervlak          { background-color: rgb(var(--kleur-oppervlak)); }
-.bg-oppervlak-hover    { background-color: rgb(var(--kleur-oppervlak-hover)); }
-.hover\:bg-oppervlak-hover:hover { background-color: rgb(var(--kleur-oppervlak-hover)); }
-.hover\:bg-achtergrond:hover     { background-color: rgb(var(--kleur-achtergrond)); }
-.bg-succes-zacht       { background-color: rgb(var(--kleur-succes-zacht)); }
-.bg-gevaar-zacht       { background-color: rgb(var(--kleur-gevaar-zacht)); }
-.bg-waarschuwing-zacht { background-color: rgb(var(--kleur-waarschuwing-zacht)); }
-.bg-info-zacht         { background-color: rgb(var(--kleur-info-zacht)); }
+.bg-primair            { background-color: rgb(var(--kleur-primair)) !important; }
+.bg-primair-hover      { background-color: rgb(var(--kleur-primair-hover)) !important; }
+.bg-primair-zacht      { background-color: rgb(var(--kleur-primair-zacht)) !important; }
+.hover\:bg-primair-hover:hover { background-color: rgb(var(--kleur-primair-hover)) !important; }
+.hover\:bg-primair-zacht:hover { background-color: rgb(var(--kleur-primair-zacht)) !important; }
+.bg-achtergrond        { background-color: rgb(var(--kleur-achtergrond)) !important; }
+.bg-oppervlak          { background-color: rgb(var(--kleur-oppervlak)) !important; }
+.bg-oppervlak-hover    { background-color: rgb(var(--kleur-oppervlak-hover)) !important; }
+.hover\:bg-oppervlak-hover:hover { background-color: rgb(var(--kleur-oppervlak-hover)) !important; }
+.hover\:bg-achtergrond:hover     { background-color: rgb(var(--kleur-achtergrond)) !important; }
+.bg-succes-zacht       { background-color: rgb(var(--kleur-succes-zacht)) !important; }
+.bg-gevaar-zacht       { background-color: rgb(var(--kleur-gevaar-zacht)) !important; }
+.bg-waarschuwing-zacht { background-color: rgb(var(--kleur-waarschuwing-zacht)) !important; }
+.bg-info-zacht         { background-color: rgb(var(--kleur-info-zacht)) !important; }
 
-.text-primair          { color: rgb(var(--kleur-primair)); }
-.text-primair-tekst    { color: rgb(var(--kleur-primair-tekst)); }
-.text-tekst            { color: rgb(var(--kleur-tekst)); }
-.text-tekst-zacht      { color: rgb(var(--kleur-tekst-zacht)); }
-.text-succes           { color: rgb(var(--kleur-succes)); }
-.text-gevaar           { color: rgb(var(--kleur-gevaar)); }
-.text-waarschuwing     { color: rgb(var(--kleur-waarschuwing)); }
-.text-info             { color: rgb(var(--kleur-info)); }
-.hover\:text-primair:hover { color: rgb(var(--kleur-primair)); }
+.text-primair          { color: rgb(var(--kleur-primair)) !important; }
+.text-primair-tekst    { color: rgb(var(--kleur-primair-tekst)) !important; }
+.text-tekst            { color: rgb(var(--kleur-tekst)) !important; }
+.text-tekst-zacht      { color: rgb(var(--kleur-tekst-zacht)) !important; }
+.text-succes           { color: rgb(var(--kleur-succes)) !important; }
+.text-gevaar           { color: rgb(var(--kleur-gevaar)) !important; }
+.text-waarschuwing     { color: rgb(var(--kleur-waarschuwing)) !important; }
+.text-info             { color: rgb(var(--kleur-info)) !important; }
+.hover\:text-primair:hover { color: rgb(var(--kleur-primair)) !important; }
 
-.border-rand           { border-color: rgb(var(--kleur-rand)); }
-.border-rand-sterk     { border-color: rgb(var(--kleur-rand-sterk)); }
-.border-primair        { border-color: rgb(var(--kleur-primair)); }
-.border-succes         { border-color: rgb(var(--kleur-succes)); }
-.border-gevaar         { border-color: rgb(var(--kleur-gevaar)); }
-.border-waarschuwing   { border-color: rgb(var(--kleur-waarschuwing)); }
-.border-info           { border-color: rgb(var(--kleur-info)); }
+.border-rand           { border-color: rgb(var(--kleur-rand)) !important; }
+.border-rand-sterk     { border-color: rgb(var(--kleur-rand-sterk)) !important; }
+.border-primair        { border-color: rgb(var(--kleur-primair)) !important; }
+.border-succes         { border-color: rgb(var(--kleur-succes)) !important; }
+.border-gevaar         { border-color: rgb(var(--kleur-gevaar)) !important; }
+.border-waarschuwing   { border-color: rgb(var(--kleur-waarschuwing)) !important; }
+.border-info           { border-color: rgb(var(--kleur-info)) !important; }
 
-.divide-rand > :not([hidden]) ~ :not([hidden]) { border-color: rgb(var(--kleur-rand)); }
+.divide-rand > :not([hidden]) ~ :not([hidden]) { border-color: rgb(var(--kleur-rand)) !important; }
 
 .ring-primair          { --tw-ring-color: rgb(var(--kleur-primair)); }
 .focus\:ring-primair:focus { --tw-ring-color: rgb(var(--kleur-primair)); }
