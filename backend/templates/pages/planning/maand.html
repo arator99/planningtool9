@@ -8,20 +8,34 @@
 <!-- Header -->
 <div class="flex items-center justify-between mb-5">
     <div class="flex items-center gap-4">
-        <a href="/planning?jaar={{ vorige.jaar }}&maand={{ vorige.maand }}"
+        <a href="/planning?jaar={{ vorige.jaar }}&maand={{ vorige.maand }}{% if actief_team_id %}&team_id={{ actief_team_id }}{% endif %}"
            class="p-2 rounded-lg bg-oppervlak border border-rand hover:bg-achtergrond text-tekst-zacht shadow-sm">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
             </svg>
         </a>
         <h1 class="text-xl font-bold text-tekst capitalize">{{ maand_naam }} {{ jaar }}</h1>
-        <a href="/planning?jaar={{ volgende.jaar }}&maand={{ volgende.maand }}"
+        <a href="/planning?jaar={{ volgende.jaar }}&maand={{ volgende.maand }}{% if actief_team_id %}&team_id={{ actief_team_id }}{% endif %}"
            class="p-2 rounded-lg bg-oppervlak border border-rand hover:bg-achtergrond text-tekst-zacht shadow-sm">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
             </svg>
         </a>
     </div>
+
+    {% if teams | length > 1 %}
+    <div class="flex items-center gap-2">
+        <label for="team-filter" class="text-sm text-tekst-zacht whitespace-nowrap">{{ t("planning.filter_team") }}</label>
+        <select id="team-filter"
+                onchange="window.location.href='/planning?jaar={{ jaar }}&maand={{ maand }}&team_id=' + (this.value || '')"
+                class="text-sm bg-oppervlak border border-rand text-tekst rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primair">
+            <option value="" {% if not actief_team_id %}selected{% endif %}>{{ t("planning.alle_teams") }}</option>
+            {% for team in teams %}
+            <option value="{{ team.id }}" {% if actief_team_id == team.id %}selected{% endif %}>{{ team.naam }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    {% endif %}
 
     <div class="flex items-center gap-3">
         <!-- Valideer knop -->

@@ -166,6 +166,8 @@
   "planning.batch_klaar": "Auto-invullen voltooid",
   "planning.geen_kandidaten": "Geen geschikte shiftcodes gevonden",
   "planning.score": "Score",
+  "planning.filter_team": "Filter op team",
+  "planning.alle_teams": "Alle teams",
 
   "gebruiker.titel": "Gebruikers",
   "gebruiker.nieuw": "Nieuwe gebruiker",

@@ -163,6 +163,9 @@
   "instelling.aan": "On",
   "instelling.uit": "Off",
 
+  "planning.filter_team": "Filter by team",
+  "planning.alle_teams": "All teams",
+
   "account.voorkeuren": "Shift preferences",
   "account.voorkeur_vroeg": "Early shift",
   "account.voorkeur_laat": "Late shift",

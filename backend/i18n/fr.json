@@ -163,6 +163,9 @@
   "instelling.aan": "Activé",
   "instelling.uit": "Désactivé",
 
+  "planning.filter_team": "Filtrer par équipe",
+  "planning.alle_teams": "Toutes les équipes",
+
   "account.voorkeuren": "Préférences de shift",
   "account.voorkeur_vroeg": "Shift du matin",
   "account.voorkeur_laat": "Shift du soir",
