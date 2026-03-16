@@ -15,6 +15,8 @@
   "dashboard.rapporten_omschrijving": "Exports and overviews",
   "dashboard.notities_omschrijving": "Messages and notifications",
   "dashboard.instellingen_omschrijving": "Group configuration",
+  "dashboard.locaties_omschrijving": "Locations and regions",
+  "dashboard.hr_nationaal_omschrijving": "National HR rules",
   "dashboard.binnenkort": "Coming soon",
 
   "nav.dashboard": "Dashboard",

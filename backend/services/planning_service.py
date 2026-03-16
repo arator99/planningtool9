@@ -25,30 +25,55 @@ class PlanningService:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def haal_maandgrid(self, team_id: int, jaar: int, maand: int) -> dict:
-        """Bouw maandplanning als grid-structuur voor de template."""
+    def haal_maandgrid(
+        self,
+        primair_team_id: int,
+        jaar: int,
+        maand: int,
+        filter_team_id: Optional[int] = None,
+    ) -> dict:
+        """Bouw maandplanning als grid-structuur voor de template.
+
+        Args:
+            primair_team_id: Het primaire team van de ingelogde gebruiker (voor locatie-context).
+            jaar: Het jaar van het overzicht.
+            maand: De maand van het overzicht (1–12).
+            filter_team_id: Als opgegeven, toon enkel dit team. Anders alle teams van de locatie.
+        """
         _, aantal_dagen = monthrange(jaar, maand)
         datums = [date(jaar, maand, d) for d in range(1, aantal_dagen + 1)]
 
-        locatie_id = self._locatie_van_team(team_id)
+        locatie_id = self._locatie_van_team(primair_team_id)
+
+        # Bepaal welke team-IDs mee in het grid komen
+        if filter_team_id is not None:
+            actieve_team_ids = [filter_team_id]
+        else:
+            teams = (
+                self.db.query(Team)
+                .filter(Team.locatie_id == locatie_id, Team.is_actief == True)
+                .all()
+            )
+            actieve_team_ids = [t.id for t in teams]
 
         gebruikers = (
             self.db.query(Gebruiker)
             .join(GebruikerRol, GebruikerRol.gebruiker_id == Gebruiker.id)
             .filter(
                 GebruikerRol.rol.in_(["teamlid", "planner"]),
-                GebruikerRol.scope_id == team_id,
+                GebruikerRol.scope_id.in_(actieve_team_ids),
                 GebruikerRol.is_actief == True,
                 Gebruiker.is_actief == True,
             )
             .order_by(Gebruiker.volledige_naam)
+            .distinct()
             .all()
         )
 
         shifts_db = (
             self.db.query(Planning)
             .filter(
-                Planning.team_id == team_id,
+                Planning.team_id.in_(actieve_team_ids),
                 Planning.datum >= datums[0],
                 Planning.datum <= datums[-1],
             )
@@ -60,6 +85,7 @@ class PlanningService:
         for gebruiker in gebruikers:
             rij = {
                 "id": gebruiker.id,
+                "uuid": gebruiker.uuid,
                 "naam": gebruiker.volledige_naam or gebruiker.gebruikersnaam,
                 "shifts": {},
             }
@@ -73,18 +99,30 @@ class PlanningService:
 
         vorige, volgende = bereken_navigatie(jaar, maand)
 
+        # is_gepubliceerd: enkel relevant voor het gefilterde team (of primaire team bij geen filter)
+        check_team_id = filter_team_id if filter_team_id is not None else primair_team_id
+
         return {
             "grid": grid,
             "dag_info": bouw_dag_info(datums),
             "jaar": jaar,
             "maand": maand,
             "maand_naam": MAAND_NAMEN[maand],
-            "is_gepubliceerd": self._is_gepubliceerd(team_id, jaar, maand),
+            "is_gepubliceerd": self._is_gepubliceerd(check_team_id, jaar, maand),
             "shiftcodes": self.haal_shiftcodes(locatie_id),
             "shiftcodes_gegroepeerd": self.haal_shiftcodes_gegroepeerd(locatie_id),
             "vorige": vorige,
             "volgende": volgende,
         }
+
+    def haal_teams_voor_locatie(self, locatie_id: int) -> list[Team]:
+        """Geef alle actieve teams voor een locatie, gesorteerd op naam."""
+        return (
+            self.db.query(Team)
+            .filter(Team.locatie_id == locatie_id, Team.is_actief == True)
+            .order_by(Team.naam)
+            .all()
+        )
 
     def haal_shiftcodes(self, locatie_id: int) -> list[Shiftcode]:
         """Geeft alle shiftcodes voor de locatie (inclusief nationale codes), gesorteerd op code."""

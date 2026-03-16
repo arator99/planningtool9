@@ -27,7 +27,8 @@ v0.8 dient als infrastructuurreferentie (Docker, Alembic, JWT-auth).
 - `LocatieService`: haal_alle, maak_aan, bewerk, deactiveer
 - Gebruikerslijst toont rollen als gekleurde badges met scope-code
 - Planner kan verlof indienen namens teamlid (`ingediend_door_id` + verplichte `reden_namens`)
-- Light/dark thema via CSS custom properties (`static/css/theme.css`); voorkeur per gebruiker
+- Light/dark thema via CSS custom properties; voorkeur per gebruiker
+- **CSS build-pipeline**: Tailwind CLI (standalone binary, geen npm/node) genereert `static/css/output.css` tijdens Docker build — geen CDN, geen runtime JS-parser, geen SyntaxError-risico
 - Herbruikbare UI-componenten: `knop.html`, `kaart.html`, `formulier_veld.html`, `badge.html`, `alert.html`
 - Mobile-first responsive design; consumptie-views (dashboard, verlof, notities) op mobile
 - `BaseRepository._locatie_filter()`: automatische tenant-isolatie op alle queries

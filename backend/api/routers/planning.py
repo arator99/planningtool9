@@ -1,7 +1,7 @@
 import logging
 from datetime import date, datetime
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Path, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Path, Query, Request
 from fastapi.responses import HTMLResponse, Response, RedirectResponse
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -39,6 +39,7 @@ def toon_maandplanning(
     request: Request,
     jaar: Optional[int] = None,
     maand: Optional[int] = None,
+    team_id: Optional[int] = Query(None, description="Filter op team-ID; None = alle teams van de locatie"),
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
@@ -47,12 +48,14 @@ def toon_maandplanning(
     jaar = jaar or huidig_jaar
     maand = maand or huidige_maand
 
-    team_id = haal_primaire_team_id(gebruiker.id, db)
-    if not team_id:
+    primair_team_id = haal_primaire_team_id(gebruiker.id, db)
+    if not primair_team_id:
         return RedirectResponse(url="/?fout=geen_team", status_code=303)
 
-    grid_data = PlanningService(db).haal_maandgrid(team_id, jaar, maand)
-    reserves = GebruikerService(db).haal_reserves(team_id)
+    svc = PlanningService(db)
+    grid_data = svc.haal_maandgrid(primair_team_id, jaar, maand, filter_team_id=team_id)
+    teams = svc.haal_teams_voor_locatie(gebruiker.locatie_id) if gebruiker.locatie_id else []
+    reserves = GebruikerService(db).haal_reserves(primair_team_id)
     return sjablonen.TemplateResponse(
         "pages/planning/maand.html",
         _context(
@@ -62,6 +65,8 @@ def toon_maandplanning(
             batch_aantal=request.query_params.get("aantal"),
             fout=request.query_params.get("fout"),
             reserves=reserves,
+            teams=teams,
+            actief_team_id=team_id,
             **grid_data,
         ),
     )

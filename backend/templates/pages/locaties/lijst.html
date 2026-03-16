@@ -4,6 +4,8 @@
 {% block titel %}{{ t("locatie.titel") }} — Planning Tool{% endblock %}
 
 {% block inhoud %}
+{% include "components/desktop_only.html" %}
+<div class="hidden md:block">
 <div class="flex items-center justify-between mb-4">
     <div>
         <h1 class="text-2xl font-bold text-tekst">{{ t("locatie.titel") }}</h1>
@@ -89,4 +91,5 @@
     </div>
     {% endif %}
 </div>
+</div>{# /hidden md:block #}
 {% endblock %}

@@ -12,7 +12,7 @@ Webgebaseerde planningsapp voor een bedrijf met ~10 productielocaties verdeeld o
 - Plannen die taken bevatten gebruiken **Markdown-checkboxes** (`- [ ]` / `- [x]`)
 - **Vink taken af zodra ze afgewerkt zijn** — update `docs/plannen/plan_van_aanpak_v0.9.md` direct na voltooiing, niet achteraf in bulk
 - Gebruik `- [x]` voor volledig afgeronde taken; laat `- [ ]` staan voor deels gedaan of nog te doen
-- Huidige voortgang: **Fase 2 afgerond** (zie plan voor openstaande items)
+- Huidige voortgang: **Fase 4 afgerond** (zie plan voor openstaande items)
 
 ### Documentatieflow
 
@@ -31,11 +31,50 @@ Afgerond           →  docs/archief/       (historiek, niet meer bewerken)
 | Backend | Python 3.12 + FastAPI 0.115 |
 | ORM | SQLAlchemy 2.x + Alembic |
 | Database | PostgreSQL 16 (Docker) |
-| Frontend | HTMX 1.9 + Jinja2 + Tailwind CSS (CDN) |
+| Frontend | HTMX 1.9 + Jinja2 + Tailwind CSS (CLI build, geen CDN) |
 | Auth | JWT httpOnly cookie + TOTP (pyotp) + argon2-cffi |
 | Deploy | Docker Compose op Synology NAS + Cloudflare Tunnel |
 
 **passlib is EOL — nooit meer toevoegen.** Wachtwoord hashing = argon2-cffi.
+
+---
+
+## CSS-systeem
+
+**Één laag, twee lagen diep:**
+
+```
+backend/static/css/input.css     ← CSS variabelen (:root + html.dark) + @tailwind directives
+backend/tailwind.config.js        ← kleurmapping: 'primair' → 'var(--primair)'
+                                  ↓  (Tailwind CLI tijdens Docker build)
+backend/static/css/output.css    ← gegenereerd, niet bewerken, staat in .gitignore
+```
+
+**Dark mode:** uitsluitend via `html.dark` class — overal hetzelfde mechanisme.
+
+**Kleuren:** altijd semantische klassen, nooit hardcoded Tailwind-kleuren.
+```html
+✅  <button class="bg-primair hover:bg-primair-hover text-white">
+✅  <div style="background: var(--achtergrond-widget)">   ← voor niet-Tailwind CSS
+❌  <button class="bg-blue-600 text-white">
+```
+
+**CSS aanpassen:**
+```bash
+# Kleuren wijzigen → backend/static/css/input.css bewerken, dan:
+docker compose build app
+docker compose up -d
+```
+
+**Beschikbare semantische Tailwind-klassen** (zie `tailwind.config.js` voor volledig overzicht):
+`bg-primair`, `bg-primair-hover`, `bg-primair-zacht`, `bg-achtergrond`, `bg-oppervlak`,
+`text-tekst`, `text-tekst-zacht`, `text-succes`, `text-gevaar`, `text-waarschuwing`, `text-info`,
+`border-rand`, `border-rand-sterk`, `bg-succes-zacht`, `bg-gevaar-zacht`, etc.
+
+**Beschikbare CSS variabelen** (ook voor inline `style=`):
+`--primair`, `--achtergrond`, `--achtergrond-widget`, `--tekst`, `--tekst-secundair`,
+`--rand`, `--hover-bg`, `--nav-bg`, `--nav-rand`, `--fout`, `--succes`, `--waarschuwing`, `--info`,
+`--msg-*-bg`, `--hr-*`, `--grid-*` (zie `input.css` voor volledig overzicht)
 
 ---
 

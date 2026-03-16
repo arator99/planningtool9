@@ -4,31 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block titel %}Planning Tool{% endblock %}</title>
+    {# ── Dark mode init — vóór CSS laden om flash te voorkomen ── #}
     <script>
-        tailwind = { config: {
-            darkMode: ['attribute', 'data-theme'],
-            theme: { extend: { colors: {
-                'oppervlak':      'var(--achtergrond-widget)',
-                'achtergrond':    'var(--achtergrond)',
-                'primair':        'var(--primair)',
-                'primair-hover':  'var(--primair-hover)',
-                'tekst':          'var(--tekst)',
-                'tekst-zacht':    'var(--tekst-secundair)',
-                'rand':           'var(--rand)',
-                'succes':         'var(--succes)',
-                'succes-zacht':   'var(--msg-succes-bg)',
-                'gevaar':         'var(--fout)',
-                'gevaar-zacht':   'var(--msg-fout-bg)',
-                'waarschuwing':   'var(--waarschuwing)',
-                'waarschuwing-zacht': 'var(--msg-waarschuwing-bg)',
-                'info':           'var(--info)',
-                'info-zacht':     'var(--msg-info-bg)',
-            }}}
-        };
+        (function () {
+            var opgeslagen = localStorage.getItem('thema') || 'light';
+            if (opgeslagen === 'dark') document.documentElement.classList.add('dark');
+        })();
     </script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-    <style>{{ thema_css | safe }}</style>
+    <link rel="stylesheet" href="/static/css/output.css">
+    <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
     <style>
         body { background-color: var(--achtergrond); color: var(--tekst); }
         nav  { background-color: var(--nav-bg); border-color: var(--nav-rand); }
@@ -42,16 +26,32 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between h-14">
 
-            <!-- Logo + navigatie -->
-            <div class="flex items-center gap-6">
+            <!-- Logo + hamburger (mobiel) + navigatie (desktop) -->
+            <div class="flex items-center gap-3">
+                <!-- Hamburger knop (enkel op mobiel) -->
+                <button id="hamburger-knop"
+                        onclick="wisselMobielmenu()"
+                        class="md:hidden p-1.5 rounded-lg transition-colors"
+                        style="color: var(--tekst-secundair); background: var(--hover-bg);"
+                        aria-label="Menu">
+                    <svg id="hamburger-icoon-open" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                    </svg>
+                    <svg id="hamburger-icoon-sluit" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
                 <span class="text-primair font-bold text-lg tracking-tight">Planning Tool</span>
+
+                <!-- Desktop navigatielinks (verborgen op mobiel) -->
+                <div class="hidden md:flex items-center gap-6">
 
                 <!-- Menu op basis van rol -->
                 <a href="/dashboard" class="text-sm font-medium
                     {% if actief_menu == 'dashboard' %}text-primair{% else %}text-tekst-zacht hover:text-primair{% endif %}">
                     {{ t("nav.dashboard") }}
                 </a>
-                {% if gebruiker.rol in ['beheerder', 'planner'] %}
+                {% if heeft_rol(gebruiker, 'beheerder', 'planner') %}
                 <!-- Planning dropdown (maandgrid + mijn planning) -->
                 <div class="relative" id="planning-wrapper">
                     <button onclick="wisselMenu('planning')"
@@ -124,7 +124,7 @@
                         </a>
                     </div>
                 </div>
-                {% if gebruiker.rol in ['beheerder', 'planner', 'hr'] %}
+                {% if heeft_rol(gebruiker, 'beheerder', 'planner', 'hr') %}
                 <a href="/rapporten" class="text-sm font-medium
                     {% if actief_menu == 'rapporten' %}text-primair{% else %}text-tekst-zacht hover:text-primair{% endif %}">
                     {{ t("nav.rapporten") }}
@@ -140,7 +140,7 @@
                 </a>
 
                 <!-- Instellingen dropdown (shiftcodes, werkposten, HR, app instellingen) -->
-                {% if gebruiker.rol in ['beheerder', 'planner', 'hr'] %}
+                {% if heeft_rol(gebruiker, 'beheerder', 'planner', 'hr') %}
                 <div class="relative" id="instellingen-wrapper">
                     <button onclick="wisselMenu('instellingen')"
                             class="flex items-center gap-0.5 text-sm font-medium transition-colors
@@ -153,7 +153,7 @@
                     <div id="instellingen-menu"
                          class="hidden absolute left-0 mt-2 w-44 rounded-xl shadow-lg border py-1 z-50"
                          style="background: var(--achtergrond-widget); border-color: var(--rand);">
-                        {% if gebruiker.rol in ['beheerder', 'planner'] %}
+                        {% if heeft_rol(gebruiker, 'beheerder', 'planner') %}
                         <a href="/shiftcodes"
                            class="flex items-center px-4 py-2 text-sm transition-colors {% if actief_menu == 'shiftcodes' %}font-semibold{% endif %}"
                            style="color: {% if actief_menu == 'shiftcodes' %}var(--primair){% else %}var(--tekst){% endif %};"
@@ -169,7 +169,7 @@
                             {{ t("nav.werkposten") }}
                         </a>
                         {% endif %}
-                        {% if gebruiker.rol in ['beheerder', 'hr'] %}
+                        {% if heeft_rol(gebruiker, 'beheerder', 'hr') %}
                         <a href="/hr"
                            class="flex items-center px-4 py-2 text-sm transition-colors {% if actief_menu == 'hr' %}font-semibold{% endif %}"
                            style="color: {% if actief_menu == 'hr' %}var(--primair){% else %}var(--tekst){% endif %};"
@@ -178,7 +178,7 @@
                             {{ t("nav.hr") }}
                         </a>
                         {% endif %}
-                        {% if gebruiker.rol == 'beheerder' %}
+                        {% if heeft_rol(gebruiker, 'beheerder', 'super_beheerder') %}
                         <div class="border-t my-1" style="border-color: var(--rand);"></div>
                         <a href="/instellingen"
                            class="flex items-center px-4 py-2 text-sm transition-colors {% if actief_menu == 'instellingen' %}font-semibold{% endif %}"
@@ -193,11 +193,11 @@
                 {% endif %}
 
                 <!-- Beheer dropdown (gebruikers, competenties, logboek) -->
-                {% if gebruiker.rol in ['beheerder', 'planner'] %}
+                {% if heeft_rol(gebruiker, 'beheerder', 'super_beheerder') %}
                 <div class="relative" id="beheer-wrapper">
                     <button onclick="wisselMenu('beheer')"
                             class="flex items-center gap-0.5 text-sm font-medium transition-colors
-                                   {% if actief_menu in ['gebruikers', 'competenties', 'logboek', 'teams'] %}text-primair{% else %}text-tekst-zacht hover:text-primair{% endif %}">
+                                   {% if actief_menu in ['gebruikers', 'competenties', 'logboek', 'teams', 'locaties', 'hr_nationaal'] %}text-primair{% else %}text-tekst-zacht hover:text-primair{% endif %}">
                         {{ t("nav.beheer") }}
                         <svg class="w-3 h-3 opacity-50 mt-px" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
@@ -220,7 +220,7 @@
                            onmouseout="this.style.background='transparent'">
                             {{ t("nav.competenties") }}
                         </a>
-                        {% if gebruiker.rol == 'beheerder' %}
+                        {% if heeft_rol(gebruiker, 'beheerder', 'super_beheerder') %}
                         <div class="border-t my-1" style="border-color: var(--rand);"></div>
                         <a href="/teams"
                            class="flex items-center px-4 py-2 text-sm transition-colors {% if actief_menu == 'teams' %}font-semibold{% endif %}"
@@ -242,7 +242,7 @@
                 {% endif %}
 
                 <!-- Nationaal Beheer dropdown (super_beheerder only) -->
-                {% if gebruiker.rol == 'super_beheerder' %}
+                {% if heeft_rol(gebruiker, 'super_beheerder') %}
                 <div class="relative" id="nationaal-wrapper">
                     <button onclick="wisselMenu('nationaal')"
                             class="flex items-center gap-0.5 text-sm font-medium transition-colors
@@ -272,6 +272,7 @@
                     </div>
                 </div>
                 {% endif %}
+                </div>{# /desktop nav #}
             </div>
 
             <!-- Rechts: dark mode toggle + account dropdown -->
@@ -329,12 +330,14 @@
                             onmouseover="this.style.background='var(--hover-bg)'"
                             onmouseout="this.style.background='transparent'">
                         <span class="font-medium">{{ gebruiker.volledige_naam or gebruiker.gebruikersnaam }}</span>
+                        {% set primaire_rol = gebruiker.rollen | selectattr('is_actief') | map(attribute='rol') | first | default('teamlid') %}
                         <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
-                            {% if gebruiker.rol == 'beheerder' %}bg-purple-100 text-purple-700
-                            {% elif gebruiker.rol == 'planner' %}bg-blue-100 text-blue-700
-                            {% elif gebruiker.rol == 'hr' %}bg-orange-100 text-orange-700
+                            {% if heeft_rol(gebruiker, 'super_beheerder') %}bg-orange-100 text-orange-700
+                            {% elif heeft_rol(gebruiker, 'beheerder') %}bg-purple-100 text-purple-700
+                            {% elif heeft_rol(gebruiker, 'planner') %}bg-blue-100 text-blue-700
+                            {% elif heeft_rol(gebruiker, 'hr') %}bg-green-100 text-green-700
                             {% else %}bg-gray-100 text-gray-600{% endif %}">
-                            {{ t("rol." + gebruiker.rol) }}
+                            {{ t("rol." + primaire_rol) }}
                         </span>
                         <svg class="w-3.5 h-3.5 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
@@ -427,6 +430,97 @@
 
         </div>
     </div>
+
+    <!-- Mobiel navigatiemenu (verborgen op desktop) -->
+    <div id="mobiel-menu"
+         class="hidden md:hidden border-t"
+         style="border-color: var(--rand); background: var(--nav-bg);">
+        <div class="px-4 py-3 flex flex-col gap-0.5">
+            <a href="/dashboard"
+               class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
+               style="color: {% if actief_menu == 'dashboard' %}var(--primair){% else %}var(--tekst){% endif %};"
+               onclick="wisselMobielmenu()">
+                {{ t("nav.dashboard") }}
+            </a>
+            {% if heeft_rol(gebruiker, 'beheerder', 'planner') %}
+            <a href="/planning"
+               class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors"
+               style="color: {% if actief_menu == 'planning' %}var(--primair){% else %}var(--tekst){% endif %};"
+               onclick="wisselMobielmenu()">
+                {{ t("nav.planning") }}
+            </a>
+            {% endif %}
+            <a href="/planning/mijn"
+               class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors"
+               style="color: {% if actief_menu == 'mijn_planning' %}var(--primair){% else %}var(--tekst){% endif %};"
+               onclick="wisselMobielmenu()">
+                {{ t("planning.mijn_planning") }}
+            </a>
+            <a href="/verlof"
+               class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors"
+               style="color: {% if actief_menu in ['verlof', 'verlof_overzicht', 'verlof_saldo'] %}var(--primair){% else %}var(--tekst){% endif %};"
+               onclick="wisselMobielmenu()">
+                {{ t("nav.verlof") }}
+            </a>
+            <a href="/notities"
+               class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors"
+               style="color: {% if actief_menu == 'notities' %}var(--primair){% else %}var(--tekst){% endif %};"
+               onclick="wisselMobielmenu()">
+                {{ t("nav.notities") }}
+            </a>
+            {% if heeft_rol(gebruiker, 'beheerder', 'planner', 'hr') %}
+            <a href="/rapporten"
+               class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors"
+               style="color: {% if actief_menu == 'rapporten' %}var(--primair){% else %}var(--tekst){% endif %};"
+               onclick="wisselMobielmenu()">
+                {{ t("nav.rapporten") }}
+            </a>
+            {% endif %}
+            {% if heeft_rol(gebruiker, 'beheerder', 'planner') %}
+            <div class="border-t my-1.5" style="border-color: var(--rand);"></div>
+            <a href="/shiftcodes"
+               class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors"
+               style="color: {% if actief_menu == 'shiftcodes' %}var(--primair){% else %}var(--tekst){% endif %};"
+               onclick="wisselMobielmenu()">{{ t("nav.shiftcodes") }}</a>
+            <a href="/werkposten"
+               class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors"
+               style="color: {% if actief_menu == 'werkposten' %}var(--primair){% else %}var(--tekst){% endif %};"
+               onclick="wisselMobielmenu()">{{ t("nav.werkposten") }}</a>
+            {% endif %}
+            {% if heeft_rol(gebruiker, 'beheerder', 'hr') %}
+            <a href="/hr"
+               class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors"
+               style="color: {% if actief_menu == 'hr' %}var(--primair){% else %}var(--tekst){% endif %};"
+               onclick="wisselMobielmenu()">{{ t("nav.hr") }}</a>
+            {% endif %}
+            {% if heeft_rol(gebruiker, 'beheerder', 'super_beheerder') %}
+            <div class="border-t my-1.5" style="border-color: var(--rand);"></div>
+            <a href="/beheer/gebruikers"
+               class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors"
+               style="color: {% if actief_menu == 'gebruikers' %}var(--primair){% else %}var(--tekst){% endif %};"
+               onclick="wisselMobielmenu()">{{ t("nav.gebruikers") }}</a>
+            <a href="/teams"
+               class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors"
+               style="color: {% if actief_menu == 'teams' %}var(--primair){% else %}var(--tekst){% endif %};"
+               onclick="wisselMobielmenu()">{{ t("nav.teams") }}</a>
+            <a href="/logboek"
+               class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors"
+               style="color: {% if actief_menu == 'logboek' %}var(--primair){% else %}var(--tekst){% endif %};"
+               onclick="wisselMobielmenu()">{{ t("nav.logboek") }}</a>
+            {% endif %}
+            {% if heeft_rol(gebruiker, 'super_beheerder') %}
+            <div class="border-t my-1.5" style="border-color: var(--rand);"></div>
+            <a href="/beheer/locaties"
+               class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors"
+               style="color: {% if actief_menu == 'locaties' %}var(--primair){% else %}var(--tekst){% endif %};"
+               onclick="wisselMobielmenu()">{{ t("nav.locaties") }}</a>
+            <a href="/beheer/hr-nationaal"
+               class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors"
+               style="color: {% if actief_menu == 'hr_nationaal' %}var(--primair){% else %}var(--tekst){% endif %};"
+               onclick="wisselMobielmenu()">{{ t("nav.hr_nationaal") }}</a>
+            {% endif %}
+        </div>
+    </div>
 </nav>
 
 <!-- Paginainhoud -->
@@ -491,7 +585,6 @@
 (function () {
     const HTML = document.documentElement;
     const opgeslagen = localStorage.getItem('thema') || 'light';
-    if (opgeslagen === 'dark') HTML.setAttribute('data-theme', 'dark');
 
     function bijwerkIcoon(thema) {
         document.getElementById('icoon-donker').classList.toggle('hidden', thema !== 'dark');
@@ -500,10 +593,10 @@
     bijwerkIcoon(opgeslagen);
 
     window.wisselThema = function () {
-        const huidig = HTML.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+        const huidig = HTML.classList.contains('dark') ? 'dark' : 'light';
         const nieuw = huidig === 'dark' ? 'light' : 'dark';
-        if (nieuw === 'dark') HTML.setAttribute('data-theme', 'dark');
-        else HTML.removeAttribute('data-theme');
+        if (nieuw === 'dark') HTML.classList.add('dark');
+        else HTML.classList.remove('dark');
         localStorage.setItem('thema', nieuw);
         bijwerkIcoon(nieuw);
         const form = new FormData();
@@ -512,6 +605,15 @@
         fetch('/account/thema', {method: 'POST', body: form}).catch(() => {});
     };
 })();
+
+window.wisselMobielmenu = function () {
+    const menu = document.getElementById('mobiel-menu');
+    const open = document.getElementById('hamburger-icoon-open');
+    const sluit = document.getElementById('hamburger-icoon-sluit');
+    menu.classList.toggle('hidden');
+    open.classList.toggle('hidden');
+    sluit.classList.toggle('hidden');
+};
 
 const _MENUS = ['account', 'help', 'planning', 'verlof', 'instellingen', 'beheer', 'nationaal'];
 

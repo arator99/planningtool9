@@ -4,6 +4,8 @@
 {% block titel %}Teams beheer — Planning Tool{% endblock %}
 
 {% block inhoud %}
+{% include "components/desktop_only.html" %}
+<div class="hidden md:block">
 <div class="flex items-center justify-between mb-6">
     <h1 class="text-2xl font-bold" style="color: var(--tekst);">{{ t('team.titel') }}</h1>
     <a href="/teams/nieuw"
@@ -77,4 +79,5 @@
         </tbody>
     </table>
 </div>
+</div>{# /hidden md:block #}
 {% endblock %}

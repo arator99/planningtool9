@@ -1085,20 +1085,20 @@ Je kan bestaande bcrypt-hashes niet proactief omzetten zonder de plaintext. Opti
 
 **Referentie:** `code_v07/src/gui/dashboard.py`, `code_v07/src/kern/scherm_registry.py`
 
-- [ ] Menu in `templates/layouts/app.html` per rol:
+- [x] Menu in `templates/layouts/app.html` per rol:
   - `teamlid`: Dashboard, Mijn Planning, Verlof, Notities, Account
   - `planner`: + Planning, Verlof Beheer, Teams, HR, Rapporten
   - `hr`: Planning (read-only), Teams (read-only), Verlof (read-only)
   - `beheerder`: + Gebruikers, Teams, Locatie-instellingen, Logboek, Rechten
   - `super_beheerder`: + Nationaal Beheer (HR defaults, Locaties)
-- [ ] Dashboard per rol:
-  - **Teamlid:** 7-daagse eigen shifts preview, verlof saldo, snelkoppelingen
-  - **Planner:** + verlofaanvragen teller, planner mailbox badge, HR warnings
-  - **HR:** planning overzicht locatie (read-only tiles)
+- [x] Dashboard per rol:
+  - **Teamlid:** 7-daagse eigen shifts preview (komende_shifts), verlof saldo link, snelkoppelingen
+  - **Planner:** + verlofaanvragen teller (pending_verlof badge), HR warnings
+  - **HR:** planning overzicht locatie (read-only tiles via is_behandelaar)
   - **Beheerder:** + logboek, jaar-overdracht trigger, team-overzicht
-  - **Super_beheerder:** + locaties overzicht, nationale HR status
-- [ ] HTMX widgets: badges polling, verlofteller per team
-- [ ] 7-daagse preview component (partieel template)
+  - **Super_beheerder:** + locaties tegel, nationale HR tegel
+- [ ] HTMX widgets: badges polling, verlofteller per team (static tellers nu, polling later)
+- [x] 7-daagse preview component (inline in dashboard via komende_shifts)
 
 **Verificatie:** Menu + dashboard correct per rol
 
@@ -1107,13 +1107,13 @@ Je kan bestaande bcrypt-hashes niet proactief omzetten zonder de plaintext. Opti
 ### Fase 6 — Mobile-first Design (Week 8)
 **Doel:** App bruikbaar op smartphone
 
-- [ ] Navbar: hamburger menu (`sm:hidden` / `hidden sm:flex`)
-- [ ] Dashboard: cards stacked (`grid-cols-1 md:grid-cols-2`)
-- [ ] Planning grid: `overflow-x-auto`, compacte kolombreedte
-- [ ] Mijn Planning: week-weergave op mobile
-- [ ] Verlof formulier: touch-friendly (`py-3 px-4`)
-- [ ] Notities: leesbaar op small screen
-- [ ] Admin schermen: `hidden md:block`
+- [x] Navbar: hamburger menu (`md:hidden` / `hidden md:flex`) — mobiel nav in app.html
+- [x] Dashboard: widgets `grid-cols-1 sm:grid-cols-3`, tegels `grid-cols-2 sm:grid-cols-3 lg:grid-cols-4`
+- [x] Planning grid: `overflow-x-auto` al aanwezig + desktop-only melding toegevoegd
+- [ ] Mijn Planning: week-weergave op mobile (later)
+- [x] Verlof formulier: touch-friendly (`py-3 px-4`), datums `grid-cols-1 sm:grid-cols-2`
+- [ ] Notities: leesbaar op small screen (later)
+- [x] Admin schermen: `hidden md:block` + `components/desktop_only.html` component (gebruikers, teams, locaties, hr_nationaal)
 
 | Feature | Mobile | Desktop |
 |---|---|---|

@@ -36,8 +36,8 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-    volumes:
-      - ./backend/static:/app/static:ro
+    # static/ is gebakken in de image (Tailwind output.css zit daarin)
+    # voor CSS-wijzigingen: docker compose build app
 
 volumes:
   postgres_data:

@@ -4,6 +4,8 @@
 {% block titel %}Nationale HR-regels — Planning Tool{% endblock %}
 
 {% block inhoud %}
+{% include "components/desktop_only.html" %}
+<div class="hidden md:block">
 
 <div class="flex items-center justify-between mb-6">
     <h1 class="text-xl font-bold" style="color: var(--tekst);">Nationale HR-regels</h1>
@@ -104,5 +106,6 @@
     </div>
     {% endif %}
 </div>
+</div>{# /hidden md:block #}
 
 {% endblock %}

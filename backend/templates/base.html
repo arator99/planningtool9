@@ -16,73 +16,8 @@
         })();
     </script>
 
-    {# ── Tailwind config met semantische kleuraliassen ── #}
-    <script>
-        tailwind = {
-            config: {
-                darkMode: 'class',
-                theme: {
-                    extend: {
-                        /* Kleuren worden gedefinieerd in static/css/theme.css als directe CSS klassen.
-                           Tailwind CDN beheert layout, spacing en typografie. */
-                    }
-                }
-            }
-        }
-    </script>
-
-    {# ── Thema CSS — custom properties + semantische kleurklassen ── #}
-    <link rel="stylesheet" href="/static/css/theme.css?v=3">
-
-    {# ── Tailwind CDN ── #}
-    <script src="https://cdn.tailwindcss.com"></script>
-
-    {# ── Semantische kleurklassen inline — wint altijd van Tailwind CDN ── #}
-    <style>
-        .bg-primair            { background-color: #2563eb !important; }
-        .hover\:bg-primair-hover:hover { background-color: #1d4ed8 !important; }
-        .bg-primair-zacht      { background-color: #eff6ff !important; }
-        .bg-achtergrond        { background-color: #f9fafb !important; }
-        .bg-oppervlak          { background-color: #ffffff !important; }
-        .hover\:bg-oppervlak-hover:hover { background-color: #f3f4f6 !important; }
-        .hover\:bg-achtergrond:hover     { background-color: #f9fafb !important; }
-        .bg-succes-zacht       { background-color: #f0fdf4 !important; }
-        .bg-gevaar-zacht       { background-color: #fef2f2 !important; }
-        .bg-waarschuwing-zacht { background-color: #fffbeb !important; }
-        .bg-info-zacht         { background-color: #f0f9ff !important; }
-        .text-primair          { color: #2563eb !important; }
-        .text-tekst            { color: #111827 !important; }
-        .text-tekst-zacht      { color: #6b7280 !important; }
-        .text-succes           { color: #16a34a !important; }
-        .text-gevaar           { color: #dc2626 !important; }
-        .text-waarschuwing     { color: #d97706 !important; }
-        .text-info             { color: #0284c7 !important; }
-        .border-rand           { border-color: #e5e7eb !important; }
-        .border-rand-sterk     { border-color: #d1d5db !important; }
-        .border-primair        { border-color: #2563eb !important; }
-        .divide-rand > :not([hidden]) ~ :not([hidden]) { border-color: #e5e7eb !important; }
-
-        html.dark .bg-primair            { background-color: #3b82f6 !important; }
-        html.dark .hover\:bg-primair-hover:hover { background-color: #60a5fa !important; }
-        html.dark .bg-primair-zacht      { background-color: #1e3a5f !important; }
-        html.dark .bg-achtergrond        { background-color: #111827 !important; }
-        html.dark .bg-oppervlak          { background-color: #1f2937 !important; }
-        html.dark .hover\:bg-oppervlak-hover:hover { background-color: #374151 !important; }
-        html.dark .bg-succes-zacht       { background-color: #052e16 !important; }
-        html.dark .bg-gevaar-zacht       { background-color: #450a0a !important; }
-        html.dark .bg-waarschuwing-zacht { background-color: #451a03 !important; }
-        html.dark .bg-info-zacht         { background-color: #082f49 !important; }
-        html.dark .text-primair          { color: #3b82f6 !important; }
-        html.dark .text-tekst            { color: #f9fafb !important; }
-        html.dark .text-tekst-zacht      { color: #9ca3af !important; }
-        html.dark .text-succes           { color: #22c55e !important; }
-        html.dark .text-gevaar           { color: #ef4444 !important; }
-        html.dark .text-waarschuwing     { color: #f59e0b !important; }
-        html.dark .text-info             { color: #38bdf8 !important; }
-        html.dark .border-rand           { border-color: #374151 !important; }
-        html.dark .border-rand-sterk     { border-color: #4b5563 !important; }
-        html.dark .divide-rand > :not([hidden]) ~ :not([hidden]) { border-color: #374151 !important; }
-    </style>
+    {# ── Statisch gegenereerde CSS (Tailwind CLI + CSS variabelen) ── #}
+    <link rel="stylesheet" href="/static/css/output.css">
 
     {# ── HTMX ── #}
     <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
