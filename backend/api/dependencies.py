@@ -65,16 +65,18 @@ def verifieer_csrf(
         raise HTTPException(status_code=403, detail="Ongeldige of ontbrekende CSRF-token")
 
 
+def _actieve_rollen(gebruiker: Gebruiker) -> set[str]:
+    """Geeft de set van actieve rolnamen van een gebruiker op basis van GebruikerRol."""
+    return {r.rol for r in gebruiker.rollen if r.is_actief}
+
+
 def vereiste_rol(*rollen: str):
     """
     FastAPI dependency factory: controleert of de ingelogde gebruiker
-    een van de opgegeven rollen heeft (denormalized Gebruiker.rol).
-
-    Gebruik voor snelle rol-checks. Voor scopegebonden checks:
-    gebruik heeft_rol_in_team() of heeft_rol_in_locatie().
+    minstens één van de opgegeven rollen heeft (via GebruikerRol).
     """
     def _controleer(gebruiker: Gebruiker = Depends(haal_huidige_gebruiker)) -> Gebruiker:
-        if gebruiker.rol not in rollen:
+        if not _actieve_rollen(gebruiker).intersection(rollen):
             raise HTTPException(status_code=403, detail="Onvoldoende rechten")
         return gebruiker
     return _controleer
@@ -84,7 +86,7 @@ def vereiste_super_beheerder(
     gebruiker: Gebruiker = Depends(haal_huidige_gebruiker),
 ) -> Gebruiker:
     """FastAPI dependency: enkel super_beheerder."""
-    if gebruiker.rol != "super_beheerder":
+    if "super_beheerder" not in _actieve_rollen(gebruiker):
         raise HTTPException(status_code=403, detail="Onvoldoende rechten")
     return gebruiker
 
@@ -93,7 +95,7 @@ def vereiste_beheerder_of_hoger(
     gebruiker: Gebruiker = Depends(haal_huidige_gebruiker),
 ) -> Gebruiker:
     """FastAPI dependency: beheerder of super_beheerder."""
-    if gebruiker.rol not in ("beheerder", "super_beheerder"):
+    if not _actieve_rollen(gebruiker).intersection({"beheerder", "super_beheerder"}):
         raise HTTPException(status_code=403, detail="Onvoldoende rechten")
     return gebruiker
 
@@ -102,7 +104,7 @@ def vereiste_planner_of_hoger(
     gebruiker: Gebruiker = Depends(haal_huidige_gebruiker),
 ) -> Gebruiker:
     """FastAPI dependency: planner, hr, beheerder of super_beheerder."""
-    if gebruiker.rol not in ("planner", "hr", "beheerder", "super_beheerder"):
+    if not _actieve_rollen(gebruiker).intersection({"planner", "hr", "beheerder", "super_beheerder"}):
         raise HTTPException(status_code=403, detail="Onvoldoende rechten")
     return gebruiker
 
@@ -111,7 +113,7 @@ def vereiste_hr_of_hoger(
     gebruiker: Gebruiker = Depends(haal_huidige_gebruiker),
 ) -> Gebruiker:
     """FastAPI dependency: hr, beheerder of super_beheerder."""
-    if gebruiker.rol not in ("hr", "beheerder", "super_beheerder"):
+    if not _actieve_rollen(gebruiker).intersection({"hr", "beheerder", "super_beheerder"}):
         raise HTTPException(status_code=403, detail="Onvoldoende rechten")
     return gebruiker
 

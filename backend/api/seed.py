@@ -54,6 +54,7 @@ def seed_test_data() -> None:
             gehashed_wachtwoord=hash_wachtwoord(seed_wachtwoord),
             volledige_naam="Beheerder",
             locatie_id=locatie.id,
+            rol="beheerder",
             is_actief=True,
             totp_actief=False,
             taal="nl",
