@@ -31,11 +31,11 @@
         }
     </script>
 
-    {# ── Tailwind CDN (laadt NA de config hierboven) ── #}
-    <script src="https://cdn.tailwindcss.com"></script>
+    {# ── Thema CSS — laadt VOOR Tailwind zodat custom properties beschikbaar zijn ── #}
+    <link rel="stylesheet" href="/static/css/theme.css?v=3">
 
-    {# ── Thema CSS (custom properties) ── #}
-    <link rel="stylesheet" href="/static/css/theme.css">
+    {# ── Tailwind CDN ── #}
+    <script src="https://cdn.tailwindcss.com"></script>
 
     {# ── HTMX ── #}
     <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
