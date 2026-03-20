@@ -1,0 +1,98 @@
+{% extends "layouts/app.html" %}
+{% set actief_menu = "rapporten" %}
+
+{% block titel %}{{ t("rapport.uren") }} — Planning Tool{% endblock %}
+
+{% block inhoud %}
+
+<div class="flex items-center justify-between mb-6">
+    <h1 class="text-xl font-bold" style="color: var(--tekst);">{{ t("rapport.uren") }}</h1>
+    <a href="/rapporten"
+       class="text-sm px-3 py-1.5 rounded-lg border"
+       style="border-color: var(--rand); color: var(--tekst-secundair);"
+       onmouseover="this.style.background='var(--hover-bg)'"
+       onmouseout="this.style.background='transparent'">
+        ← {{ t("algemeen.terug") }}
+    </a>
+</div>
+
+<!-- Periode selector -->
+<form method="get" action="/rapporten/uren" class="flex items-center gap-3 mb-6 flex-wrap">
+    <select name="maand"
+            class="text-sm rounded-lg border px-3 py-1.5 outline-none"
+            style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
+        {% for m in range(1, 13) %}
+        <option value="{{ m }}" {% if m == geselecteerd_maand %}selected{% endif %}>
+            {{ maand_namen[m] }}
+        </option>
+        {% endfor %}
+    </select>
+    <select name="jaar"
+            class="text-sm rounded-lg border px-3 py-1.5 outline-none"
+            style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
+        {% for j in jaren %}
+        <option value="{{ j }}" {% if j == geselecteerd_jaar %}selected{% endif %}>{{ j }}</option>
+        {% endfor %}
+    </select>
+    <button type="submit"
+            class="text-sm font-medium px-4 py-1.5 rounded-lg text-white"
+            style="background: var(--primair);"
+            onmouseover="this.style.background='var(--primair-hover)'"
+            onmouseout="this.style.background='var(--primair)'">
+        {{ t("algemeen.tonen") }}
+    </button>
+</form>
+
+<h2 class="text-base font-semibold mb-3" style="color: var(--tekst);">
+    {{ maand_namen[geselecteerd_maand] }} {{ geselecteerd_jaar }}
+</h2>
+
+{% if uren_data %}
+<div class="rounded-xl shadow-sm border overflow-x-auto" style="border-color: var(--rand); background: var(--achtergrond-widget);">
+    <table class="w-full text-sm border-collapse">
+        <thead>
+            <tr style="background: var(--grid-header); border-bottom: 1px solid var(--rand);">
+                <th class="text-left px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">{{ t("rapport.medewerker") }}</th>
+                <th class="text-right px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">{{ t("rapport.shifts") }}</th>
+                <th class="text-right px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">{{ t("rapport.werkdagen") }}</th>
+                <th class="text-right px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">{{ t("rapport.uren_totaal") }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% set totaal_shifts = namespace(val=0) %}
+            {% set totaal_werkdagen = namespace(val=0) %}
+            {% set totaal_uren = namespace(val=0.0) %}
+            {% for rij in uren_data %}
+            {% set totaal_shifts.val = totaal_shifts.val + rij.shifts %}
+            {% set totaal_werkdagen.val = totaal_werkdagen.val + rij.werkdagen %}
+            {% set totaal_uren.val = totaal_uren.val + rij.uren %}
+            <tr class="border-b" style="border-color: var(--rand);">
+                <td class="px-4 py-2.5 font-medium" style="color: var(--tekst);">{{ rij.naam }}</td>
+                <td class="px-4 py-2.5 tabular-nums text-right" style="color: var(--tekst-secundair);">{{ rij.shifts }}</td>
+                <td class="px-4 py-2.5 tabular-nums text-right" style="color: var(--tekst-secundair);">{{ rij.werkdagen }}</td>
+                <td class="px-4 py-2.5 tabular-nums text-right font-medium" style="color: var(--tekst);">
+                    {% if rij.uren > 0 %}{{ "%.1f"|format(rij.uren) }} u{% else %}—{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr style="background: var(--grid-header); border-top: 2px solid var(--rand);">
+                <td class="px-4 py-2.5 font-semibold" style="color: var(--tekst);">{{ t("algemeen.totaal") }}</td>
+                <td class="px-4 py-2.5 tabular-nums text-right font-semibold" style="color: var(--tekst);">{{ totaal_shifts.val }}</td>
+                <td class="px-4 py-2.5 tabular-nums text-right font-semibold" style="color: var(--tekst);">{{ totaal_werkdagen.val }}</td>
+                <td class="px-4 py-2.5 tabular-nums text-right font-semibold" style="color: var(--tekst);">
+                    {% if totaal_uren.val > 0 %}{{ "%.1f"|format(totaal_uren.val) }} u{% else %}—{% endif %}
+                </td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+{% else %}
+<div class="rounded-xl border p-12 text-center"
+     style="border-color: var(--rand); background: var(--achtergrond-widget); color: var(--tekst-secundair);">
+    {{ t("algemeen.geen_resultaten") }}
+</div>
+{% endif %}
+
+{% endblock %}

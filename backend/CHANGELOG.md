@@ -5,6 +5,30 @@ Formaat gebaseerd op [Keep a Changelog](https://keepachangelog.com/nl/1.0.0/).
 
 ---
 
+## [0.9.1] — In ontwikkeling
+
+### Nieuw
+- Locatiebeheer voor super_beheerder: gebruikers toewijzen aan een locatie via het bewerkformulier
+- Locatie context switcher in de navbar: super_beheerder kan via een dropdown wisselen tussen locaties zonder van rol te wisselen; context wordt opgeslagen in een cookie (`locatie_context`)
+- Gebruikersbeheer en teamsbeheer respeiteren de actieve locatiecontext (`haal_actieve_locatie_id` dependency)
+- `scripts/maak_super_beheerder.py`: bootstrap-script om een gebruiker tot super_beheerder te promoveren
+- Aankondigingensysteem: super_beheerder kan systeemberichten aanmaken (gepland onderhoud, updates, ...) die als banner of dialoogbox verschijnen bij alle ingelogde gebruikers; beheerbaar via `/beheer/aankondigingen` in het menu Nationaal Beheer; ondersteuning voor tijdvensters (zichtbaar van/tot), ernstniveaus (info/waarschuwing/kritiek) en direct activeren/deactiveren
+
+### Opgelost
+- Aankondigingenbanner werd niet weergegeven: de HTMX-partial miste de `t()` vertaalfunctie in zijn template-context, waardoor sjabloonteksten niet konden worden opgezocht
+- Activeren/deactiveren van aankondiging gaf internal server error: `zet_actief()` logde nog `obj.titel` na hernoem naar `obj.sjabloon`
+- Formulier "Gebruiker bewerken" werd nooit opgeslagen: geneste `<form>` elementen (teamkoppelingen) verbraken de buitenste form; teamkoppelingen-sectie verplaatst naar buiten `</form>`
+- Super_beheerder kon gebruikersbeheer niet bereiken: routes vereisten `beheerder` of `planner`, niet `super_beheerder`; alle gebruikersbeheer-routes omgezet naar `vereiste_beheerder_of_hoger`
+- Cross-locatie bewerken mislukte: `bewerk()` gebruikte `gebruiker.locatie_id` (NAT) voor de opzoeking, nu `bewerkt.locatie_id`
+- Bij locatieverplaatsing bleef `GebruikerRol.scope_id` van beheerder/hr-rollen wijzen naar de oude locatie; `bewerk()` updatet nu ook de scope van locatie-gebonden rollen mee
+- NAT-locatie ontbrak in de locatie-switcher dropdown: `LocatieService.haal_alle()` sluit NAT bewust uit; switcher queryet nu direct inclusief NAT
+
+### Gewijzigd
+- Rolkeuze in gebruikersformulier: "gebruiker" vervangen door "teamlid" (correct rolnaam)
+- Hardcoded Tailwind-kleurcodes (`text-blue-600`, `focus:ring-blue-500`) in gebruikersformulier vervangen door semantische klassen
+
+---
+
 ## [0.9.0] — In ontwikkeling
 
 ### Strategie
@@ -38,6 +62,18 @@ v0.8 dient als infrastructuurreferentie (Docker, Alembic, JWT-auth).
 - Vaste systeemlocatie `Locatie(code='NAT', naam='Nationaal')` — aangemaakt bij init, nooit verwijderbaar
 - Keyboard-navigatie planninggrid: pijltoetsen, Enter/Escape, Ctrl+C/V, Ctrl+Shift+V (smart copy), Delete
 - Optimistic UI voor celbewerking: visuele update direct, servervalidatie op achtergrond
+- Typetabellen beheer: configureerbare shift-roostertemplates per locatie (CRUD + grid editor + activeren)
+- ADV-toekenningen: dag-van-week patronen per medewerker met optioneel einddatum
+- `SchermRecht` model: hybrid access control — DB-overrides per (route, rol, locatie) overschrijven hardcoded defaults
+- Schermrechten-matrix UI (`/beheer/rechten`): toggle per rol per route, reset naar standaard
+- Logboek filteerbaar op datum-range, gebruiker en actie (HTMX, geen page reload)
+- Urenrapport (`/rapporten/uren`): shifts × shift-duur per medewerker per maand
+- Verlof maandgrid (`/rapporten/verlof-maandgrid`): per-dag capaciteitsrij (groen/amber/rood)
+- PWA: Service Worker (cache-first statisch, network-first navigatie, network-only API) + Web App Manifest
+- Offline fallback pagina (`/offline`) — geen auth vereist, standalone HTML
+- i18n volledigheidscheck: nl/fr/en nu volledig synchroon (alle sleutels aanwezig in alle taalbestanden)
+- `migreer_sqlite.py` uitgebreid: Gebruikers + GebruikerRol, Planning, VerlofAanvraag + VerlofTeamStatus, VerlofSaldo, Notities
+- `scripts/bcrypt_audit.py`: hulpscript voor post-go-live controle van resterende bcrypt-hashes
 
 ### Gewijzigd
 - `Groep` hernoemd naar `Team` overal (code, DB, templates, i18n, routes)

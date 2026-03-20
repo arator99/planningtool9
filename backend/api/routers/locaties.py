@@ -1,6 +1,7 @@
 """Locaties router — beheer van productielocaties (super_beheerder only)."""
 import logging
 from typing import Optional
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -10,6 +11,7 @@ from i18n import maak_vertaler
 from api.dependencies import haal_db, vereiste_super_beheerder, haal_csrf_token, verifieer_csrf
 from api.sjablonen import sjablonen
 from models.gebruiker import Gebruiker
+from models.locatie import Locatie
 from services.locatie_service import LocatieService
 
 logger = logging.getLogger(__name__)
@@ -94,6 +96,58 @@ def verwerk_aanmaken(
     return RedirectResponse(
         url=f"/beheer/locaties?melding={naam}+aangemaakt", status_code=303
     )
+
+
+# ------------------------------------------------------------------ #
+# Locatie context switcher (super_beheerder)                           #
+# ------------------------------------------------------------------ #
+
+@router.get("/switcher", response_class=HTMLResponse)
+def locatie_switcher_partial(
+    request: Request,
+    gebruiker: Gebruiker = Depends(vereiste_super_beheerder),
+    db: Session = Depends(haal_db),
+    csrf_token: str = Depends(haal_csrf_token),
+):
+    """HTML-partial voor de locatie-switcher in de navbar (geladen via HTMX)."""
+    locaties = db.query(Locatie).filter(Locatie.is_actief == True).order_by(Locatie.naam).all()
+    cookie_val = request.cookies.get("locatie_context")
+    try:
+        actieve_id = int(cookie_val) if cookie_val else gebruiker.locatie_id
+    except (ValueError, TypeError):
+        actieve_id = gebruiker.locatie_id
+    return sjablonen.TemplateResponse(
+        "components/locatie_switcher.html",
+        _context(request, gebruiker,
+                 locaties=locaties,
+                 actieve_locatie_id=actieve_id,
+                 csrf_token=csrf_token),
+    )
+
+
+@router.post("/wissel")
+def wissel_locatie_context(
+    request: Request,
+    locatie_id: int = Form(...),
+    gebruiker: Gebruiker = Depends(vereiste_super_beheerder),
+    db: Session = Depends(haal_db),
+    _csrf: None = Depends(verifieer_csrf),
+):
+    """Sla de actieve locatiecontext op in een cookie en reload de huidige pagina."""
+    loc = db.query(Locatie).filter(Locatie.id == locatie_id, Locatie.is_actief == True).first()
+    if not loc:
+        return RedirectResponse(url="/dashboard?fout=Locatie+niet+gevonden", status_code=303)
+    referer = request.headers.get("referer", "/dashboard")
+    terug_pad = urlparse(referer).path or "/dashboard"
+    response = RedirectResponse(url=terug_pad, status_code=303)
+    response.set_cookie(
+        key="locatie_context",
+        value=str(locatie_id),
+        httponly=True,
+        samesite="lax",
+        max_age=86400 * 7,
+    )
+    return response
 
 
 # ------------------------------------------------------------------ #

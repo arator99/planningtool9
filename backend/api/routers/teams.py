@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
-from api.dependencies import haal_csrf_token, haal_db, verifieer_csrf, vereiste_rol
+from api.dependencies import haal_csrf_token, haal_db, verifieer_csrf, vereiste_rol, haal_actieve_locatie_id, vereiste_beheerder_of_hoger
 from api.sjablonen import sjablonen
 from i18n import maak_vertaler
 from models.gebruiker import Gebruiker
@@ -31,11 +31,12 @@ def _context(request: Request, gebruiker: Gebruiker, **extra) -> dict:
 @router.get("", response_class=HTMLResponse)
 def lijst(
     request: Request,
-    gebruiker: Gebruiker = Depends(vereiste_rol("beheerder")),
+    gebruiker: Gebruiker = Depends(vereiste_beheerder_of_hoger),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
 ):
-    teams = TeamService(db).haal_alle(gebruiker.locatie_id)
+    teams = TeamService(db).haal_alle(actieve_locatie_id)
     return sjablonen.TemplateResponse(
         "pages/teams/lijst.html",
         _context(request, gebruiker, teams=teams,

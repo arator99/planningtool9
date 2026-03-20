@@ -15,6 +15,10 @@ from models.competentie import Competentie, GebruikerCompetentie  # noqa: F401
 from models.audit_log import AuditLog  # noqa: F401
 from models.notificatie import Notificatie  # noqa: F401
 from models.instelling import AppInstelling  # noqa: F401
+from models.typetabel import Typetabel, TypetabelEntry  # noqa: F401
+from models.adv import AdvToekenning  # noqa: F401
+from models.scherm_recht import SchermRecht  # noqa: F401
+from models.aankondiging import Aankondiging  # noqa: F401
 
 __all__ = [
     "Locatie",
@@ -31,4 +35,8 @@ __all__ = [
     "AuditLog",
     "Notificatie",
     "AppInstelling",
+    "Typetabel", "TypetabelEntry",
+    "AdvToekenning",
+    "SchermRecht",
+    "Aankondiging",
 ]

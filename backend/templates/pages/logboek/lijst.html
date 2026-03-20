@@ -10,26 +10,70 @@
     <span class="text-sm" style="color: var(--tekst-secundair);">{{ totaal }} entr{{ 'ies' if totaal != 1 else 'y' }}</span>
 </div>
 
-<!-- Filter -->
-<div class="flex items-center gap-3 mb-6 p-4 rounded-xl border"
-     style="border-color: var(--rand); background: var(--achtergrond-widget);">
-    <form method="get" action="/logboek" class="flex items-center gap-3 flex-wrap">
-        <label class="text-sm font-medium" style="color: var(--tekst);">{{ t("logboek.filter_actie") }}</label>
-        <select name="actie"
-                class="text-sm rounded-lg border px-3 py-1.5 outline-none"
-                style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
-            <option value="">{{ t("logboek.alle_acties") }}</option>
-            {% for a in bekende_acties %}
-            <option value="{{ a }}" {% if a == actie_filter %}selected{% endif %}>{{ a }}</option>
-            {% endfor %}
-        </select>
+<!-- Filters -->
+<div class="mb-6 p-4 rounded-xl border" style="border-color: var(--rand); background: var(--achtergrond-widget);">
+    <form method="get" action="/logboek" class="flex flex-wrap items-end gap-3">
+
+        <div class="flex flex-col gap-1">
+            <label class="text-xs font-medium" style="color: var(--tekst-secundair);">{{ t("logboek.filter_actie") }}</label>
+            <select name="actie"
+                    class="text-sm rounded-lg border px-3 py-1.5 outline-none"
+                    style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
+                <option value="">{{ t("logboek.alle_acties") }}</option>
+                {% for a in bekende_acties %}
+                <option value="{{ a }}" {% if a == actie_filter %}selected{% endif %}>{{ a }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="flex flex-col gap-1">
+            <label class="text-xs font-medium" style="color: var(--tekst-secundair);">{{ t("logboek.filter_datum_van") }}</label>
+            <input type="date" name="van_datum"
+                   value="{{ van_datum_filter.isoformat() if van_datum_filter else '' }}"
+                   class="text-sm rounded-lg border px-3 py-1.5 outline-none"
+                   style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
+        </div>
+
+        <div class="flex flex-col gap-1">
+            <label class="text-xs font-medium" style="color: var(--tekst-secundair);">{{ t("logboek.filter_datum_tot") }}</label>
+            <input type="date" name="tot_datum"
+                   value="{{ tot_datum_filter.isoformat() if tot_datum_filter else '' }}"
+                   class="text-sm rounded-lg border px-3 py-1.5 outline-none"
+                   style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
+        </div>
+
+        <div class="flex flex-col gap-1">
+            <label class="text-xs font-medium" style="color: var(--tekst-secundair);">{{ t("logboek.filter_gebruiker") }}</label>
+            <select name="filter_gebruiker_id"
+                    class="text-sm rounded-lg border px-3 py-1.5 outline-none"
+                    style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
+                <option value="">{{ t("logboek.alle_gebruikers") }}</option>
+                {% for m in alle_medewerkers %}
+                <option value="{{ m.id }}" {% if m.id == filter_gebruiker_id %}selected{% endif %}>
+                    {{ m.volledige_naam or m.gebruikersnaam }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
         <button type="submit"
-                class="text-sm font-medium px-4 py-1.5 rounded-lg text-white"
+                class="text-sm font-medium px-4 py-1.5 rounded-lg text-white self-end"
                 style="background: var(--primair);"
                 onmouseover="this.style.background='var(--primair-hover)'"
                 onmouseout="this.style.background='var(--primair)'">
             {{ t("algemeen.tonen") }}
         </button>
+
+        {% if actie_filter or van_datum_filter or tot_datum_filter or filter_gebruiker_id %}
+        <a href="/logboek"
+           class="text-sm px-4 py-1.5 rounded-lg border self-end"
+           style="border-color: var(--rand); color: var(--tekst-secundair);"
+           onmouseover="this.style.background='var(--hover-bg)'"
+           onmouseout="this.style.background='transparent'">
+            {{ t("algemeen.wissen") }}
+        </a>
+        {% endif %}
+
     </form>
 </div>
 
@@ -77,20 +121,26 @@
 
 <!-- Paginering -->
 {% if totaal_paginas > 1 %}
+{% set pagina_params = "" %}
+{% if actie_filter %}{% set pagina_params = pagina_params + "&actie=" + actie_filter %}{% endif %}
+{% if van_datum_filter %}{% set pagina_params = pagina_params + "&van_datum=" + van_datum_filter.isoformat() %}{% endif %}
+{% if tot_datum_filter %}{% set pagina_params = pagina_params + "&tot_datum=" + tot_datum_filter.isoformat() %}{% endif %}
+{% if filter_gebruiker_id %}{% set pagina_params = pagina_params + "&filter_gebruiker_id=" + filter_gebruiker_id|string %}{% endif %}
+
 <div class="flex items-center justify-between mt-4">
     <span class="text-sm" style="color: var(--tekst-secundair);">
         Pagina {{ huidige_pagina }} van {{ totaal_paginas }}
     </span>
     <div class="flex gap-2">
         {% if huidige_pagina > 1 %}
-        <a href="?pagina={{ huidige_pagina - 1 }}{% if actie_filter %}&actie={{ actie_filter }}{% endif %}"
+        <a href="?pagina={{ huidige_pagina - 1 }}{{ pagina_params }}"
            class="text-sm px-3 py-1.5 rounded-lg border transition-colors"
            style="border-color: var(--rand); color: var(--tekst-secundair);">
             {{ t("algemeen.vorige") }}
         </a>
         {% endif %}
         {% if huidige_pagina < totaal_paginas %}
-        <a href="?pagina={{ huidige_pagina + 1 }}{% if actie_filter %}&actie={{ actie_filter }}{% endif %}"
+        <a href="?pagina={{ huidige_pagina + 1 }}{{ pagina_params }}"
            class="text-sm px-3 py-1.5 rounded-lg border transition-colors"
            style="border-color: var(--rand); color: var(--tekst-secundair);">
             {{ t("algemeen.volgende") }}

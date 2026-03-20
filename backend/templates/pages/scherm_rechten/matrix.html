@@ -1,0 +1,97 @@
+{% extends "layouts/app.html" %}
+{% set actief_menu = "rechten" %}
+
+{% block titel %}{{ t("recht.titel") }} — Planning Tool{% endblock %}
+
+{% block inhoud %}
+
+<div class="flex items-center justify-between mb-6">
+    <h1 class="text-xl font-bold" style="color: var(--tekst);">{{ t("recht.titel") }}</h1>
+    <p class="text-sm" style="color: var(--tekst-secundair);">{{ t("recht.uitleg") }}</p>
+</div>
+
+{% if bericht == "reset_klaar" %}
+<div class="mb-4 px-4 py-3 rounded-lg text-sm" style="background: var(--succes-zacht); color: var(--succes);">
+    {{ t("recht.reset_klaar") }}
+</div>
+{% endif %}
+{% if fout %}
+<div class="mb-4 px-4 py-3 rounded-lg text-sm" style="background: var(--gevaar-zacht); color: var(--gevaar);">
+    {{ fout }}
+</div>
+{% endif %}
+
+<div class="rounded-xl shadow-sm border overflow-x-auto" style="border-color: var(--rand); background: var(--achtergrond-widget);">
+    <table class="w-full text-sm border-collapse">
+        <thead>
+            <tr style="background: var(--grid-header); border-bottom: 1px solid var(--rand);">
+                <th class="text-left px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">{{ t("recht.route") }}</th>
+                {% for rol in alle_rollen %}
+                <th class="text-center px-3 py-2.5 font-medium whitespace-nowrap" style="color: var(--tekst-secundair);">
+                    {{ t("rol." + rol) }}
+                </th>
+                {% endfor %}
+                <th class="text-center px-3 py-2.5 font-medium" style="color: var(--tekst-secundair);">{{ t("recht.herstel") }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for route, rollen_data in matrix.items() %}
+            {% set label = scherm_defaults[route][0] %}
+            <tr class="border-b" style="border-color: var(--rand);">
+                <td class="px-4 py-2.5">
+                    <span class="font-medium text-sm" style="color: var(--tekst);">{{ label }}</span>
+                    <span class="block font-mono text-xs" style="color: var(--tekst-secundair);">{{ route }}</span>
+                </td>
+                {% for rol in alle_rollen %}
+                {% set toegestaan, is_default = rollen_data[rol] %}
+                <td class="text-center px-3 py-2.5">
+                    <form method="post" action="/beheer/rechten/toggle" style="display:inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <input type="hidden" name="route_naam" value="{{ route }}">
+                        <input type="hidden" name="rol" value="{{ rol }}">
+                        <input type="hidden" name="toegestaan" value="{{ 'false' if toegestaan else 'true' }}">
+                        <button type="submit"
+                                class="w-8 h-8 rounded-lg border transition-colors flex items-center justify-center mx-auto"
+                                style="{% if toegestaan %}background: var(--succes-zacht); border-color: var(--succes); color: var(--succes);{% else %}background: var(--gevaar-zacht); border-color: var(--gevaar); color: var(--gevaar);{% endif %}"
+                                title="{{ 'Klik om te blokkeren' if toegestaan else 'Klik om toe te staan' }}{% if not is_default %} (override actief){% endif %}">
+                            {% if toegestaan %}
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            {% else %}
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                            {% endif %}
+                        </button>
+                        {% if not is_default %}
+                        <span class="block text-xs mt-0.5" style="color: var(--waarschuwing);">●</span>
+                        {% endif %}
+                    </form>
+                </td>
+                {% endfor %}
+                <td class="text-center px-3 py-2.5">
+                    <form method="post" action="/beheer/rechten/reset" style="display:inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <input type="hidden" name="route_naam" value="{{ route }}">
+                        <button type="submit"
+                                class="text-xs px-2 py-1 rounded border transition-colors"
+                                style="border-color: var(--rand); color: var(--tekst-secundair);"
+                                onmouseover="this.style.background='var(--hover-bg)'"
+                                onmouseout="this.style.background='transparent'"
+                                onclick="return confirm('{{ t('recht.reset_bevestig') }}')">
+                            {{ t("recht.herstel") }}
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<p class="mt-4 text-xs" style="color: var(--tekst-secundair);">
+    <span style="color: var(--waarschuwing);">●</span> {{ t("recht.override_actief") }}
+</p>
+
+{% endblock %}

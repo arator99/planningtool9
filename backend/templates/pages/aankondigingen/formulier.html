@@ -1,0 +1,157 @@
+{% extends "layouts/app.html" %}
+{% set actief_menu = "aankondigingen" %}
+
+{% block titel %}
+{% if bewerk_modus %}{{ t("aankondiging.bewerken") }}{% else %}{{ t("aankondiging.nieuw") }}{% endif %}
+ — Planning Tool
+{% endblock %}
+
+{% block inhoud %}
+{% include "components/desktop_only.html" %}
+<div class="hidden md:block max-w-2xl">
+
+<div class="mb-4">
+    <a href="/beheer/aankondigingen"
+       class="inline-flex items-center gap-1 text-sm text-primair hover:text-primair-hover">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+        </svg>
+        {{ t("aankondiging.titel") }}
+    </a>
+    <h1 class="text-2xl font-bold text-tekst mt-2">
+        {% if bewerk_modus %}{{ t("aankondiging.bewerken") }}{% else %}{{ t("aankondiging.nieuw") }}{% endif %}
+    </h1>
+</div>
+
+{% if fout %}
+<div class="mb-4 px-4 py-3 rounded-lg text-sm bg-gevaar-zacht border"
+     style="border-color: var(--gevaar); color: var(--gevaar);">
+    {{ fout }}
+</div>
+{% endif %}
+
+<form method="post" class="bg-oppervlak rounded-xl shadow-sm border border-rand p-6 flex flex-col gap-5">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+    {# Sjabloon dropdown #}
+    <div>
+        <label for="sjabloon" class="block text-sm font-medium text-tekst mb-1">
+            {{ t("aankondiging.veld_sjabloon") }} <span class="text-gevaar">*</span>
+        </label>
+        <select id="sjabloon" name="sjabloon"
+                class="w-full border border-rand rounded-lg px-3 py-2 text-sm bg-oppervlak text-tekst
+                       focus:outline-none focus:ring-2 focus:ring-primair">
+            {% set huidig_sjabloon = invoer.get('sjabloon', aankondiging.sjabloon if aankondiging else 'onderhoud_gepland') %}
+            {% for s in sjablonen_lijst %}
+            <option value="{{ s }}" {% if s == huidig_sjabloon %}selected{% endif %}>
+                {{ t("aankondiging.sjabloon." + s + ".titel") }}
+            </option>
+            {% endfor %}
+        </select>
+        <p class="mt-1 text-xs text-tekst-zacht">{{ t("aankondiging.sjabloon_uitleg") }}</p>
+    </div>
+
+    {# Extra info (optioneel vrij veld) #}
+    <div>
+        <label for="extra_info" class="block text-sm font-medium text-tekst mb-1">
+            {{ t("aankondiging.veld_extra_info") }}
+            <span class="text-xs font-normal text-tekst-zacht ml-1">({{ t("algemeen.optioneel") }})</span>
+        </label>
+        <input type="text" id="extra_info" name="extra_info" maxlength="300"
+               value="{{ invoer.get('extra_info', aankondiging.extra_info if aankondiging and aankondiging.extra_info else '') }}"
+               placeholder="{{ t('aankondiging.extra_info_placeholder') }}"
+               class="w-full border border-rand rounded-lg px-3 py-2 text-sm bg-oppervlak text-tekst
+                      focus:outline-none focus:ring-2 focus:ring-primair">
+        <p class="mt-1 text-xs text-tekst-zacht">{{ t("aankondiging.extra_info_uitleg") }}</p>
+    </div>
+
+    {# Ernst + Type naast elkaar #}
+    <div class="grid grid-cols-2 gap-4">
+        <div>
+            <label for="ernst" class="block text-sm font-medium text-tekst mb-1">
+                {{ t("aankondiging.veld_ernst") }}
+            </label>
+            <select id="ernst" name="ernst"
+                    class="w-full border border-rand rounded-lg px-3 py-2 text-sm bg-oppervlak text-tekst
+                           focus:outline-none focus:ring-2 focus:ring-primair">
+                {% set huidig_ernst = invoer.get('ernst', aankondiging.ernst if aankondiging else 'info') %}
+                <option value="info" {% if huidig_ernst == 'info' %}selected{% endif %}>
+                    {{ t("aankondiging.ernst_info") }}
+                </option>
+                <option value="waarschuwing" {% if huidig_ernst == 'waarschuwing' %}selected{% endif %}>
+                    {{ t("aankondiging.ernst_waarschuwing") }}
+                </option>
+                <option value="kritiek" {% if huidig_ernst == 'kritiek' %}selected{% endif %}>
+                    {{ t("aankondiging.ernst_kritiek") }}
+                </option>
+            </select>
+        </div>
+        <div>
+            <label for="type" class="block text-sm font-medium text-tekst mb-1">
+                {{ t("aankondiging.veld_type") }}
+            </label>
+            <select id="type" name="type"
+                    class="w-full border border-rand rounded-lg px-3 py-2 text-sm bg-oppervlak text-tekst
+                           focus:outline-none focus:ring-2 focus:ring-primair">
+                {% set huidig_type = invoer.get('type', aankondiging.type if aankondiging else 'banner') %}
+                <option value="banner" {% if huidig_type == 'banner' %}selected{% endif %}>
+                    {{ t("aankondiging.type_banner") }}
+                </option>
+                <option value="dialoog" {% if huidig_type == 'dialoog' %}selected{% endif %}>
+                    {{ t("aankondiging.type_dialoog") }}
+                </option>
+            </select>
+        </div>
+    </div>
+
+    {# Tijdvenster #}
+    <div>
+        <p class="text-sm font-medium text-tekst mb-2">{{ t("aankondiging.veld_tijdvenster") }}</p>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label for="gepland_van" class="block text-xs text-tekst-zacht mb-1">
+                    {{ t("aankondiging.veld_van") }}
+                </label>
+                <input type="datetime-local" id="gepland_van" name="gepland_van"
+                       value="{{ invoer.get('gepland_van', aankondiging.gepland_van.strftime('%Y-%m-%dT%H:%M') if aankondiging and aankondiging.gepland_van else '') }}"
+                       class="w-full border border-rand rounded-lg px-3 py-2 text-sm bg-oppervlak text-tekst
+                              focus:outline-none focus:ring-2 focus:ring-primair">
+            </div>
+            <div>
+                <label for="gepland_tot" class="block text-xs text-tekst-zacht mb-1">
+                    {{ t("aankondiging.veld_tot") }}
+                </label>
+                <input type="datetime-local" id="gepland_tot" name="gepland_tot"
+                       value="{{ invoer.get('gepland_tot', aankondiging.gepland_tot.strftime('%Y-%m-%dT%H:%M') if aankondiging and aankondiging.gepland_tot else '') }}"
+                       class="w-full border border-rand rounded-lg px-3 py-2 text-sm bg-oppervlak text-tekst
+                              focus:outline-none focus:ring-2 focus:ring-primair">
+            </div>
+        </div>
+        <p class="mt-1 text-xs text-tekst-zacht">{{ t("aankondiging.venster_uitleg") }}</p>
+    </div>
+
+    {# Is actief checkbox #}
+    <div>
+        <label class="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" name="is_actief" value="1"
+                   {% if bewerk_modus and aankondiging and aankondiging.is_actief %}checked{% endif %}
+                   class="w-4 h-4 rounded accent-primair">
+            <span class="text-sm font-medium text-tekst">{{ t("aankondiging.direct_actief") }}</span>
+        </label>
+        <p class="ml-7 mt-0.5 text-xs text-tekst-zacht">{{ t("aankondiging.direct_actief_uitleg") }}</p>
+    </div>
+
+    {# Knoppen #}
+    <div class="flex items-center justify-between pt-2 border-t border-rand">
+        <a href="/beheer/aankondigingen"
+           class="px-4 py-2 text-sm rounded-lg transition-colors text-tekst-zacht hover:bg-achtergrond">
+            {{ t("algemeen.annuleer") }}
+        </a>
+        <button type="submit"
+                class="px-5 py-2 text-sm font-medium rounded-lg bg-primair text-white hover:bg-primair-hover transition-colors">
+            {{ t("algemeen.opslaan") }}
+        </button>
+    </div>
+</form>
+</div>{# /hidden md:block #}
+{% endblock %}

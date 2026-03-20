@@ -5,21 +5,21 @@
 
 {% block inhoud %}
 
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
     <h1 class="text-xl font-bold" style="color: var(--tekst);">{{ t("nav.notities") }}</h1>
     <div class="flex items-center gap-2">
         {% if persoonlijk | selectattr('is_gelezen', 'equalto', false) | list %}
         <form method="post" action="/notities/alles-gelezen" class="inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button type="submit"
-                    class="text-sm px-3 py-1.5 rounded-lg border transition-colors"
+                    class="text-sm px-3 py-2 rounded-lg border transition-colors"
                     style="border-color: var(--rand); color: var(--tekst-secundair);">
                 {{ t("notitie.markeer_gelezen") }}
             </button>
         </form>
         {% endif %}
         <button type="button" onclick="toonNieuwDialog()"
-                class="text-sm font-medium text-white px-4 py-1.5 rounded-lg transition-colors"
+                class="flex-1 sm:flex-none text-sm font-medium text-white px-4 py-2 rounded-lg transition-colors text-center"
                 style="background: var(--primair);"
                 onmouseover="this.style.background='var(--primair-hover)'"
                 onmouseout="this.style.background='var(--primair)'">
@@ -40,7 +40,7 @@
 {% endif %}
 
 <!-- Tabs -->
-<div class="flex items-center gap-1 mb-4 border-b overflow-x-auto" style="border-color: var(--rand);">
+<div class="flex items-center gap-1 mb-4 border-b overflow-x-auto scrollbar-hide" style="border-color: var(--rand);">
     {# Tab: Persoonlijk #}
     <button onclick="wisselTab('persoonlijk')"
             id="tab-persoonlijk"
@@ -269,16 +269,25 @@
 </div>
 
 <!-- Nieuw bericht dialog -->
-<div id="nieuw-dialog" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40">
-    <div class="rounded-xl shadow-xl p-6 w-full max-w-lg" style="background: var(--achtergrond-widget);">
-        <h2 class="text-base font-semibold mb-4" style="color: var(--tekst);">{{ t("notitie.nieuw") }}</h2>
+<div id="nieuw-dialog" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
+    <div class="rounded-xl shadow-xl p-5 w-full max-w-lg max-h-[90vh] overflow-y-auto" style="background: var(--achtergrond-widget);">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-base font-semibold" style="color: var(--tekst);">{{ t("notitie.nieuw") }}</h2>
+            <button type="button" onclick="sluitNieuwDialog()"
+                    class="p-1.5 rounded-lg transition-colors"
+                    style="color: var(--tekst-secundair); background: var(--hover-bg);">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
         <form method="post" action="/notities/stuur">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <div class="space-y-3">
+            <div class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium mb-1" style="color: var(--tekst);">{{ t("notitie.naar_type") }}</label>
                     <select id="naar-type-select" name="naar_type" onchange="wisselNaarType(this.value)"
-                            class="w-full text-sm rounded-lg border px-3 py-2 outline-none"
+                            class="w-full text-sm rounded-lg border px-4 py-3 outline-none"
                             style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
                         <option value="gebruiker">{{ t("nav.gebruikers") }}</option>
                         {% for optie in stuur_opties %}
@@ -295,7 +304,7 @@
                 <div id="gebruiker-selectie">
                     <label class="block text-sm font-medium mb-1" style="color: var(--tekst);">{{ t("notitie.aan") }}</label>
                     <select name="naar_gebruiker_id"
-                            class="w-full text-sm rounded-lg border px-3 py-2 outline-none"
+                            class="w-full text-sm rounded-lg border px-4 py-3 outline-none"
                             style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
                         <option value="">— {{ t("notitie.aan") }} —</option>
                         {% for m in medewerkers %}
@@ -311,7 +320,7 @@
                 <div>
                     <label class="block text-sm font-medium mb-1" style="color: var(--tekst);">{{ t("notitie.prioriteit") }}</label>
                     <select name="prioriteit"
-                            class="w-full text-sm rounded-lg border px-3 py-2 outline-none"
+                            class="w-full text-sm rounded-lg border px-4 py-3 outline-none"
                             style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);">
                         {% for p in prioriteiten %}
                         <option value="{{ p }}" {% if p == 'normaal' %}selected{% endif %}>{{ p | capitalize }}</option>
@@ -321,19 +330,19 @@
                 <div>
                     <label class="block text-sm font-medium mb-1" style="color: var(--tekst);">{{ t("notitie.bericht") }}</label>
                     <textarea name="bericht" rows="4" required
-                              class="w-full text-sm rounded-lg border px-3 py-2 outline-none resize-none"
+                              class="w-full text-sm rounded-lg border px-4 py-3 outline-none resize-none"
                               style="border-color: var(--rand); background: var(--achtergrond-alt); color: var(--tekst);"
                               placeholder="..."></textarea>
                 </div>
             </div>
-            <div class="flex justify-end gap-2 mt-4">
+            <div class="flex gap-2 mt-5">
                 <button type="button" onclick="sluitNieuwDialog()"
-                        class="text-sm px-4 py-1.5 rounded-lg border transition-colors"
+                        class="flex-1 text-sm px-4 py-2.5 rounded-lg border transition-colors"
                         style="border-color: var(--rand); color: var(--tekst-secundair);">
                     {{ t("algemeen.annuleer") }}
                 </button>
                 <button type="submit"
-                        class="text-sm font-medium px-4 py-1.5 rounded-lg text-white transition-colors"
+                        class="flex-1 text-sm font-medium px-4 py-2.5 rounded-lg text-white transition-colors"
                         style="background: var(--primair);"
                         onmouseover="this.style.background='var(--primair-hover)'"
                         onmouseout="this.style.background='var(--primair)'">

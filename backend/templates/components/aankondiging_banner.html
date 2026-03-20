@@ -1,0 +1,70 @@
+{% for aankondiging in aankondigingen %}
+{% set banner_titel = t("aankondiging.sjabloon." + aankondiging.sjabloon + ".titel") %}
+{% set banner_bericht = t("aankondiging.sjabloon." + aankondiging.sjabloon + ".bericht") %}
+{% if aankondiging.type == "banner" %}
+<div class="px-4 py-3 text-sm text-center
+    {% if aankondiging.ernst == 'kritiek' %}border-b{% elif aankondiging.ernst == 'waarschuwing' %}border-b{% else %}border-b{% endif %}"
+     style="background: {% if aankondiging.ernst == 'kritiek' %}var(--msg-fout-bg){% elif aankondiging.ernst == 'waarschuwing' %}var(--msg-waarschuwing-bg){% else %}var(--msg-info-bg){% endif %};
+            border-color: {% if aankondiging.ernst == 'kritiek' %}var(--gevaar){% elif aankondiging.ernst == 'waarschuwing' %}var(--waarschuwing){% else %}var(--info){% endif %};
+            color: {% if aankondiging.ernst == 'kritiek' %}var(--gevaar){% elif aankondiging.ernst == 'waarschuwing' %}var(--waarschuwing){% else %}var(--info){% endif %};">
+    <span class="font-semibold">{{ banner_titel }}</span>
+    <span class="mx-1.5 opacity-40">—</span>
+    <span class="opacity-90">{{ banner_bericht }}</span>
+    {% if aankondiging.gepland_van or aankondiging.gepland_tot %}
+    <span class="mx-1.5 opacity-40">·</span>
+    <span class="font-medium">
+        {% if aankondiging.gepland_van %}{{ aankondiging.gepland_van.strftime('%d/%m %H:%M') }}{% endif %}
+        {% if aankondiging.gepland_van and aankondiging.gepland_tot %} → {% endif %}
+        {% if aankondiging.gepland_tot %}{{ aankondiging.gepland_tot.strftime('%d/%m %H:%M') }}{% endif %}
+    </span>
+    {% endif %}
+    {% if aankondiging.extra_info %}
+    <span class="mx-1.5 opacity-40">·</span>
+    <span class="italic opacity-80">{{ aankondiging.extra_info }}</span>
+    {% endif %}
+</div>
+{% elif aankondiging.type == "dialoog" %}
+<dialog id="aankondiging-dialog-{{ aankondiging.uuid }}"
+        class="rounded-xl shadow-xl border p-0 w-full max-w-md backdrop:bg-black/50"
+        style="background: var(--achtergrond-widget); border-color: var(--rand);">
+    <div class="px-5 py-4 border-b flex items-start gap-3"
+         style="border-color: var(--rand);
+                border-left: 4px solid {% if aankondiging.ernst == 'kritiek' %}var(--gevaar){% elif aankondiging.ernst == 'waarschuwing' %}var(--waarschuwing){% else %}var(--info){% endif %};">
+        <div class="flex-1">
+            <p class="text-sm font-semibold" style="color: var(--tekst);">{{ banner_titel }}</p>
+            <p class="text-xs mt-0.5" style="color: var(--tekst-secundair);">{{ banner_bericht }}</p>
+        </div>
+    </div>
+    <div class="px-5 py-4 flex flex-col gap-2">
+        {% if aankondiging.gepland_van or aankondiging.gepland_tot %}
+        <p class="text-sm" style="color: var(--tekst);">
+            <span class="font-medium">
+                {% if aankondiging.gepland_van %}{{ aankondiging.gepland_van.strftime('%d/%m/%Y %H:%M') }}{% endif %}
+                {% if aankondiging.gepland_van and aankondiging.gepland_tot %} → {% endif %}
+                {% if aankondiging.gepland_tot %}{{ aankondiging.gepland_tot.strftime('%d/%m/%Y %H:%M') }}{% endif %}
+            </span>
+        </p>
+        {% endif %}
+        {% if aankondiging.extra_info %}
+        <p class="text-sm italic" style="color: var(--tekst-secundair);">{{ aankondiging.extra_info }}</p>
+        {% endif %}
+    </div>
+    <div class="px-5 py-3 border-t flex justify-end" style="border-color: var(--rand);">
+        <button type="button"
+                onclick="document.getElementById('aankondiging-dialog-{{ aankondiging.uuid }}').close()"
+                class="px-4 py-1.5 text-sm font-medium rounded-lg bg-primair text-white hover:bg-primair-hover transition-colors">
+            Begrepen
+        </button>
+    </div>
+</dialog>
+<script>
+(function() {
+    var dlg = document.getElementById('aankondiging-dialog-{{ aankondiging.uuid }}');
+    if (dlg && !sessionStorage.getItem('aankondiging-gezien-{{ aankondiging.uuid }}')) {
+        dlg.showModal();
+        sessionStorage.setItem('aankondiging-gezien-{{ aankondiging.uuid }}', '1');
+    }
+})();
+</script>
+{% endif %}
+{% endfor %}

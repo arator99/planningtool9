@@ -1,0 +1,139 @@
+{% extends "layouts/app.html" %}
+{% set actief_menu = "aankondigingen" %}
+
+{% block titel %}{{ t("aankondiging.titel") }} — Planning Tool{% endblock %}
+
+{% block inhoud %}
+{% include "components/desktop_only.html" %}
+<div class="hidden md:block">
+<div class="flex items-center justify-between mb-4">
+    <div>
+        <h1 class="text-2xl font-bold text-tekst">{{ t("aankondiging.titel") }}</h1>
+        <p class="text-sm text-tekst-zacht mt-0.5">{{ t("aankondiging.omschrijving") }}</p>
+    </div>
+    <a href="/beheer/aankondigingen/nieuw"
+       class="inline-flex items-center gap-2 bg-primair hover:bg-primair-hover text-white
+              text-sm font-medium px-4 py-2 rounded-lg transition-colors duration-150">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        {{ t("aankondiging.nieuw") }}
+    </a>
+</div>
+
+{% if melding %}
+<div class="mb-5 px-4 py-3 rounded-lg text-sm bg-succes-zacht border"
+     style="border-color: var(--succes); color: var(--succes);">
+    {{ melding }}
+</div>
+{% endif %}
+{% if fout %}
+<div class="mb-5 px-4 py-3 rounded-lg text-sm bg-gevaar-zacht border"
+     style="border-color: var(--gevaar); color: var(--gevaar);">
+    {{ fout }}
+</div>
+{% endif %}
+
+<div class="bg-oppervlak rounded-xl shadow-sm overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-achtergrond border-b border-rand">
+            <tr>
+                <th class="text-left px-5 py-3 font-medium text-tekst-zacht">{{ t("aankondiging.col_titel") }}</th>
+                <th class="text-left px-5 py-3 font-medium text-tekst-zacht">{{ t("aankondiging.col_type") }}</th>
+                <th class="text-left px-5 py-3 font-medium text-tekst-zacht">{{ t("aankondiging.col_ernst") }}</th>
+                <th class="text-left px-5 py-3 font-medium text-tekst-zacht">{{ t("aankondiging.col_venster") }}</th>
+                <th class="text-left px-5 py-3 font-medium text-tekst-zacht">{{ t("algemeen.status") }}</th>
+                <th class="px-5 py-3"></th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-rand">
+            {% for a in aankondigingen %}
+            <tr class="hover:bg-achtergrond">
+                <td class="px-5 py-3">
+                    <p class="font-medium text-tekst">{{ t("aankondiging.sjabloon." + a.sjabloon + ".titel") }}</p>
+                    {% if a.extra_info %}
+                    <p class="text-xs text-tekst-zacht mt-0.5 truncate max-w-xs">{{ a.extra_info }}</p>
+                    {% endif %}
+                </td>
+                <td class="px-5 py-3 text-tekst-zacht">
+                    {% if a.type == "banner" %}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-info-zacht"
+                          style="color: var(--info);">Banner</span>
+                    {% else %}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-oppervlak border border-rand text-tekst-zacht">Dialoog</span>
+                    {% endif %}
+                </td>
+                <td class="px-5 py-3">
+                    {% if a.ernst == "kritiek" %}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gevaar-zacht"
+                          style="color: var(--gevaar);">{{ t("aankondiging.ernst_kritiek") }}</span>
+                    {% elif a.ernst == "waarschuwing" %}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-waarschuwing-zacht"
+                          style="color: var(--waarschuwing);">{{ t("aankondiging.ernst_waarschuwing") }}</span>
+                    {% else %}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-info-zacht"
+                          style="color: var(--info);">{{ t("aankondiging.ernst_info") }}</span>
+                    {% endif %}
+                </td>
+                <td class="px-5 py-3 text-xs text-tekst-zacht">
+                    {% if a.gepland_van or a.gepland_tot %}
+                    <span>{{ a.gepland_van.strftime('%d/%m %H:%M') if a.gepland_van else "—" }}</span>
+                    <span class="mx-1">→</span>
+                    <span>{{ a.gepland_tot.strftime('%d/%m %H:%M') if a.gepland_tot else "—" }}</span>
+                    {% else %}
+                    <span class="text-tekst-zacht">{{ t("aankondiging.geen_venster") }}</span>
+                    {% endif %}
+                </td>
+                <td class="px-5 py-3">
+                    {% if a.is_actief %}
+                    <span class="text-succes font-medium text-xs">{{ t("aankondiging.actief") }}</span>
+                    {% else %}
+                    <span class="text-tekst-zacht text-xs">{{ t("aankondiging.inactief") }}</span>
+                    {% endif %}
+                </td>
+                <td class="px-5 py-3">
+                    <div class="flex items-center justify-end gap-3">
+                        <a href="/beheer/aankondigingen/{{ a.uuid }}/bewerk"
+                           class="text-primair hover:text-primair-hover font-medium text-xs">{{ t("algemeen.bewerken") }}</a>
+                        {% if a.is_actief %}
+                        <form method="post" action="/beheer/aankondigingen/{{ a.uuid }}/deactiveer">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="text-xs text-tekst-zacht hover:text-gevaar transition-colors">
+                                {{ t("aankondiging.deactiveer") }}
+                            </button>
+                        </form>
+                        {% else %}
+                        <form method="post" action="/beheer/aankondigingen/{{ a.uuid }}/activeer">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="text-xs text-succes hover:opacity-80 transition-colors">
+                                {{ t("aankondiging.activeer") }}
+                            </button>
+                        </form>
+                        {% endif %}
+                        <form method="post" action="/beheer/aankondigingen/{{ a.uuid }}/verwijder"
+                              onsubmit="return confirm('{{ t('aankondiging.verwijder_bevestig') }}')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="text-xs text-gevaar hover:opacity-80 transition-colors">
+                                {{ t("algemeen.verwijder") }}
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" class="px-5 py-10 text-center text-tekst-zacht">
+                    {{ t("aankondiging.geen") }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% if aankondigingen %}
+    <div class="px-5 py-3 border-t border-rand bg-achtergrond text-xs text-tekst-zacht">
+        {{ aankondigingen | length }} {{ t("aankondiging.titel") | lower }}
+    </div>
+    {% endif %}
+</div>
+</div>{# /hidden md:block #}
+{% endblock %}

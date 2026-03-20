@@ -8,24 +8,69 @@
 <!-- Header -->
 <div class="flex items-center justify-between mb-5">
     <div class="flex items-center gap-4">
-        <a href="/planning/mijn?jaar={{ vorige.jaar }}&maand={{ vorige.maand }}"
+        <a href="/planning/mijn?jaar={{ vorige.jaar }}&maand={{ vorige.maand }}{% if collega_uuid %}&collega_uuid={{ collega_uuid }}{% endif %}"
            class="p-2 rounded-lg bg-oppervlak border border-rand hover:bg-achtergrond text-tekst-zacht shadow-sm">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
             </svg>
         </a>
         <h1 class="text-xl font-bold text-tekst capitalize">{{ maand_naam }} {{ jaar }}</h1>
-        <a href="/planning/mijn?jaar={{ volgende.jaar }}&maand={{ volgende.maand }}"
+        <a href="/planning/mijn?jaar={{ volgende.jaar }}&maand={{ volgende.maand }}{% if collega_uuid %}&collega_uuid={{ collega_uuid }}{% endif %}"
            class="p-2 rounded-lg bg-oppervlak border border-rand hover:bg-achtergrond text-tekst-zacht shadow-sm">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
             </svg>
         </a>
     </div>
-    <span class="text-sm font-medium text-tekst-zacht">{{ t("planning.mijn_planning") }}</span>
+    {% if teamleden | length > 1 %}
+    <select onchange="window.location.href='/planning/mijn?jaar={{ jaar }}&maand={{ maand }}&collega_uuid=' + this.value"
+            class="text-sm rounded-lg border border-rand bg-oppervlak text-tekst px-3 py-2 outline-none">
+        <option value="">{{ t("planning.mijn_shifts") }}</option>
+        {% for lid in teamleden %}
+        {% if lid.id != gebruiker.id %}
+        <option value="{{ lid.uuid }}" {% if collega and collega.id == lid.id %}selected{% endif %}>
+            {{ lid.volledige_naam or lid.gebruikersnaam }}
+        </option>
+        {% endif %}
+        {% endfor %}
+    </select>
+    {% endif %}
 </div>
 
-<!-- Kalenderraster -->
+<!-- ============================================================ -->
+<!-- MOBILE: week-weergave (md:hidden)                           -->
+<!-- ============================================================ -->
+<div class="md:hidden">
+    <!-- Week navigatie -->
+    <div class="flex items-center justify-between mb-3">
+        <button onclick="vorigeWeek()"
+                class="p-2 rounded-lg bg-oppervlak border border-rand text-tekst-zacht">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+        </button>
+        <span id="week-label" class="text-sm font-medium text-tekst"></span>
+        <button onclick="volgendeWeek()"
+                class="p-2 rounded-lg bg-oppervlak border border-rand text-tekst-zacht">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+        </button>
+    </div>
+
+    <!-- Week dagen -->
+    <div id="week-container" class="bg-oppervlak rounded-xl shadow-sm border border-rand overflow-hidden">
+    </div>
+
+    {% if not shifts %}
+    <p class="mt-4 text-sm text-center text-tekst-zacht">{{ t("planning.geen_gepubliceerde_shifts") }}</p>
+    {% endif %}
+</div>
+
+<!-- ============================================================ -->
+<!-- DESKTOP: maandgrid (hidden md:block)                        -->
+<!-- ============================================================ -->
+<div class="hidden md:block">
 <div class="bg-oppervlak rounded-xl shadow-sm border border-rand overflow-hidden">
 
     <!-- Dag-headers -->
@@ -47,6 +92,7 @@
 
         {% for dag in dag_info %}
         {% set code = shifts.get(dag.datum) %}
+        {% set collega_code = collega_shifts.get(dag.datum) if collega_shifts else None %}
         <div class="h-16 border-b border-r border-rand p-1.5 flex flex-col
                     {% if dag.is_weekend %}bg-info-zacht/40{% endif %}
                     {% if dag.is_vandaag %}outline outline-2 outline-primair outline-offset-[-2px]{% endif %}">
@@ -56,7 +102,14 @@
                          {% else %}text-tekst-zacht{% endif %}">
                 {{ dag.dag }}
             </span>
-            {% if code %}
+            {% if collega_code %}
+            <span class="mt-auto text-xs font-semibold text-center rounded px-1 py-0.5 opacity-70
+                         {% if collega_code in ['N'] %}bg-indigo-100 text-indigo-700
+                         {% elif collega_code in ['RXW', 'RXF', 'CXW', 'CXA', 'V', 'VV', 'KD', 'ADV', 'Z', 'R', 'RUST'] %}bg-achtergrond text-tekst-zacht
+                         {% else %}bg-primair-zacht text-primair{% endif %}">
+                {{ collega_code }}
+            </span>
+            {% elif code %}
             <span class="mt-auto text-sm font-bold text-center rounded px-1 py-0.5
                          {% if code in ['N'] %}bg-indigo-100 text-indigo-700
                          {% elif code in ['RXW', 'RXF', 'CXW', 'CXA', 'V', 'VV', 'KD', 'ADV', 'Z', 'R', 'RUST'] %}bg-achtergrond text-tekst-zacht
@@ -77,5 +130,120 @@
 {% if not shifts %}
 <p class="mt-4 text-sm text-center text-tekst-zacht">{{ t("planning.geen_gepubliceerde_shifts") }}</p>
 {% endif %}
+</div>
+
+<script>
+// Shift-data vanuit Jinja2 naar JS
+const SHIFTS = {{ shifts | tojson }};
+const COLLEGA_SHIFTS = {{ collega_shifts | tojson }};
+const DAG_NAMEN = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'];
+const MAAND_NAAM = "{{ maand_naam }}";
+
+// Bouw een lijst van alle datums in de maand
+const DAGEN = [
+    {% for dag in dag_info %}
+    {
+        datum: "{{ dag.datum }}",
+        dag: {{ dag.dag }},
+        weekdag: {{ dag.weekdag }},  // 0=ma … 6=zo
+        is_weekend: {{ 'true' if dag.is_weekend else 'false' }},
+        is_vandaag: {{ 'true' if dag.is_vandaag else 'false' }},
+    },
+    {% endfor %}
+];
+
+// Groepeer dagen per week (ma-zo)
+function groepeerWeken(dagen) {
+    const weken = [];
+    let week = [];
+    for (const dag of dagen) {
+        if (dag.weekdag === 0 && week.length > 0) {
+            weken.push(week);
+            week = [];
+        }
+        week.push(dag);
+    }
+    if (week.length > 0) weken.push(week);
+    return weken;
+}
+
+const WEKEN = groepeerWeken(DAGEN);
+
+// Bepaal startweek: week die vandaag bevat, anders eerste week
+let huidigeWeek = 0;
+for (let i = 0; i < WEKEN.length; i++) {
+    if (WEKEN[i].some(d => d.is_vandaag)) {
+        huidigeWeek = i;
+        break;
+    }
+}
+
+function shiftKlasse(code, isCollega) {
+    if (!code) return '';
+    const rust = ['RXW', 'RXF', 'CXW', 'CXA', 'V', 'VV', 'KD', 'ADV', 'Z', 'R', 'RUST'];
+    let klasse = '';
+    if (code === 'N') klasse = 'bg-indigo-100 text-indigo-700';
+    else if (rust.includes(code)) klasse = 'text-tekst-zacht';
+    else klasse = isCollega ? 'bg-primair-zacht text-primair' : 'bg-succes-zacht text-succes';
+    return klasse + (isCollega ? ' opacity-70 text-xs' : ' text-base font-bold');
+}
+
+function tekenWeek() {
+    const week = WEKEN[huidigeWeek];
+    if (!week) return;
+
+    // Label: "week van dd t/m dd maand"
+    const eerst = week[0];
+    const laast = week[week.length - 1];
+    document.getElementById('week-label').textContent =
+        `${eerst.dag} – ${laast.dag} ${MAAND_NAAM}`;
+
+    let html = '<div class="divide-y divide-rand">';
+    // Voeg lege invulcellen toe als week niet op ma begint
+    const startOffset = eerst.weekdag;
+    for (let i = 0; i < startOffset; i++) {
+        html += `<div class="flex items-center gap-4 px-4 py-3 opacity-30">
+            <span class="w-8 text-xs text-tekst-zacht">${DAG_NAMEN[i]}</span>
+        </div>`;
+    }
+
+    for (const dag of week) {
+        const code = SHIFTS[dag.datum] || null;
+        const collegaCode = COLLEGA_SHIFTS[dag.datum] || null;
+        const weergaveCode = collegaCode || code;
+        const isCollega = !!collegaCode && !code;
+
+        const vandaagStijl = dag.is_vandaag
+            ? 'background: var(--primair-zacht); font-weight: 600;'
+            : '';
+        const weekendKleur = dag.is_weekend ? 'text-blue-400' : 'text-tekst-zacht';
+
+        html += `<div class="flex items-center gap-4 px-4 py-3.5" style="${vandaagStijl}">
+            <span class="w-8 text-xs font-medium ${weekendKleur}">${DAG_NAMEN[dag.weekdag]}</span>
+            <span class="text-sm font-semibold" style="color: var(--tekst); min-width: 1.5rem;">${dag.dag}</span>`;
+
+        if (weergaveCode) {
+            const klasse = shiftKlasse(weergaveCode, isCollega);
+            html += `<span class="ml-auto px-3 py-1 rounded-lg ${klasse}">${weergaveCode}</span>`;
+        } else {
+            html += `<span class="ml-auto text-xs text-tekst-zacht opacity-40">—</span>`;
+        }
+
+        html += `</div>`;
+    }
+    html += '</div>';
+    document.getElementById('week-container').innerHTML = html;
+}
+
+function vorigeWeek() {
+    if (huidigeWeek > 0) { huidigeWeek--; tekenWeek(); }
+}
+function volgendeWeek() {
+    if (huidigeWeek < WEKEN.length - 1) { huidigeWeek++; tekenWeek(); }
+}
+
+// Init
+tekenWeek();
+</script>
 
 {% endblock %}

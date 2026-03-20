@@ -2,9 +2,10 @@
 import logging
 from datetime import date
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse, Response
 from sqlalchemy.orm import Session
+from typing import Optional
 
 from i18n import maak_vertaler
 from api.dependencies import haal_db, vereiste_rol, haal_csrf_token, haal_primaire_team_id
@@ -133,6 +134,7 @@ def balans_overzicht(
 def maandplanning_csv(
     jaar: int = None,
     maand: int = None,
+    team_id: Optional[int] = Query(None, description="Filter op team-ID; None = primair team"),
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner", "hr")),
     db: Session = Depends(haal_db),
 ):
@@ -141,10 +143,10 @@ def maandplanning_csv(
         jaar = jaar or hj
         maand = maand or hm
 
-    team_id = haal_primaire_team_id(gebruiker.id, db)
-    if not team_id:
+    effectief_team_id = team_id or haal_primaire_team_id(gebruiker.id, db)
+    if not effectief_team_id:
         return Response(status_code=403)
-    csv_tekst = RapportService(db).maandplanning_csv(team_id, jaar, maand)
+    csv_tekst = RapportService(db).maandplanning_csv(effectief_team_id, jaar, maand)
     bestandsnaam = f"planning_{jaar}_{maand:02d}.csv"
     return Response(
         content=csv_tekst.encode("utf-8-sig"),  # BOM voor Excel compatibiliteit
@@ -157,6 +159,7 @@ def maandplanning_csv(
 def maandplanning_excel(
     jaar: int = None,
     maand: int = None,
+    team_id: Optional[int] = Query(None, description="Filter op team-ID; None = primair team"),
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner", "hr")),
     db: Session = Depends(haal_db),
 ):
@@ -165,13 +168,13 @@ def maandplanning_excel(
         jaar = jaar or hj
         maand = maand or hm
 
-    team_id = haal_primaire_team_id(gebruiker.id, db)
-    if not team_id:
+    effectief_team_id = team_id or haal_primaire_team_id(gebruiker.id, db)
+    if not effectief_team_id:
         return Response(status_code=403)
     try:
-        fouten = ValidatieService(db).valideer_maand(team_id, gebruiker.locatie_id, jaar, maand)
+        fouten = ValidatieService(db).valideer_maand(effectief_team_id, gebruiker.locatie_id, jaar, maand)
         excel_bytes = ExcelExportService(db).genereer_excel(
-            team_id, jaar, maand, fouten=fouten
+            effectief_team_id, jaar, maand, fouten=fouten
         )
     except Exception as fout:
         logger.error("Excel export mislukt: %s", fout)
@@ -258,4 +261,65 @@ def medewerkers_overzicht(
     return sjablonen.TemplateResponse(
         "pages/rapporten/medewerkers.html",
         _context(request, gebruiker, medewerkers=medewerkers),
+    )
+
+
+@router.get("/uren", response_class=HTMLResponse)
+def uren_rapport(
+    request: Request,
+    jaar: int = None,
+    maand: int = None,
+    gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner", "hr")),
+    db: Session = Depends(haal_db),
+):
+    if not jaar or not maand:
+        hj, hm = _huidig_jaar_maand()
+        jaar = jaar or hj
+        maand = maand or hm
+
+    jaren = list(range(date.today().year - 2, date.today().year + 2))
+    data = RapportService(db).uren_rapport(gebruiker.locatie_id, jaar, maand)
+
+    return sjablonen.TemplateResponse(
+        "pages/rapporten/uren.html",
+        _context(
+            request,
+            gebruiker,
+            uren_data=data,
+            geselecteerd_jaar=jaar,
+            geselecteerd_maand=maand,
+            maand_namen=MAAND_NAMEN,
+            jaren=jaren,
+        ),
+    )
+
+
+@router.get("/verlof-maandgrid", response_class=HTMLResponse)
+def verlof_maandgrid(
+    request: Request,
+    jaar: int = None,
+    maand: int = None,
+    gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner", "hr")),
+    db: Session = Depends(haal_db),
+):
+    if not jaar or not maand:
+        hj, hm = _huidig_jaar_maand()
+        jaar = jaar or hj
+        maand = maand or hm
+
+    team_id = haal_primaire_team_id(gebruiker.id, db)
+    jaren = list(range(date.today().year - 2, date.today().year + 2))
+    grid_data = RapportService(db).verlof_maandgrid(team_id, jaar, maand) if team_id else {}
+
+    return sjablonen.TemplateResponse(
+        "pages/rapporten/verlof_maandgrid.html",
+        _context(
+            request,
+            gebruiker,
+            grid_data=grid_data,
+            geselecteerd_jaar=jaar,
+            geselecteerd_maand=maand,
+            maand_namen=MAAND_NAMEN,
+            jaren=jaren,
+        ),
     )

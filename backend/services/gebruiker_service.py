@@ -178,9 +178,11 @@ class GebruikerService:
         voornaam: Optional[str] = None,
         achternaam: Optional[str] = None,
         startweek_typedienst: Optional[int] = None,
+        nieuwe_locatie_id: Optional[int] = None,
     ) -> Gebruiker:
         """
         Past gegevens van een bestaande gebruiker aan.
+        nieuwe_locatie_id: verplaatst de gebruiker naar een andere locatie (super_beheerder only).
 
         Raises:
             ValueError: Bij validatiefouten, dubbele naam of niet gevonden.
@@ -195,6 +197,13 @@ class GebruikerService:
         gebruiker.achternaam = achternaam
         gebruiker.rol = rol
         gebruiker.startweek_typedienst = startweek_typedienst
+        if nieuwe_locatie_id is not None:
+            oude_locatie_id = gebruiker.locatie_id
+            gebruiker.locatie_id = nieuwe_locatie_id
+            # Scope van locatie-gebonden rollen (beheerder, hr) ook verplaatsen
+            for rol_record in gebruiker.rollen:
+                if rol_record.rol in ("beheerder", "hr") and rol_record.scope_id == oude_locatie_id:
+                    rol_record.scope_id = nieuwe_locatie_id
         self.db.commit()
         logger.info("Gebruiker bijgewerkt: ID %s", gebruiker_id)
         return gebruiker

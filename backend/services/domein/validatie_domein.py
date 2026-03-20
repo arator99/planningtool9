@@ -285,7 +285,7 @@ def valideer_max_weekends_op_rij(ctx: dict[str, Any]) -> list[ValidatieFout]:
 def valideer_rode_lijn(ctx: dict[str, Any]) -> list[ValidatieFout]:
     """RODE_LIJN_MAX_WERK: max N werkdagen per rode lijn cyclus."""
     regel = ctx["regels"].get("RODE_LIJN_MAX_WERK")
-    rode_lijn = ctx.get("rode_lijn")
+    rode_lijn = ctx.get("rode_lijn") or ctx.get("rode_lijn_config")
     if not regel or not rode_lijn:
         return []
     max_werkdagen = regel.waarde or 19
@@ -457,6 +457,122 @@ def valideer_min_rusttijd(ctx: dict[str, Any]) -> list[ValidatieFout]:
     return fouten
 
 
+def valideer_dubbele_shift(ctx: dict[str, Any]) -> list[ValidatieFout]:
+    """DUBBELE_SHIFT: kritieke shift toegewezen aan meer dan één medewerker op dezelfde dag."""
+    regel = ctx["regels"].get("DUBBELE_SHIFT")
+    if not regel:
+        return []
+    ernst = regel.ernst_niveau
+
+    sc_lut: dict = ctx["sc_lut"]
+    shifts_per_user: dict = ctx["shifts_per_user"]
+    maand_start: date = ctx["maand_start"]
+    maand_eind: date = ctx["maand_eind"]
+
+    kritieke_codes = {code for code, sc in sc_lut.items() if sc.is_kritisch}
+    if not kritieke_codes:
+        return []
+
+    fouten = []
+    dag = maand_start
+    while dag <= maand_eind:
+        # Tel per kritieke code hoeveel gebruikers die code hebben op deze dag
+        tellers: dict[str, int] = {}
+        for uid_shifts in shifts_per_user.values():
+            code = uid_shifts.get(dag)
+            if code and code in kritieke_codes:
+                tellers[code] = tellers.get(code, 0) + 1
+
+        for code, aantal in tellers.items():
+            if aantal > 1:
+                fouten.append(ValidatieFout(
+                    gebruiker_id=0,
+                    gebruiker_naam="(team)",
+                    datum=dag,
+                    validator_code="DUBBELE_SHIFT",
+                    ernst=ernst,
+                    bericht=(
+                        f"Kritieke shift '{code}' is {aantal}× toegewezen op "
+                        f"{dag.strftime('%d/%m')} (mag slechts 1×)."
+                    ),
+                ))
+        dag = dag + timedelta(days=1)
+    return fouten
+
+
+def valideer_rx_gap(ctx: dict[str, Any]) -> list[ValidatieFout]:
+    """RX_MAX_GAP: max N dagen tussen twee RX-rustdagen (RXW of RXF) per medewerker.
+
+    Een 'lege cel' (geen shift op een dag) doorbreekt het segment — dan wordt de gap
+    niet gemeld, want de planning is niet volledig voor die periode.
+    """
+    regel = ctx["regels"].get("RX_MAX_GAP")
+    if not regel:
+        return []
+    max_gap: int = regel.waarde or 7
+    ernst = regel.ernst_niveau
+
+    fouten = []
+    maand_start: date = ctx["maand_start"]
+    maand_eind: date = ctx["maand_eind"]
+    context_start: date = ctx["context_start"]
+
+    RX_CODES = {"RXW", "RXF"}
+
+    for uid, gebruiker in ctx["gebruikers"].items():
+        naam = gebruiker.volledige_naam or gebruiker.gebruikersnaam
+        shiften: dict[date, str | None] = ctx["shifts_per_user"].get(uid, {})
+
+        # Verzamel alle RX-datums in het context window, op volgorde
+        rx_datums: list[date] = []
+        dag = context_start
+        while dag <= maand_eind:
+            code = shiften.get(dag)
+            if code and code.upper() in RX_CODES:
+                rx_datums.append(dag)
+            dag = dag + timedelta(days=1)
+
+        # Controleer gap tussen opeenvolgende RX-datums
+        for i in range(len(rx_datums) - 1):
+            rx1 = rx_datums[i]
+            rx2 = rx_datums[i + 1]
+
+            # Check of het segment gebroken is door een lege cel (geen shift entry)
+            segment_gebroken = any(
+                shiften.get(rx1 + timedelta(days=d)) is None
+                for d in range(1, (rx2 - rx1).days)
+            )
+            if segment_gebroken:
+                continue
+
+            gap_dagen = (rx2 - rx1).days - 1  # dagen tússen de twee RX-datums
+
+            if gap_dagen > max_gap:
+                # Rapporteer op de datum van de tweede RX als die in de maand valt,
+                # anders op maand_eind als rx1 in de context maar buiten de maand ligt
+                rapportage_datum = rx2 if maand_start <= rx2 <= maand_eind else None
+                if rapportage_datum is None and rx1 < maand_start:
+                    rapportage_datum = min(rx2, maand_eind)
+                if rapportage_datum is None:
+                    continue
+
+                heeft_ovr = (uid, rapportage_datum, "RX_MAX_GAP") in ctx["overrides"]
+                fouten.append(ValidatieFout(
+                    gebruiker_id=uid,
+                    gebruiker_naam=naam,
+                    datum=rapportage_datum,
+                    validator_code="RX_MAX_GAP",
+                    ernst=ernst,
+                    bericht=(
+                        f"{naam}: {gap_dagen} dagen tussen RX-rustdag op "
+                        f"{rx1.strftime('%d/%m')} en {rx2.strftime('%d/%m')} "
+                        f"(max {max_gap})."
+                    ),
+                    heeft_override=heeft_ovr,
+                ))
+    return fouten
+
+
 # ------------------------------------------------------------------ #
 # Validator register                                                   #
 # ------------------------------------------------------------------ #
@@ -469,4 +585,6 @@ VALIDATORS = [
     valideer_rode_lijn,
     valideer_max_uren_week,
     valideer_min_rusttijd,
+    valideer_dubbele_shift,
+    valideer_rx_gap,
 ]

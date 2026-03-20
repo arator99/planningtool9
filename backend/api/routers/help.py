@@ -1,4 +1,4 @@
-"""Help router — changelog en helpinformatie."""
+"""Help router — changelog, helpinformatie en offline-pagina."""
 import bleach
 import markdown
 from pathlib import Path
@@ -47,3 +47,5 @@ def toon_changelog(
         "pages/help/changelog.html",
         _context(request, gebruiker, inhoud_html=inhoud_html, csrf_token=csrf_token),
     )
+
+

@@ -352,6 +352,23 @@ def jaar_overdracht(
     return RedirectResponse(url=f"/verlof/saldo?jaar={naar_jaar}&bericht={bericht}", status_code=303)
 
 
+@router.get("/pending-aantal", response_class=HTMLResponse)
+def pending_aantal(
+    gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
+    db: Session = Depends(haal_db),
+):
+    """HTMX fragment: badge met openstaande verlofaanvragen of leeg."""
+    if not gebruiker.locatie_id:
+        return HTMLResponse("")
+    aantal = VerlofService(db).haal_pending_count(gebruiker.locatie_id)
+    if aantal > 0:
+        return HTMLResponse(
+            f'<span class="inline-flex items-center justify-center w-4 h-4 text-xs font-bold '
+            f'text-white bg-orange-500 rounded-full">{aantal}</span>'
+        )
+    return HTMLResponse("")
+
+
 @router.post("/saldo/1-mei-verval")
 def verval_1_mei(
     jaar: int = Form(...),

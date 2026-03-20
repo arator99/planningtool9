@@ -1,0 +1,17 @@
+{# Locatie-switcher widget voor super_beheerder — geladen via HTMX in de navbar #}
+<form method="post" action="/beheer/locaties/wissel" class="flex items-center gap-1.5">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <span class="text-xs font-medium hidden sm:inline" style="color: var(--tekst-secundair);">Locatie:</span>
+    <select name="locatie_id"
+            onchange="this.form.submit()"
+            class="text-xs border border-rand rounded-lg px-2 py-1.5 bg-oppervlak
+                   focus:outline-none focus:ring-1 focus:ring-primair cursor-pointer"
+            style="color: var(--tekst); max-width: 140px;"
+            title="Wissel actieve locatie">
+        {% for loc in locaties %}
+        <option value="{{ loc.id }}" {% if loc.id == actieve_locatie_id %}selected{% endif %}>
+            {{ loc.naam }}{% if loc.code != 'NAT' %} ({{ loc.code }}){% endif %}
+        </option>
+        {% endfor %}
+    </select>
+</form>

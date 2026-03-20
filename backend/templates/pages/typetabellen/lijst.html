@@ -1,0 +1,101 @@
+{% extends "layouts/app.html" %}
+{% set actief_menu = "beheer" %}
+
+{% block titel %}Typetabellen — Planning Tool{% endblock %}
+
+{% block inhoud %}
+{% include "components/desktop_only.html" %}
+<div class="hidden md:block">
+
+<div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold" style="color: var(--tekst);">{{ t('typetabel.titel') }}</h1>
+    <a href="/typetabellen/nieuw"
+       class="text-sm font-medium text-white px-4 py-2 rounded-lg transition-colors"
+       style="background: var(--primair);"
+       onmouseover="this.style.background='var(--primair-hover)'"
+       onmouseout="this.style.background='var(--primair)'">
+        + {{ t('typetabel.nieuw') }}
+    </a>
+</div>
+
+{% if fout %}
+<div class="mb-4 px-4 py-2.5 rounded-lg text-sm" style="background: var(--msg-fout-bg); color: var(--fout);">{{ fout }}</div>
+{% endif %}
+{% if bericht %}
+<div class="mb-4 px-4 py-2.5 rounded-lg text-sm" style="background: var(--msg-succes-bg); color: var(--succes);">{{ bericht }}</div>
+{% endif %}
+
+<div class="rounded-xl border overflow-hidden" style="border-color: var(--rand); background: var(--achtergrond-widget);">
+    <table class="w-full text-sm">
+        <thead>
+            <tr style="border-bottom: 1px solid var(--rand); background: var(--achtergrond-alt);">
+                <th class="text-left px-4 py-3 font-semibold" style="color: var(--tekst);">{{ t('typetabel.naam') }}</th>
+                <th class="text-center px-4 py-3 font-semibold" style="color: var(--tekst);">{{ t('typetabel.weken') }}</th>
+                <th class="text-center px-4 py-3 font-semibold" style="color: var(--tekst);">{{ t('algemeen.status') }}</th>
+                <th class="px-4 py-3"></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for tt in tabellen %}
+            <tr style="border-bottom: 1px solid var(--rand);">
+                <td class="px-4 py-3 font-medium" style="color: var(--tekst);">
+                    {{ tt.naam }}
+                    {% if tt.beschrijving %}
+                    <span class="text-xs ml-1" style="color: var(--tekst-secundair);">— {{ tt.beschrijving }}</span>
+                    {% endif %}
+                </td>
+                <td class="px-4 py-3 text-center" style="color: var(--tekst);">{{ tt.aantal_weken }}</td>
+                <td class="px-4 py-3 text-center">
+                    {% if tt.is_actief %}
+                    <span class="text-xs px-2 py-0.5 rounded-full font-medium" style="background: var(--msg-succes-bg); color: var(--succes);">{{ t('algemeen.actief') }}</span>
+                    {% else %}
+                    <span class="text-xs px-2 py-0.5 rounded-full font-medium" style="background: var(--achtergrond-alt); color: var(--tekst-secundair);">Concept</span>
+                    {% endif %}
+                </td>
+                <td class="px-4 py-3">
+                    <div class="flex items-center gap-2 justify-end">
+                        <a href="/typetabellen/{{ tt.uuid }}/grid"
+                           class="text-xs px-3 py-1 rounded border transition-colors"
+                           style="border-color: var(--rand); color: var(--tekst-secundair);">
+                            {{ t('typetabel.grid_bewerken') }}
+                        </a>
+                        <a href="/typetabellen/{{ tt.uuid }}/bewerken"
+                           class="text-xs px-3 py-1 rounded border transition-colors"
+                           style="border-color: var(--rand); color: var(--tekst-secundair);">
+                            {{ t('algemeen.bewerken') }}
+                        </a>
+                        {% if not tt.is_actief %}
+                        <form method="post" action="/typetabellen/{{ tt.uuid }}/activeer" class="inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit"
+                                    class="text-xs px-3 py-1 rounded border transition-colors"
+                                    style="border-color: var(--rand); color: var(--info);">
+                                {{ t('typetabel.activeer') }}
+                            </button>
+                        </form>
+                        <form method="post" action="/typetabellen/{{ tt.uuid }}/verwijder" class="inline"
+                              onsubmit="return confirm('{{ t('typetabel.verwijder_bevestig') }}')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit"
+                                    class="text-xs px-3 py-1 rounded border transition-colors"
+                                    style="border-color: var(--rand); color: var(--fout);">
+                                {{ t('algemeen.verwijder') }}
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" class="px-4 py-8 text-center text-sm" style="color: var(--tekst-secundair);">
+                    {{ t('typetabel.geen_gevonden') }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+</div>{# /hidden md:block #}
+{% endblock %}

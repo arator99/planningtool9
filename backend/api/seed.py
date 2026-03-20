@@ -76,7 +76,8 @@ def seed_test_data() -> None:
             NationaleHRRegel(code="MAX_DAGEN_OP_RIJ",       naam="Max dagen op rij",              waarde=7,  eenheid="dagen", ernst_niveau="CRITICAL", richting="max", beschrijving="Max aaneengesloten werkdagen zonder rustdag."),
             NationaleHRRegel(code="MIN_RUSTTIJD",            naam="Minimale rusttijd",              waarde=11, eenheid="uren",  ernst_niveau="CRITICAL", richting="min", beschrijving="Min uren rust tussen twee shifts."),
             NationaleHRRegel(code="MAX_UREN_PER_WEEK",      naam="Max uren per week",              waarde=50, eenheid="uren",  ernst_niveau="WARNING",  richting="max", beschrijving="Max gewerkte uren in één kalenderweek."),
-            NationaleHRRegel(code="RX_MAX_GAP",              naam="Max dagen tussen rustdagen",     waarde=7,  eenheid="dagen", ernst_niveau="WARNING",  richting="max", beschrijving="Max dagen tussen twee RX-rustdagen."),
+            NationaleHRRegel(code="RX_MAX_GAP",              naam="Max dagen tussen rustdagen",     waarde=7,  eenheid="dagen", ernst_niveau="WARNING",  richting="max", beschrijving="Max dagen tussen twee RX-rustdagen (RXW of RXF)."),
+            NationaleHRRegel(code="DUBBELE_SHIFT",           naam="Dubbele kritieke shift",         waarde=1,  eenheid=None,    ernst_niveau="WARNING",  richting="max", beschrijving="Kritieke shift mag slechts 1× per dag worden toegewezen."),
             NationaleHRRegel(code="RODE_LIJN_BLOK_GROOTTE", naam="Rode lijn blokgrootte",          waarde=1,  eenheid="blok",  ernst_niveau="INFO",     richting="max", beschrijving="Aantal aaneengesloten 28-daagse periodes per blok."),
         ]
         for regel in nationale_regels:

@@ -81,6 +81,7 @@ def toon_mijn_planning(
     request: Request,
     jaar: Optional[int] = None,
     maand: Optional[int] = None,
+    collega_uuid: Optional[str] = Query(None, description="UUID van collega om diens shifts te tonen"),
     gebruiker: Gebruiker = Depends(vereiste_login),
     db: Session = Depends(haal_db),
 ):
@@ -92,10 +93,30 @@ def toon_mijn_planning(
     if not team_id:
         return RedirectResponse(url="/?fout=geen_team", status_code=303)
 
-    data = PlanningService(db).haal_eigen_planning(gebruiker.id, team_id, jaar, maand)
+    svc = PlanningService(db)
+    data = svc.haal_eigen_planning(gebruiker.id, team_id, jaar, maand)
+    teamleden = svc.haal_teamleden(team_id)
+
+    # Collega-shifts (read-only)
+    collega = None
+    collega_shifts = {}
+    if collega_uuid:
+        try:
+            collega = GebruikerService(db).haal_op_uuid(collega_uuid)
+            collega_shifts = svc.haal_collega_shifts(collega.id, team_id, jaar, maand)
+        except ValueError:
+            collega = None
+
     return sjablonen.TemplateResponse(
         "pages/planning/mijn_planning.html",
-        _context(request, gebruiker, **data),
+        _context(
+            request, gebruiker,
+            teamleden=teamleden,
+            collega=collega,
+            collega_uuid=collega_uuid or "",
+            collega_shifts=collega_shifts,
+            **data,
+        ),
     )
 
 

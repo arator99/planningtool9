@@ -12,7 +12,7 @@ Webgebaseerde planningsapp voor een bedrijf met ~10 productielocaties verdeeld o
 - Plannen die taken bevatten gebruiken **Markdown-checkboxes** (`- [ ]` / `- [x]`)
 - **Vink taken af zodra ze afgewerkt zijn** — update `docs/plannen/plan_van_aanpak_v0.9.md` direct na voltooiing, niet achteraf in bulk
 - Gebruik `- [x]` voor volledig afgeronde taken; laat `- [ ]` staan voor deels gedaan of nog te doen
-- Huidige voortgang: **Fase 4 afgerond** (zie plan voor openstaande items)
+- Huidige voortgang: **v0.9.0 afgerond, v0.9.1 gestart** — nu in testfase (bugs opsporen en oplossen)
 
 ### Documentatieflow
 

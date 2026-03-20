@@ -70,6 +70,24 @@ def _actieve_rollen(gebruiker: Gebruiker) -> set[str]:
     return {r.rol for r in gebruiker.rollen if r.is_actief}
 
 
+def haal_actieve_locatie_id(
+    request: Request,
+    gebruiker: Gebruiker = Depends(haal_huidige_gebruiker),
+) -> int:
+    """Geeft de actief geselecteerde locatie_id.
+    Super_beheerder kan via cookie een andere locatie kiezen;
+    alle andere gebruikers krijgen altijd hun eigen locatie_id."""
+    if "super_beheerder" not in _actieve_rollen(gebruiker):
+        return gebruiker.locatie_id
+    cookie_val = request.cookies.get("locatie_context")
+    if cookie_val:
+        try:
+            return int(cookie_val)
+        except (ValueError, TypeError):
+            pass
+    return gebruiker.locatie_id
+
+
 def vereiste_rol(*rollen: str):
     """
     FastAPI dependency factory: controleert of de ingelogde gebruiker

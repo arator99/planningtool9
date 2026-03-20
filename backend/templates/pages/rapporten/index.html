@@ -47,6 +47,16 @@
            style="border-color: var(--rand); color: var(--tekst-secundair);">
             {{ t("rapport.medewerkers") }} &rarr;
         </a>
+        <a href="/rapporten/uren?jaar={{ geselecteerd_jaar }}&maand={{ geselecteerd_maand }}"
+           class="text-sm px-3 py-1 rounded-lg border transition-colors"
+           style="border-color: var(--rand); color: var(--tekst-secundair);">
+            {{ t("rapport.uren") }} &rarr;
+        </a>
+        <a href="/rapporten/verlof-maandgrid?jaar={{ geselecteerd_jaar }}&maand={{ geselecteerd_maand }}"
+           class="text-sm px-3 py-1 rounded-lg border transition-colors"
+           style="border-color: var(--rand); color: var(--tekst-secundair);">
+            {{ t("rapport.verlof_maand") }} &rarr;
+        </a>
     </div>
     <div class="geen-print flex items-center gap-2">
         <a href="/rapporten/maandplanning/csv?jaar={{ geselecteerd_jaar }}&maand={{ geselecteerd_maand }}"

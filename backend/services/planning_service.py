@@ -262,6 +262,55 @@ class PlanningService:
             "volgende": volgende,
         }
 
+    def haal_collega_shifts(
+        self,
+        collega_id: int,
+        team_id: int,
+        jaar: int,
+        maand: int,
+    ) -> dict:
+        """Gepubliceerde shifts van een collega (read-only, enkel eigen team).
+
+        Args:
+            collega_id: Gebruiker-ID van de collega.
+            team_id: Team-ID van de aanvrager (voor scope-controle).
+            jaar: Het jaar.
+            maand: De maand (1–12).
+        """
+        _, aantal_dagen = monthrange(jaar, maand)
+        datums = [date(jaar, maand, d) for d in range(1, aantal_dagen + 1)]
+
+        shifts_db = (
+            self.db.query(Planning)
+            .filter(
+                Planning.gebruiker_id == collega_id,
+                Planning.team_id == team_id,
+                Planning.datum >= datums[0],
+                Planning.datum <= datums[-1],
+                Planning.status == "gepubliceerd",
+                Planning.shift_code.isnot(None),
+            )
+            .all()
+        )
+        return {s.datum.isoformat(): s.shift_code for s in shifts_db}
+
+    def haal_teamleden(self, team_id: int) -> list[Gebruiker]:
+        """Geef alle actieve teamleden (exclusief reserves) van een team."""
+        return (
+            self.db.query(Gebruiker)
+            .join(GebruikerRol, GebruikerRol.gebruiker_id == Gebruiker.id)
+            .filter(
+                GebruikerRol.scope_id == team_id,
+                GebruikerRol.rol.in_(["teamlid", "planner"]),
+                GebruikerRol.is_reserve == False,
+                GebruikerRol.is_actief == True,
+                Gebruiker.is_actief == True,
+            )
+            .order_by(Gebruiker.volledige_naam)
+            .distinct()
+            .all()
+        )
+
     def haal_komende_shifts(self, gebruiker_id: int, team_id: int, aantal_dagen: int = 7) -> list[Planning]:
         """Gepubliceerde shifts voor de komende N dagen."""
         vandaag = date.today()

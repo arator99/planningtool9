@@ -1,0 +1,79 @@
+{% extends "layouts/app.html" %}
+{% set actief_menu = "beheer" %}
+
+{% block titel %}{% if typetabel %}Typetabel bewerken{% else %}Nieuwe typetabel{% endif %} — Planning Tool{% endblock %}
+
+{% block inhoud %}
+{% include "components/desktop_only.html" %}
+<div class="hidden md:block max-w-lg">
+
+<div class="flex items-center gap-3 mb-6">
+    <a href="/typetabellen" class="text-sm" style="color: var(--tekst-secundair);">
+        ← {{ t('typetabel.titel') }}
+    </a>
+    <span style="color: var(--rand);">/</span>
+    <h1 class="text-xl font-bold" style="color: var(--tekst);">
+        {% if typetabel %}{{ t('typetabel.bewerken') }}{% else %}{{ t('typetabel.nieuw') }}{% endif %}
+    </h1>
+</div>
+
+{% if fout %}
+<div class="mb-4 px-4 py-2.5 rounded-lg text-sm" style="background: var(--msg-fout-bg); color: var(--fout);">{{ fout }}</div>
+{% endif %}
+
+<form method="post" action="{% if typetabel %}/typetabellen/{{ typetabel.uuid }}/bewerken{% else %}/typetabellen/nieuw{% endif %}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+    <div class="rounded-xl border p-6 space-y-5" style="border-color: var(--rand); background: var(--achtergrond-widget);">
+
+        <div>
+            <label class="block text-sm font-medium mb-1" style="color: var(--tekst);">
+                {{ t('typetabel.naam') }} <span class="text-gevaar">*</span>
+            </label>
+            <input type="text" name="naam" required maxlength="100"
+                   value="{{ typetabel.naam if typetabel else '' }}"
+                   class="w-full px-3 py-2 rounded-lg border text-sm"
+                   style="border-color: var(--rand); background: var(--achtergrond); color: var(--tekst);">
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium mb-1" style="color: var(--tekst);">
+                {{ t('typetabel.weken') }} <span class="text-gevaar">*</span>
+            </label>
+            <input type="number" name="aantal_weken" required min="1" max="52"
+                   value="{{ typetabel.aantal_weken if typetabel else '4' }}"
+                   class="w-full px-3 py-2 rounded-lg border text-sm"
+                   style="border-color: var(--rand); background: var(--achtergrond); color: var(--tekst);">
+            <p class="text-xs mt-1" style="color: var(--tekst-secundair);">{{ t('typetabel.weken_hint') }}</p>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium mb-1" style="color: var(--tekst);">
+                {{ t('typetabel.beschrijving') }}
+            </label>
+            <input type="text" name="beschrijving" maxlength="200"
+                   value="{{ typetabel.beschrijving if typetabel and typetabel.beschrijving else '' }}"
+                   class="w-full px-3 py-2 rounded-lg border text-sm"
+                   style="border-color: var(--rand); background: var(--achtergrond); color: var(--tekst);">
+        </div>
+
+    </div>
+
+    <div class="flex gap-3 mt-5">
+        <a href="/typetabellen"
+           class="px-4 py-2 rounded-lg border text-sm"
+           style="border-color: var(--rand); color: var(--tekst-secundair);">
+            {{ t('algemeen.annuleer') }}
+        </a>
+        <button type="submit"
+                class="px-5 py-2 rounded-lg text-sm font-medium text-white transition-colors"
+                style="background: var(--primair);"
+                onmouseover="this.style.background='var(--primair-hover)'"
+                onmouseout="this.style.background='var(--primair)'">
+            {{ t('algemeen.opslaan') }}
+        </button>
+    </div>
+</form>
+
+</div>{# /hidden md:block #}
+{% endblock %}
