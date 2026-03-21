@@ -83,6 +83,14 @@ def verwerk_inloggen(
             status_code=401,
         )
 
+    if resultaat["stap"] == "totp_setup_vereist":
+        antwoord = RedirectResponse(url="/auth/totp-setup", status_code=303)
+        antwoord.set_cookie(key="totp_setup_token", value=resultaat["setup_token"],
+                            httponly=True, samesite="strict", secure=_SECURE, max_age=900)
+        antwoord.set_cookie(key="taal", value=taal, samesite="lax", secure=_SECURE,
+                            max_age=60 * 60 * 24 * 365)
+        return antwoord
+
     if resultaat["stap"] == "totp_vereist":
         antwoord = RedirectResponse(url="/auth/totp", status_code=303)
         antwoord.set_cookie(key="totp_temp_token", value=resultaat["temp_token"],
@@ -156,6 +164,98 @@ def verwerk_totp_verificatie(
         max_age=instellingen.toegangs_token_verlopen_minuten * 60,
     )
     antwoord.delete_cookie("totp_temp_token")
+    return antwoord
+
+
+# ------------------------------------------------------------------ #
+# TOTP geforceerde setup (verplicht voor beheerders zonder TOTP)       #
+# ------------------------------------------------------------------ #
+
+@router.get("/auth/totp-setup", response_class=HTMLResponse)
+def toon_totp_geforceerde_setup(
+    request: Request,
+    db: Session = Depends(haal_db),
+):
+    """Toont de verplichte TOTP-instelpagina voor beheerders zonder 2FA."""
+    setup_token = request.cookies.get("totp_setup_token")
+    if not setup_token:
+        return RedirectResponse(url="/login", status_code=303)
+    try:
+        gebruiker_id = AuthService(db).verifieer_totp_setup_token(setup_token)
+    except ValueError:
+        antwoord = RedirectResponse(url="/login", status_code=303)
+        antwoord.delete_cookie("totp_setup_token")
+        return antwoord
+
+    from api.dependencies import haal_csrf_token as _haal_csrf
+    gebruiker = db.query(Gebruiker).filter(Gebruiker.id == gebruiker_id).first()
+    if not gebruiker:
+        return RedirectResponse(url="/login", status_code=303)
+    resultaat = AuthService(db).start_totp_instelling(gebruiker_id)
+    csrf_token = genereer_csrf_token(str(gebruiker_id))
+    antwoord = sjablonen.TemplateResponse(
+        "pages/totp_instellen.html",
+        {
+            "request": request,
+            "gebruiker": gebruiker,
+            "totp_uri": resultaat["uri"],
+            "totp_geheim": resultaat["geheim"],
+            "csrf_token": csrf_token,
+            "totp_verplicht": True,
+        },
+    )
+    antwoord.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+    antwoord.headers["Pragma"] = "no-cache"
+    return antwoord
+
+
+@router.post("/auth/totp-setup/bevestig")
+@limiter.limit("3/minute")
+def bevestig_totp_geforceerde_setup(
+    request: Request,
+    code: str = Form(...),
+    db: Session = Depends(haal_db),
+    _csrf: None = Depends(verifieer_csrf),
+):
+    """Bevestigt de verplichte TOTP-setup en geeft een volledig access token."""
+    setup_token = request.cookies.get("totp_setup_token")
+    if not setup_token:
+        return RedirectResponse(url="/login", status_code=303)
+    try:
+        access_token = AuthService(db).bevestig_geforceerde_totp(setup_token, code)
+    except ValueError as fout:
+        try:
+            gebruiker_id = AuthService(db).verifieer_totp_setup_token(setup_token)
+            gebruiker = db.query(Gebruiker).filter(Gebruiker.id == gebruiker_id).first()
+            resultaat = AuthService(db).haal_bestaand_totp(gebruiker_id)
+        except ValueError:
+            antwoord = RedirectResponse(url="/login", status_code=303)
+            antwoord.delete_cookie("totp_setup_token")
+            return antwoord
+        return sjablonen.TemplateResponse(
+            "pages/totp_instellen.html",
+            {
+                "request": request,
+                "gebruiker": gebruiker,
+                "totp_uri": resultaat["uri"],
+                "totp_geheim": resultaat["geheim"],
+                "fout": str(fout),
+                "csrf_token": genereer_csrf_token(str(gebruiker_id)),
+                "totp_verplicht": True,
+            },
+            status_code=400,
+        )
+
+    antwoord = RedirectResponse(url="/dashboard", status_code=303)
+    antwoord.set_cookie(
+        key="toegangs_token",
+        value=access_token,
+        httponly=True,
+        samesite="strict",
+        secure=_SECURE,
+        max_age=instellingen.toegangs_token_verlopen_minuten * 60,
+    )
+    antwoord.delete_cookie("totp_setup_token")
     return antwoord
 
 

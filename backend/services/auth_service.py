@@ -6,13 +6,19 @@ from sqlalchemy.orm import Session
 from models.gebruiker import Gebruiker
 from services.domein.auth_domein import (
     hash_wachtwoord,
+    heeft_legacy_hash,
     maak_access_token,
+    maak_totp_setup_token,
     maak_totp_temp_token,
     verifieer_access_token,
+    verifieer_totp_setup_token,
     verifieer_totp_temp_token,
     valideer_wachtwoord_sterkte,
     verifieer_wachtwoord,
 )
+
+# Rollen waarvoor TOTP verplicht is
+_ROLLEN_MET_VERPLICHTE_TOTP: frozenset[str] = frozenset({"beheerder", "super_beheerder"})
 
 logger = logging.getLogger(__name__)
 
@@ -45,9 +51,23 @@ class AuthService:
             logger.warning("Inlogpoging op gedeactiveerd account: '%s'", gebruikersnaam)
             raise ValueError("Ongeldige gebruikersnaam of wachtwoord")
 
+        # Migreer legacy bcrypt-hash naar argon2 na succesvolle verificatie
+        if heeft_legacy_hash(gebruiker.gehashed_wachtwoord):
+            gebruiker.gehashed_wachtwoord = hash_wachtwoord(wachtwoord)
+            self.db.commit()
+            logger.info("Wachtwoord-hash gemigreerd van bcrypt naar argon2 (gebruiker %d).", gebruiker.id)
+
         if gebruiker.taal != taal:
             gebruiker.taal = taal
             self.db.commit()
+
+        # Controleer of TOTP verplicht is maar nog niet ingesteld
+        actieve_rollen = {r.rol for r in gebruiker.rollen if r.is_actief}
+        if actieve_rollen & _ROLLEN_MET_VERPLICHTE_TOTP and not gebruiker.totp_actief:
+            return {
+                "stap": "totp_setup_vereist",
+                "setup_token": maak_totp_setup_token(gebruiker.id),
+            }
 
         if gebruiker.totp_actief:
             return {
@@ -79,6 +99,26 @@ class AuthService:
         if not gebruiker or not gebruiker.is_actief:
             raise ValueError("Gebruiker niet gevonden of inactief")
         return gebruiker
+
+    def verifieer_totp_setup_token(self, token: str) -> int:
+        """
+        Verifieert een TOTP-setup token en geeft het gebruiker-ID terug.
+
+        Raises:
+            ValueError: Bij ongeldig token.
+        """
+        return verifieer_totp_setup_token(token)
+
+    def bevestig_geforceerde_totp(self, setup_token: str, code: str) -> str:
+        """
+        Verifieert TOTP-code tijdens geforceerde setup en geeft een volledig access token.
+
+        Raises:
+            ValueError: Bij ongeldig setup token of ongeldige code.
+        """
+        gebruiker_id = verifieer_totp_setup_token(setup_token)
+        self.bevestig_totp_instelling(gebruiker_id, code)
+        return maak_access_token(gebruiker_id)
 
     def verifieer_totp_temp_token(self, token: str) -> int:
         """

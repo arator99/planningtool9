@@ -27,6 +27,9 @@ Formaat gebaseerd op [Keep a Changelog](https://keepachangelog.com/nl/1.0.0/).
 - Foutmeldingen in wachtwoord-URL omgezet naar vaste i18n-sleutels (geen exception-tekst meer in access logs)
 - Open redirect via Referer-header in locatie-switcher beperkt tot geldige interne paden
 - JWT: overtollige `rol` claim verwijderd uit token-payload (autorisatie leest altijd opnieuw uit DB)
+- bcrypt auto-migratie: na succesvolle login met legacy bcrypt-hash wordt de hash automatisch opgewaardeerd naar argon2; geen gebruikersinteractie vereist
+- TOTP verplicht voor `beheerder` en `super_beheerder`: login detecteert ontbrekende 2FA en stuurt door naar verplichte instelpagina vóór volledige toegang; overslaan-link verborgen bij verplichte setup
+- CSP: `https://cdn.jsdelivr.net` toegevoegd (QR-code generator op TOTP-instelpagina)
 
 ### Opgelost
 - Aankondigingenbanner werd niet weergegeven: de HTMX-partial miste de `t()` vertaalfunctie in zijn template-context, waardoor sjabloonteksten niet konden worden opgezocht

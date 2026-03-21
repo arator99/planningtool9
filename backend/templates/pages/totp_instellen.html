@@ -22,6 +22,12 @@
             <p class="text-tekst-zacht text-sm mt-1">Tweestapsverificatie activeren voor {{ gebruiker.gebruikersnaam }}</p>
         </div>
 
+        {% if totp_verplicht %}
+        <div class="px-4 py-3 mb-4 rounded-lg text-sm font-medium" style="background: var(--msg-waarschuwing-bg); color: var(--waarschuwing);">
+            ⚠ Tweestapsverificatie (2FA) is verplicht voor uw rol. U kunt pas verder na het instellen van 2FA.
+        </div>
+        {% endif %}
+
         {% if fout %}
         <div class="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-6 text-sm">
             {{ fout }}
@@ -54,7 +60,7 @@
                 <span class="bg-blue-600 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">2</span>
                 <span class="text-sm font-medium text-tekst">Voer de eerste code in ter bevestiging</span>
             </div>
-            <form method="post" action="/totp/instellen/bevestig" class="space-y-4">
+            <form method="post" action="{{ '/auth/totp-setup/bevestig' if totp_verplicht else '/totp/instellen/bevestig' }}" class="space-y-4">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <input
                     type="text"
@@ -80,9 +86,11 @@
             </form>
         </div>
 
+        {% if not totp_verplicht %}
         <div class="text-center">
             <a href="/welkom" class="text-xs text-tekst-zacht hover:text-tekst">Overslaan (later instellen)</a>
         </div>
+        {% endif %}
 
     </div>
 </div>

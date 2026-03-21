@@ -20,7 +20,7 @@ def haal_csp_nonce() -> str:
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     _CSP_PRODUCTIE_TMPL = (
         "default-src 'self'; "
-        "script-src 'self' 'nonce-{{nonce}}' https://unpkg.com; "
+        "script-src 'self' 'nonce-{{nonce}}' https://unpkg.com https://cdn.jsdelivr.net; "
         "style-src 'self' 'unsafe-inline'; "
         "img-src 'self' data: https://flagcdn.com; "
         "connect-src 'self';"

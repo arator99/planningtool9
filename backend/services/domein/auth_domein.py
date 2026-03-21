@@ -76,6 +76,7 @@ def heeft_legacy_hash(gehashed: str) -> bool:
 
 _AUD_TOEGANG = "toegang"
 _AUD_TOTP_STAP = "totp_stap"
+_AUD_TOTP_SETUP = "totp_setup"
 
 
 def maak_access_token(gebruiker_id: int) -> str:
@@ -127,6 +128,45 @@ def verifieer_access_token(token: str) -> dict:
         return payload
     except InvalidTokenError as fout:
         raise ValueError("Ongeldig of verlopen token") from fout
+
+
+def maak_totp_setup_token(gebruiker_id: int) -> str:
+    """
+    Maak een kortlopend JWT token voor verplichte TOTP-instelling (15 minuten).
+
+    Args:
+        gebruiker_id: ID van de gebruiker.
+
+    Returns:
+        Geserialiseerde JWT string met aud='totp_setup'.
+    """
+    verlooptijd = int(time.time()) + (15 * 60)
+    payload = {"sub": gebruiker_id, "stap": "totp_setup", "exp": verlooptijd, "aud": _AUD_TOTP_SETUP}
+    return jwt.encode(payload, instellingen.geheime_sleutel, algorithm="HS256")
+
+
+def verifieer_totp_setup_token(token: str) -> int:
+    """
+    Decodeer en valideer een TOTP-setup token.
+
+    Returns:
+        gebruiker_id als int.
+
+    Raises:
+        ValueError: Bij ongeldig token of verkeerde audience.
+    """
+    try:
+        payload = jwt.decode(
+            token, instellingen.geheime_sleutel, algorithms=["HS256"], audience=_AUD_TOTP_SETUP
+        )
+        if payload.get("stap") != "totp_setup":
+            raise ValueError("Ongeldig setup token type")
+        gebruiker_id: int | None = payload.get("sub")
+        if gebruiker_id is None:
+            raise ValueError("Ongeldig setup token: geen gebruiker-ID")
+        return gebruiker_id
+    except InvalidTokenError as fout:
+        raise ValueError("Ongeldig of verlopen setup token") from fout
 
 
 def verifieer_totp_temp_token(token: str) -> int:
