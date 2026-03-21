@@ -45,7 +45,7 @@ def toon_matrix(
             alle_rollen=ALLE_ROLLEN,
             csrf_token=csrf_token,
             bericht=request.query_params.get("bericht"),
-            fout=request.query_params.get("fout"),
+            fout=maak_vertaler(gebruiker.taal)(request.query_params.get("fout", "")) or None,
         ),
     )
 
@@ -66,7 +66,7 @@ def toggle_toegang(
         svc.zet_toegang(route_naam, rol, waarde)
     except ValueError as fout:
         logger.warning("Schermrecht toggle mislukt: %s", fout)
-        return RedirectResponse(url=f"/beheer/rechten?fout={fout}", status_code=303)
+        return RedirectResponse(url="/beheer/rechten?fout=fout.actie_mislukt", status_code=303)
 
     return RedirectResponse(url="/beheer/rechten", status_code=303)
 
@@ -87,6 +87,6 @@ def reset_route(
         logger.info("Route '%s' gereset: %d overrides verwijderd", route_naam, aantal)
     except ValueError as fout:
         logger.warning("Reset mislukt: %s", fout)
-        return RedirectResponse(url=f"/beheer/rechten?fout={fout}", status_code=303)
+        return RedirectResponse(url="/beheer/rechten?fout=fout.actie_mislukt", status_code=303)
 
     return RedirectResponse(url="/beheer/rechten?bericht=reset_klaar", status_code=303)

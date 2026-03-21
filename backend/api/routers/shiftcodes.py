@@ -38,7 +38,8 @@ def lijst(
         gegroepeerd.setdefault(key, []).append(sc)
 
     bericht = request.query_params.get("bericht")
-    fout = request.query_params.get("fout")
+    _fout_sleutel = request.query_params.get("fout", "")
+    fout = maak_vertaler(gebruiker.taal)(_fout_sleutel) or None
 
     return sjablonen.TemplateResponse(
         "pages/shiftcodes/lijst.html",
@@ -97,7 +98,8 @@ def maak_aan(
             is_kritisch=is_kritisch,
         )
     except ValueError as fout:
-        return RedirectResponse(url=f"/shiftcodes/nieuw?fout={fout}", status_code=303)
+        logger.warning("Shiftcode aanmaken mislukt: %s", fout)
+        return RedirectResponse(url="/shiftcodes/nieuw?fout=fout.aanmaken_mislukt", status_code=303)
     return RedirectResponse(url="/shiftcodes?bericht=Shiftcode+aangemaakt", status_code=303)
 
 
@@ -113,7 +115,7 @@ def bewerk_formulier(
     try:
         sc = svc.haal_op_uuid(uuid)
     except ValueError:
-        return RedirectResponse(url="/shiftcodes?fout=Niet+gevonden", status_code=303)
+        return RedirectResponse(url="/shiftcodes?fout=fout.niet_gevonden", status_code=303)
     return sjablonen.TemplateResponse(
         "pages/shiftcodes/formulier.html",
         _context(request, gebruiker,
@@ -142,7 +144,7 @@ def sla_bewerking_op(
     try:
         sc = svc.haal_op_uuid(uuid)
     except ValueError:
-        return RedirectResponse(url="/shiftcodes?fout=Niet+gevonden", status_code=303)
+        return RedirectResponse(url="/shiftcodes?fout=fout.niet_gevonden", status_code=303)
     try:
         svc.bewerk(
             shiftcode_id=sc.id,
@@ -155,7 +157,8 @@ def sla_bewerking_op(
             is_kritisch=is_kritisch,
         )
     except ValueError as fout:
-        return RedirectResponse(url=f"/shiftcodes/{uuid}/bewerk?fout={fout}", status_code=303)
+        logger.warning("Shiftcode bewerken mislukt (uuid=%s): %s", uuid, fout)
+        return RedirectResponse(url=f"/shiftcodes/{uuid}/bewerk?fout=fout.bewerken_mislukt", status_code=303)
     return RedirectResponse(url="/shiftcodes?bericht=Shiftcode+bijgewerkt", status_code=303)
 
 
@@ -171,5 +174,6 @@ def verwijder(
         sc = svc.haal_op_uuid(uuid)
         svc.verwijder(sc.id, gebruiker.locatie_id)
     except ValueError as fout:
-        return RedirectResponse(url=f"/shiftcodes?fout={fout}", status_code=303)
+        logger.warning("Shiftcode verwijderen mislukt (uuid=%s): %s", uuid, fout)
+        return RedirectResponse(url="/shiftcodes?fout=fout.actie_mislukt", status_code=303)
     return RedirectResponse(url="/shiftcodes?bericht=Shiftcode+verwijderd", status_code=303)

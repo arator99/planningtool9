@@ -47,7 +47,7 @@ def overzicht(
             gegroepeerd=gegroepeerd,
             ernst_niveaus=ERNST_NIVEAUS,
             bericht=request.query_params.get("bericht"),
-            fout=request.query_params.get("fout"),
+            fout=maak_vertaler(gebruiker.taal)(request.query_params.get("fout", "")) or None,
             csrf_token=csrf_token,
         ),
     )
@@ -112,7 +112,7 @@ def bewerk_formulier(
     try:
         regel = HRService(db).haal_op_uuid(uuid)
     except ValueError:
-        return RedirectResponse(url="/beheer/hr-nationaal?fout=Niet+gevonden", status_code=303)
+        return RedirectResponse(url="/beheer/hr-nationaal?fout=fout.niet_gevonden", status_code=303)
     return sjablonen.TemplateResponse(
         "pages/beheer/hr_nationaal_formulier.html",
         _context(
@@ -120,7 +120,7 @@ def bewerk_formulier(
             regel=regel,
             ernst_niveaus=ERNST_NIVEAUS,
             richtingen=RICHTINGEN,
-            fout=request.query_params.get("fout"),
+            fout=maak_vertaler(gebruiker.taal)(request.query_params.get("fout", "")) or None,
             csrf_token=csrf_token,
         ),
     )
@@ -144,7 +144,7 @@ def bewerk(
     try:
         regel = svc.haal_op_uuid(uuid)
     except ValueError:
-        return RedirectResponse(url="/beheer/hr-nationaal?fout=Niet+gevonden", status_code=303)
+        return RedirectResponse(url="/beheer/hr-nationaal?fout=fout.niet_gevonden", status_code=303)
     try:
         svc.bewerk_nationale_regel(
             regel_id=regel.id,

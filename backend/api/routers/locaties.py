@@ -62,7 +62,7 @@ def toon_lijst(
             gebruiker,
             locaties=locaties,
             melding=request.query_params.get("melding"),
-            fout=request.query_params.get("fout"),
+            fout=maak_vertaler(gebruiker.taal)(request.query_params.get("fout", "")) or None,
             csrf_token=csrf_token,
         ),
     )
@@ -106,8 +106,9 @@ def verwerk_aanmaken(
     try:
         loc = LocatieService(db).maak_aan(naam=naam, code=code, area_label=area_label)
     except ValueError as fout:
+        logger.warning("Locatie aanmaken mislukt: %s", fout)
         return RedirectResponse(
-            url=f"/beheer/locaties/nieuw?fout={fout}", status_code=303
+            url="/beheer/locaties/nieuw?fout=fout.aanmaken_mislukt", status_code=303
         )
     _log(db, gebruiker.id, gebruiker.locatie_id, "locatie.aanmaken", loc.id)
     return RedirectResponse(
@@ -153,7 +154,7 @@ def wissel_locatie_context(
     """Sla de actieve locatiecontext op in een cookie en reload de huidige pagina."""
     loc = db.query(Locatie).filter(Locatie.id == locatie_id, Locatie.is_actief == True).first()
     if not loc:
-        return RedirectResponse(url="/dashboard?fout=Locatie+niet+gevonden", status_code=303)
+        return RedirectResponse(url="/dashboard?fout=fout.niet_gevonden", status_code=303)
     referer = request.headers.get("referer", "/dashboard")
     _pad = urlparse(referer).path
     terug_pad = _pad if _pad and _PAD_RE.match(_pad) else "/dashboard"
@@ -184,7 +185,7 @@ def toon_formulier_bewerk(
     try:
         locatie = LocatieService(db).haal_op_uuid(uuid)
     except ValueError:
-        return RedirectResponse(url="/beheer/locaties?fout=Locatie+niet+gevonden", status_code=303)
+        return RedirectResponse(url="/beheer/locaties?fout=fout.niet_gevonden", status_code=303)
     return sjablonen.TemplateResponse(
         "pages/locaties/formulier.html",
         _context(
@@ -212,12 +213,13 @@ def verwerk_bewerken(
     try:
         locatie = svc.haal_op_uuid(uuid)
     except ValueError:
-        return RedirectResponse(url="/beheer/locaties?fout=Locatie+niet+gevonden", status_code=303)
+        return RedirectResponse(url="/beheer/locaties?fout=fout.niet_gevonden", status_code=303)
     try:
         svc.bewerk(locatie_id=locatie.id, naam=naam, area_label=area_label)
     except ValueError as fout:
+        logger.warning("Locatie bewerken mislukt (uuid=%s): %s", uuid, fout)
         return RedirectResponse(
-            url=f"/beheer/locaties/{uuid}/bewerk?fout={fout}", status_code=303
+            url=f"/beheer/locaties/{uuid}/bewerk?fout=fout.bewerken_mislukt", status_code=303
         )
     _log(db, gebruiker.id, gebruiker.locatie_id, "locatie.bewerken", locatie.id)
     return RedirectResponse(
@@ -241,7 +243,8 @@ def deactiveer(
         locatie = svc.haal_op_uuid(uuid)
         svc.deactiveer(locatie.id)
     except ValueError as fout:
-        return RedirectResponse(url=f"/beheer/locaties?fout={fout}", status_code=303)
+        logger.warning("Locatie deactiveren mislukt (uuid=%s): %s", uuid, fout)
+        return RedirectResponse(url="/beheer/locaties?fout=fout.actie_mislukt", status_code=303)
     _log(db, gebruiker.id, gebruiker.locatie_id, "locatie.deactiveren", locatie.id)
     return RedirectResponse(
         url="/beheer/locaties?melding=Locatie+gedeactiveerd", status_code=303

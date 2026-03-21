@@ -84,7 +84,7 @@ def lijst(
             adv_type_labels=ADV_TYPE_LABELS,
             dag_namen=DAG_NAMEN,
             bericht=request.query_params.get("bericht"),
-            fout=request.query_params.get("fout"),
+            fout=maak_vertaler(gebruiker.taal)(request.query_params.get("fout", "")) or None,
             csrf_token=csrf_token,
         ),
     )
@@ -191,7 +191,8 @@ def bewerken_formulier(
     try:
         t = AdvService(db, gebruiker.locatie_id).haal_op_uuid(uuid)
     except ValueError as fout:
-        return RedirectResponse(f"/verlof/adv?fout={fout}", status_code=303)
+        logger.warning("ADV ophalen mislukt (uuid=%s): %s", uuid, fout)
+        return RedirectResponse("/verlof/adv?fout=fout.niet_gevonden", status_code=303)
 
     teamleden = GebruikerService(db).haal_actieve_medewerkers(gebruiker.locatie_id)
     return sjablonen.TemplateResponse(
@@ -269,7 +270,8 @@ def deactiveer(
         return RedirectResponse("/verlof/adv?bericht=ADV-toekenning+gedeactiveerd", status_code=303)
     except ValueError as fout:
         db.rollback()
-        return RedirectResponse(f"/verlof/adv?fout={fout}", status_code=303)
+        logger.warning("ADV deactiveren mislukt (uuid=%s): %s", uuid, fout)
+        return RedirectResponse("/verlof/adv?fout=fout.actie_mislukt", status_code=303)
 
 
 @router.post("/{uuid}/activeer", response_class=HTMLResponse)
@@ -285,7 +287,8 @@ def activeer(
         return RedirectResponse("/verlof/adv?bericht=ADV-toekenning+geactiveerd", status_code=303)
     except ValueError as fout:
         db.rollback()
-        return RedirectResponse(f"/verlof/adv?fout={fout}", status_code=303)
+        logger.warning("ADV activeren mislukt (uuid=%s): %s", uuid, fout)
+        return RedirectResponse("/verlof/adv?fout=fout.actie_mislukt", status_code=303)
 
 
 @router.post("/{uuid}/verwijder", response_class=HTMLResponse)
@@ -302,4 +305,5 @@ def verwijder(
         return RedirectResponse("/verlof/adv?bericht=ADV-toekenning+verwijderd", status_code=303)
     except ValueError as fout:
         db.rollback()
-        return RedirectResponse(f"/verlof/adv?fout={fout}", status_code=303)
+        logger.warning("ADV verwijderen mislukt (uuid=%s): %s", uuid, fout)
+        return RedirectResponse("/verlof/adv?fout=fout.actie_mislukt", status_code=303)

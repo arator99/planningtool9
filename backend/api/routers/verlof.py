@@ -65,7 +65,7 @@ def toon_verlof(
     }
 
     bericht = request.query_params.get("bericht")
-    fout = request.query_params.get("fout")
+    fout = maak_vertaler(gebruiker.taal)(request.query_params.get("fout", "")) or None
 
     return sjablonen.TemplateResponse(
         "pages/verlof/lijst.html",
@@ -282,7 +282,7 @@ def toon_saldo_beheer(
     jaar = jaar or huidig_jaar
     saldi = VerlofSaldoService(db).haal_alle_saldi(gebruiker.locatie_id, jaar)
     bericht = request.query_params.get("bericht")
-    fout = request.query_params.get("fout")
+    fout = maak_vertaler(gebruiker.taal)(request.query_params.get("fout", "")) or None
 
     return sjablonen.TemplateResponse(
         "pages/verlof/saldo_beheer.html",
@@ -341,7 +341,7 @@ def jaar_overdracht(
     )
     fouten = stats.get("fouten", [])
     if fouten:
-        return RedirectResponse(url=f"/verlof/saldo?jaar={naar_jaar}&fout=jaar_overdracht_deels_mislukt", status_code=303)
+        return RedirectResponse(url=f"/verlof/saldo?jaar={naar_jaar}&fout=fout.jaar_overdracht_deels_mislukt", status_code=303)
 
     _log(db, gebruiker.id, gebruiker.locatie_id, "verlof.jaar_overdracht", doel_type="VerlofSaldo")
     bericht = (

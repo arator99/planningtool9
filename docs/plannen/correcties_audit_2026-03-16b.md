@@ -623,7 +623,7 @@ def vereiste_beheerder_of_hoger(
 ### Taken
 
 - [x] Inventariseer alle `gebruiker.rol`-checks in `backend/templates/layouts/app.html` — app.html gebruikt al `heeft_rol()` globaal
-- [ ] Voeg `is_beheerder`, `is_planner`, `is_hr`, `is_super_beheerder` toe aan de template-context in de dashboard-router
+- [x] Voeg `is_beheerder`, `is_planner`, `is_hr`, `is_super_beheerder` toe — vervangen door `heeft_rol()` als Jinja2 global in `sjablonen.py`; beschikbaar in alle templates zonder per-router context-variabelen
 - [x] Vervang alle `gebruiker.rol`-checks in `app.html` door de corresponderende `is_*` booleans — geen checks aanwezig; nav gebruikt `heeft_rol()`
 - [x] Controleer overige templates op `gebruiker.rol`-checks en vervang — `shiftcodes/lijst.html`, `gebruikers/formulier.html`, `welkom.html` bijgewerkt naar `heeft_rol()`
 
@@ -638,9 +638,9 @@ def vereiste_beheerder_of_hoger(
 
 ### Taken
 
-- [ ] **Nu uitvoerbaar:** bereken SRI-hashes voor HTMX en Tailwind CDN-versies; voeg `integrity="sha384-..."` toe aan CDN-script-tags in `app.html`
-- [ ] **Fase 5/6:** migreer naar nonce-gebaseerde CSP (nonce per request genereren in middleware, `nonce="{{ request.state.nonce }}"` op inline scripts)
-- [ ] Overweeg HTMX en Tailwind te bundelen als lokale statische bestanden
+- [ ] **Nu uitvoerbaar:** bereken SRI-hash voor HTMX 1.9.12 op unpkg.com; voeg `integrity="sha384-..."` toe aan `<script src="https://unpkg.com/htmx.org@1.9.12">` in `app.html` (Tailwind is lokaal gebouwd via CLI, geen CDN)
+- [x] **Fase 5/6:** nonce-gebaseerde CSP geïmplementeerd — per-request nonce via `ContextVar` in `security_headers.py`; beschikbaar als `{{ csp_nonce() }}` in Jinja2; alle inline `<script>`-blokken voorzien van nonce-attribuut
+- [ ] Overweeg HTMX lokaal te bundelen als statisch bestand (elimineert CDN-afhankelijkheid)
 
 ---
 
@@ -655,7 +655,7 @@ def vereiste_beheerder_of_hoger(
 - [x] `backend/templates/components/kaart.html:19`: voeg veiligheidscommentaar toe bij `{{ inhoud | safe }}`
 - [x] `backend/templates/components/formulier_veld.html:37,45,61`: veiligheidscommentaar bij `{{ extra | safe }}`
 - [x] `backend/templates/components/knop.html:31`: veiligheidscommentaar bij `{{ extra | safe }}`
-- [ ] Controleer alle aanroepende templates: bevat `inhoud`/`extra` ooit gebruikersinvoer?
+- [x] Controleer alle aanroepende templates: geen enkele template geeft gebruikersinvoer door als `inhoud`/`extra`; uitsluitend server-side Jinja2-content
 
 ---
 
@@ -671,11 +671,11 @@ Routers zoals `account.py:88`, `gebruikers.py:138`, `verlof.py:139` zetten vrije
 
 ### Taken
 
-- [ ] Inventariseer alle `RedirectResponse` aanroepen met vrije tekst in querystring
-- [ ] Definieer vaste foutsleutels per router (`account.fout.*`, `gebruikers.fout.*`, etc.)
-- [ ] Voeg sleutels toe aan `i18n/nl.json`, `en.json`, `fr.json`
-- [ ] Vervang vrije tekst in routers door vaste sleutels
-- [ ] Pas templates aan om sleutels te vertalen via `t()`
+- [x] Inventariseer alle `RedirectResponse` aanroepen met vrije tekst in querystring
+- [x] Definieer vaste foutsleutels per router (gebruik bestaande `fout.*` namespace)
+- [x] Voeg sleutels toe aan `i18n/nl.json`, `en.json`, `fr.json` (`fout.validatie_mislukt`, `fout.bestemming_ongeldig`, `fout.jaar_overdracht_deels_mislukt`)
+- [x] Vervang vrije tekst in 10 routers door vaste sleutels + `logger.warning()` voor echte exception
+- [x] GET-handlers vertalen sleutels via `maak_vertaler(gebruiker.taal)(sleutel)` vóór doorgave aan template
 
 ---
 

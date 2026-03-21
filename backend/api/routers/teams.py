@@ -41,7 +41,7 @@ def lijst(
         "pages/teams/lijst.html",
         _context(request, gebruiker, teams=teams,
                  bericht=request.query_params.get("bericht"),
-                 fout=request.query_params.get("fout"),
+                 fout=maak_vertaler(gebruiker.taal)(request.query_params.get("fout", "")) or None,
                  csrf_token=csrf_token),
     )
 
@@ -77,7 +77,8 @@ def maak_aan(
             locatie_id=gebruiker.locatie_id,
         )
     except ValueError as fout:
-        return RedirectResponse(url=f"/teams/nieuw?fout={fout}", status_code=303)
+        logger.warning("Team aanmaken mislukt: %s", fout)
+        return RedirectResponse(url="/teams/nieuw?fout=fout.aanmaken_mislukt", status_code=303)
     return RedirectResponse(url=f"/teams/{team.uuid}/leden", status_code=303)
 
 
@@ -96,7 +97,7 @@ def bewerk_formulier(
     try:
         team = TeamService(db).haal_op_uuid(uuid)
     except ValueError:
-        return RedirectResponse(url="/teams?fout=niet_gevonden", status_code=303)
+        return RedirectResponse(url="/teams?fout=fout.niet_gevonden", status_code=303)
     return sjablonen.TemplateResponse(
         "pages/teams/formulier.html",
         _context(request, gebruiker, team=team, csrf_token=csrf_token),
@@ -116,7 +117,7 @@ def bewerk(
     try:
         team = svc.haal_op_uuid(uuid)
     except ValueError:
-        return RedirectResponse(url="/teams?fout=niet_gevonden", status_code=303)
+        return RedirectResponse(url="/teams?fout=fout.niet_gevonden", status_code=303)
     svc.bewerk(team, naam=naam.strip(), code=code.upper().strip())
     return RedirectResponse(url="/teams?bericht=Team+opgeslagen", status_code=303)
 
@@ -151,7 +152,7 @@ def leden(
             alle_gebruikers=alle_gebruikers,
             gekoppelde_ids=gekoppelde_ids,
             bericht=request.query_params.get("bericht"),
-            fout=request.query_params.get("fout"),
+            fout=maak_vertaler(gebruiker.taal)(request.query_params.get("fout", "")) or None,
             csrf_token=csrf_token,
         ),
     )
@@ -170,12 +171,12 @@ def voeg_lid_toe(
     try:
         team = svc.haal_op_uuid(uuid)
     except ValueError:
-        return RedirectResponse(url="/teams?fout=niet_gevonden", status_code=303)
+        return RedirectResponse(url="/teams?fout=fout.niet_gevonden", status_code=303)
     try:
         svc.voeg_lid_toe(team.id, lid_gebruiker_id, is_reserve)
     except Exception as fout:
         logger.warning("Lid toevoegen mislukt: %s", fout)
-        return RedirectResponse(url=f"/teams/{uuid}/leden?fout=gebruiker_niet_gevonden", status_code=303)
+        return RedirectResponse(url=f"/teams/{uuid}/leden?fout=fout.niet_gevonden", status_code=303)
     return RedirectResponse(url=f"/teams/{uuid}/leden?bericht=Lid+toegevoegd", status_code=303)
 
 
@@ -191,6 +192,6 @@ def verwijder_lid(
     try:
         team = svc.haal_op_uuid(uuid)
     except ValueError:
-        return RedirectResponse(url="/teams?fout=niet_gevonden", status_code=303)
+        return RedirectResponse(url="/teams?fout=fout.niet_gevonden", status_code=303)
     svc.verwijder_lid(team.id, lid_gebruiker_id)
     return RedirectResponse(url=f"/teams/{uuid}/leden?bericht=Lid+verwijderd", status_code=303)

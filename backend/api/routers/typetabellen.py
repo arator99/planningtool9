@@ -49,7 +49,7 @@ def lijst(
             request, gebruiker,
             tabellen=tabellen,
             bericht=request.query_params.get("bericht"),
-            fout=request.query_params.get("fout"),
+            fout=maak_vertaler(gebruiker.taal)(request.query_params.get("fout", "")) or None,
             csrf_token=csrf_token,
         ),
     )
@@ -111,7 +111,8 @@ def bewerken_formulier(
     try:
         tt = TypetabelService(db, gebruiker.locatie_id).haal_op_uuid(uuid)
     except ValueError as fout:
-        return RedirectResponse(f"/typetabellen?fout={fout}", status_code=303)
+        logger.warning("Typetabel niet gevonden (uuid=%s): %s", uuid, fout)
+        return RedirectResponse("/typetabellen?fout=fout.niet_gevonden", status_code=303)
     return sjablonen.TemplateResponse(
         "pages/typetabellen/formulier.html",
         _context(request, gebruiker, typetabel=tt, csrf_token=csrf_token),
@@ -165,7 +166,8 @@ def toon_grid(
         svc = TypetabelService(db, gebruiker.locatie_id)
         tt = svc.haal_op_uuid(uuid)
     except ValueError as fout:
-        return RedirectResponse(f"/typetabellen?fout={fout}", status_code=303)
+        logger.warning("Typetabel grid niet gevonden (uuid=%s): %s", uuid, fout)
+        return RedirectResponse("/typetabellen?fout=fout.niet_gevonden", status_code=303)
 
     grid_dict = svc.bouw_grid_dict(tt)
     # Bouw een 2D lijst voor het template: grid[week_idx][dag_idx] = code | ""
@@ -195,7 +197,7 @@ def toon_grid(
             dag_namen=DAG_NAMEN,
             beschikbare_codes=beschikbare_codes,
             bericht=request.query_params.get("bericht"),
-            fout=request.query_params.get("fout"),
+            fout=maak_vertaler(gebruiker.taal)(request.query_params.get("fout", "")) or None,
             csrf_token=csrf_token,
         ),
     )
@@ -246,7 +248,8 @@ def activeer(
         return RedirectResponse("/typetabellen?bericht=Typetabel+geactiveerd", status_code=303)
     except ValueError as fout:
         db.rollback()
-        return RedirectResponse(f"/typetabellen?fout={fout}", status_code=303)
+        logger.warning("Typetabel activeren mislukt (uuid=%s): %s", uuid, fout)
+        return RedirectResponse("/typetabellen?fout=fout.actie_mislukt", status_code=303)
 
 
 @router.post("/{uuid}/kopieer", response_class=HTMLResponse)
@@ -263,7 +266,8 @@ def kopieer(
         return RedirectResponse(f"/typetabellen/{tt.uuid}/grid?bericht=Kopie+aangemaakt", status_code=303)
     except ValueError as fout:
         db.rollback()
-        return RedirectResponse(f"/typetabellen?fout={fout}", status_code=303)
+        logger.warning("Typetabel kopiëren mislukt (uuid=%s): %s", uuid, fout)
+        return RedirectResponse("/typetabellen?fout=fout.aanmaken_mislukt", status_code=303)
 
 
 @router.post("/{uuid}/verwijder", response_class=HTMLResponse)
@@ -279,4 +283,5 @@ def verwijder(
         return RedirectResponse("/typetabellen?bericht=Typetabel+verwijderd", status_code=303)
     except ValueError as fout:
         db.rollback()
-        return RedirectResponse(f"/typetabellen?fout={fout}", status_code=303)
+        logger.warning("Typetabel verwijderen mislukt (uuid=%s): %s", uuid, fout)
+        return RedirectResponse("/typetabellen?fout=fout.actie_mislukt", status_code=303)

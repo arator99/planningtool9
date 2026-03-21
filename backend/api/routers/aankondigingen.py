@@ -89,7 +89,7 @@ def toon_lijst(
         _context(request, gebruiker,
                  aankondigingen=aankondigingen,
                  melding=request.query_params.get("melding"),
-                 fout=request.query_params.get("fout"),
+                 fout=maak_vertaler(gebruiker.taal)(request.query_params.get("fout", "")) or None,
                  csrf_token=csrf_token),
     )
 
@@ -166,7 +166,7 @@ def toon_formulier_bewerk(
     try:
         aankondiging = AankondigingService(db).haal_op_uuid(uuid)
     except ValueError:
-        return RedirectResponse(url="/beheer/aankondigingen?fout=Niet+gevonden", status_code=303)
+        return RedirectResponse(url="/beheer/aankondigingen?fout=fout.niet_gevonden", status_code=303)
     return sjablonen.TemplateResponse(
         "pages/aankondigingen/formulier.html",
         _context(request, gebruiker,
@@ -238,7 +238,7 @@ def activeer(
     try:
         obj = AankondigingService(db).zet_actief(uuid, True)
     except ValueError:
-        return RedirectResponse(url="/beheer/aankondigingen?fout=Niet+gevonden", status_code=303)
+        return RedirectResponse(url="/beheer/aankondigingen?fout=fout.niet_gevonden", status_code=303)
     _log(db, gebruiker.id, gebruiker.locatie_id, "aankondiging.activeren", obj.id)
     return RedirectResponse(url="/beheer/aankondigingen?melding=Aankondiging+geactiveerd", status_code=303)
 
@@ -253,7 +253,7 @@ def deactiveer(
     try:
         obj = AankondigingService(db).zet_actief(uuid, False)
     except ValueError:
-        return RedirectResponse(url="/beheer/aankondigingen?fout=Niet+gevonden", status_code=303)
+        return RedirectResponse(url="/beheer/aankondigingen?fout=fout.niet_gevonden", status_code=303)
     _log(db, gebruiker.id, gebruiker.locatie_id, "aankondiging.deactiveren", obj.id)
     return RedirectResponse(url="/beheer/aankondigingen?melding=Aankondiging+gedeactiveerd", status_code=303)
 
@@ -271,6 +271,6 @@ def verwijder(
         doel_id = obj.id
         svc.verwijder(uuid)
     except ValueError:
-        return RedirectResponse(url="/beheer/aankondigingen?fout=Niet+gevonden", status_code=303)
+        return RedirectResponse(url="/beheer/aankondigingen?fout=fout.niet_gevonden", status_code=303)
     _log(db, gebruiker.id, gebruiker.locatie_id, "aankondiging.verwijderen", doel_id)
     return RedirectResponse(url="/beheer/aankondigingen?melding=Aankondiging+verwijderd", status_code=303)

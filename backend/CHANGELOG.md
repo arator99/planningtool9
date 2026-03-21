@@ -31,6 +31,7 @@ Formaat gebaseerd op [Keep a Changelog](https://keepachangelog.com/nl/1.0.0/).
 - `api/middleware/locatie_guard.py`: `LocatieGuardMiddleware` geregistreerd als tweede vangnet voor tenant-isolatie; volledige validatie volgt in Fase 3 samen met GebruikerRol-migratie
 - Templates: `gebruiker.rol ==`-checks vervangen door `heeft_rol()` in `shiftcodes/lijst.html`, `gebruikers/formulier.html` en `welkom.html`; roldisplay in `welkom.html` leest nu uit `gebruiker.rollen` i.p.v. gedenormaliseerd veld
 - Foutmeldingen in wachtwoord-URL omgezet naar vaste i18n-sleutels (geen exception-tekst meer in access logs)
+- Fout-URL-lekkage (D4): alle `?fout={exception}` in redirect-URLs vervangen door vaste i18n-sleutels (`fout.niet_gevonden`, `fout.aanmaken_mislukt`, `fout.bewerken_mislukt`, `fout.validatie_mislukt`, `fout.actie_mislukt`, `fout.bestemming_ongeldig`, `fout.jaar_overdracht_deels_mislukt`) in 10 routers; GET-handlers vertalen sleutels via `maak_vertaler()` vóór doorgave aan template; werkelijke exception naar `logger.warning()`
 - Open redirect via Referer-header in locatie-switcher beperkt tot geldige interne paden
 - JWT: overtollige `rol` claim verwijderd uit token-payload (autorisatie leest altijd opnieuw uit DB)
 - bcrypt auto-migratie: na succesvolle login met legacy bcrypt-hash wordt de hash automatisch opgewaardeerd naar argon2; geen gebruikersinteractie vereist

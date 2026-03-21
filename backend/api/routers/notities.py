@@ -175,7 +175,7 @@ def inbox(
             prioriteiten=PRIORITEITEN,
             actieve_tab=tab,
             bericht=request.query_params.get("bericht"),
-            fout=request.query_params.get("fout"),
+            fout=maak_vertaler(gebruiker.taal)(request.query_params.get("fout", "")) or None,
             csrf_token=csrf_token,
         ),
     )
@@ -213,9 +213,10 @@ def stuur(
                 prioriteit=prioriteit,
             )
         else:
-            return RedirectResponse(url="/notities?fout=Ongeldige+bestemming", status_code=303)
+            return RedirectResponse(url="/notities?fout=fout.bestemming_ongeldig", status_code=303)
     except ValueError as fout:
-        return RedirectResponse(url=f"/notities?fout={fout}", status_code=303)
+        logger.warning("Notitie sturen mislukt: %s", fout)
+        return RedirectResponse(url="/notities?fout=fout.actie_mislukt", status_code=303)
     return RedirectResponse(url="/notities?bericht=Bericht+verzonden", status_code=303)
 
 
@@ -271,5 +272,6 @@ def verwijder(
     try:
         NotitieService(db).verwijder(uuid, gebruiker.id)
     except ValueError as fout:
-        return RedirectResponse(url=f"/notities?tab=verzonden&fout={fout}", status_code=303)
+        logger.warning("Notitie verwijderen mislukt (uuid=%s): %s", uuid, fout)
+        return RedirectResponse(url="/notities?tab=verzonden&fout=fout.actie_mislukt", status_code=303)
     return RedirectResponse(url="/notities?tab=verzonden&bericht=Verwijderd", status_code=303)

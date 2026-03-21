@@ -78,7 +78,7 @@ def overzicht(
             ernst_niveaus=ERNST_NIVEAUS,
             rode_lijn=rode_lijn,
             bericht=request.query_params.get("bericht"),
-            fout=request.query_params.get("fout"),
+            fout=maak_vertaler(gebruiker.taal)(request.query_params.get("fout", "")) or None,
             csrf_token=csrf_token,
         ),
     )
@@ -96,7 +96,7 @@ def override_formulier(
     try:
         regel = svc.haal_op_uuid(uuid)
     except ValueError:
-        return RedirectResponse(url="/hr?fout=Niet+gevonden", status_code=303)
+        return RedirectResponse(url="/hr?fout=fout.niet_gevonden", status_code=303)
     override = svc.haal_override(regel.id, gebruiker.locatie_id)
     return sjablonen.TemplateResponse(
         "pages/hr/override_formulier.html",
@@ -121,7 +121,7 @@ def sla_override_op(
     try:
         regel = svc.haal_op_uuid(uuid)
     except ValueError:
-        return RedirectResponse(url="/hr?fout=Niet+gevonden", status_code=303)
+        return RedirectResponse(url="/hr?fout=fout.niet_gevonden", status_code=303)
     try:
         svc.sla_override_op(
             nationale_regel_id=regel.id,
@@ -129,8 +129,9 @@ def sla_override_op(
             waarde=waarde,
         )
     except ValueError as fout:
+        logger.warning("Override opslaan mislukt (uuid=%s): %s", uuid, fout)
         return RedirectResponse(
-            url=f"/hr/{uuid}/override?fout={fout}", status_code=303
+            url=f"/hr/{uuid}/override?fout=fout.validatie_mislukt", status_code=303
         )
     _log(db, gebruiker.id, gebruiker.locatie_id, "hr.override.opslaan", regel.id)
     return RedirectResponse(url="/hr?bericht=Override+opgeslagen", status_code=303)
@@ -147,7 +148,7 @@ def verwijder_override(
     try:
         regel = svc.haal_op_uuid(uuid)
     except ValueError:
-        return RedirectResponse(url="/hr?fout=Niet+gevonden", status_code=303)
+        return RedirectResponse(url="/hr?fout=fout.niet_gevonden", status_code=303)
     svc.verwijder_override(regel.id, gebruiker.locatie_id)
     _log(db, gebruiker.id, gebruiker.locatie_id, "hr.override.verwijderd", regel.id)
     return RedirectResponse(url="/hr?bericht=Override+verwijderd", status_code=303)
@@ -163,6 +164,7 @@ def sla_rode_lijn_op(
     try:
         HRService(db).sla_rode_lijn_config_op(referentie_datum)
     except ValueError as fout:
-        return RedirectResponse(url=f"/hr?fout={fout}", status_code=303)
+        logger.warning("Rode lijn opslaan mislukt: %s", fout)
+        return RedirectResponse(url="/hr?fout=fout.bewerken_mislukt", status_code=303)
     _log(db, gebruiker.id, gebruiker.locatie_id, "hr.rode_lijn.opslaan")
     return RedirectResponse(url="/hr?bericht=Rode+lijn+opgeslagen", status_code=303)
