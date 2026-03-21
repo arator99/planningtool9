@@ -239,7 +239,7 @@ if not seed_wachtwoord:
 - [x] `backend/api/seed.py`: voeg productie-guard toe als eerste statement in `seed_test_data()`: `if instellingen.omgeving == "production": return`
 - [x] `backend/api/seed.py`: vervang `hash_wachtwoord("Admin1234!")` door dynamische ophaling uit `os.environ.get("SEED_ADMIN_WACHTWOORD")` met willekeurige fallback + log
 - [x] `.env.example`: voeg `SEED_ADMIN_WACHTWOORD=verander_dit_direct` toe
-- [ ] `docker-compose.yml` of `.env`: voeg `SEED_ADMIN_WACHTWOORD` toe voor development
+- [x] `docker-compose.yml` of `.env`: voeg `SEED_ADMIN_WACHTWOORD` toe voor development — `.env.example` documenteert de var; app gebruikt `env_file: .env`, geen dubbel nodig
 - [ ] Overweeg na voltooiing: git-history saneren voor de `Admin1234!`-string als de repo extern gedeeld wordt
 
 ---
@@ -510,10 +510,10 @@ class BaseRepository:
 
 ### Taken
 
-- [ ] Maak `backend/services/repository.py` aan met `BaseRepository`
+- [x] Maak `backend/services/repository.py` aan met `BaseRepository`
 - [ ] Definieer concrete repositorieklassen: `TeamRepository`, `GebruikerRepository`, `PlanningRepository`, `VerlofRepository`
 - [ ] Refactor services om repositories te gebruiken i.p.v. directe `db.query()`-aanroepen
-- [ ] Documenteer het `locatie_id=None`-patroon voor super_beheerder
+- [x] Documenteer het `locatie_id=None`-patroon voor super_beheerder
 - [ ] Pas aan: `GebruikerService`, `PlanningService`, `VerlofService`, `TeamService`, `HRService`
 
 ---
@@ -557,9 +557,9 @@ class LocatieGuardMiddleware(BaseHTTPMiddleware):
 
 ### Taken
 
-- [ ] Maak `backend/api/middleware/locatie_guard.py` aan
-- [ ] Implementeer middleware conform CLAUDE.md-patroon
-- [ ] Registreer in `backend/main.py` na `SecurityHeadersMiddleware`
+- [x] Maak `backend/api/middleware/locatie_guard.py` aan
+- [x] Implementeer middleware conform CLAUDE.md-patroon
+- [x] Registreer in `backend/main.py` na `SecurityHeadersMiddleware`
 - [ ] Voeg logging toe bij super_beheerder-bypasses
 - [ ] Implementeer volledige locatie-validatie in Fase 3 (samen met C3)
 
@@ -622,10 +622,10 @@ def vereiste_beheerder_of_hoger(
 
 ### Taken
 
-- [ ] Inventariseer alle `gebruiker.rol`-checks in `backend/templates/layouts/app.html`
+- [x] Inventariseer alle `gebruiker.rol`-checks in `backend/templates/layouts/app.html` — app.html gebruikt al `heeft_rol()` globaal
 - [ ] Voeg `is_beheerder`, `is_planner`, `is_hr`, `is_super_beheerder` toe aan de template-context in de dashboard-router
-- [ ] Vervang alle `gebruiker.rol`-checks in `app.html` door de corresponderende `is_*` booleans
-- [ ] Controleer overige templates op `gebruiker.rol`-checks en vervang
+- [x] Vervang alle `gebruiker.rol`-checks in `app.html` door de corresponderende `is_*` booleans — geen checks aanwezig; nav gebruikt `heeft_rol()`
+- [x] Controleer overige templates op `gebruiker.rol`-checks en vervang — `shiftcodes/lijst.html`, `gebruikers/formulier.html`, `welkom.html` bijgewerkt naar `heeft_rol()`
 
 ---
 

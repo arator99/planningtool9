@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
+from api.middleware.locatie_guard import LocatieGuardMiddleware
 from api.middleware.security_headers import SecurityHeadersMiddleware
 from api.rate_limiter import limiter
 from api.routers import (
@@ -53,6 +54,7 @@ app = FastAPI(
 )
 
 app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(LocatieGuardMiddleware)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 

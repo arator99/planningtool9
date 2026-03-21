@@ -87,7 +87,7 @@
                            style="background: var(--hover-bg); color: var(--tekst-secundair);">
                             {{ t('algemeen.bewerken') }}
                         </a>
-                        {% if gebruiker.rol == 'beheerder' %}
+                        {% if heeft_rol(gebruiker, 'beheerder', 'super_beheerder') %}
                         <form method="post" action="/shiftcodes/{{ sc.uuid }}/verwijder" class="inline"
                               onsubmit="return confirm('Shiftcode {{ sc.code }} verwijderen?')">
                             <button type="submit"

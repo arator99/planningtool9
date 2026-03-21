@@ -26,12 +26,13 @@
             <div class="border-t border-rand"></div>
             <div class="flex justify-between text-sm">
                 <span class="text-tekst-zacht font-medium">Rol</span>
+                {% set _primaire_rol = gebruiker.rollen | selectattr('is_actief') | map(attribute='rol') | first | default('teamlid') %}
                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                    {% if gebruiker.rol == 'beheerder' %}bg-purple-100 text-purple-700
-                    {% elif gebruiker.rol == 'planner' %}bg-blue-100 text-blue-700
-                    {% elif gebruiker.rol == 'hr' %}bg-orange-100 text-orange-700
+                    {% if heeft_rol(gebruiker, 'beheerder', 'super_beheerder') %}bg-purple-100 text-purple-700
+                    {% elif heeft_rol(gebruiker, 'planner') %}bg-blue-100 text-blue-700
+                    {% elif heeft_rol(gebruiker, 'hr') %}bg-orange-100 text-orange-700
                     {% else %}bg-gray-100 text-gray-700{% endif %}">
-                    {{ gebruiker.rol }}
+                    {{ _primaire_rol }}
                 </span>
             </div>
             <div class="border-t border-rand"></div>

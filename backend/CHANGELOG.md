@@ -27,6 +27,9 @@ Formaat gebaseerd op [Keep a Changelog](https://keepachangelog.com/nl/1.0.0/).
 - AuditLog: HR-overrides (opslaan/verwijderen), rode-lijn config, app-instellingen en verlof-saldo-acties (aanpassen/jaar-overdracht/1-mei-verval) worden nu gelogd
 - Veiligheidscommentaar toegevoegd aan `kaart.html`, `formulier_veld.html` en `knop.html` bij `| safe`-gebruik — documenterend dat alleen vertrouwde server-side HTML toegestaan is
 - Jaar-overdracht foutpad gebruikt vaste sleutel (`jaar_overdracht_deels_mislukt`) in redirect-URL i.p.v. interne foutlijst
+- `services/repository.py`: `BaseRepository` met `_locatie_filter()` en `_basis_filter()` — fundament voor tenant-isolatie in Fase 3
+- `api/middleware/locatie_guard.py`: `LocatieGuardMiddleware` geregistreerd als tweede vangnet voor tenant-isolatie; volledige validatie volgt in Fase 3 samen met GebruikerRol-migratie
+- Templates: `gebruiker.rol ==`-checks vervangen door `heeft_rol()` in `shiftcodes/lijst.html`, `gebruikers/formulier.html` en `welkom.html`; roldisplay in `welkom.html` leest nu uit `gebruiker.rollen` i.p.v. gedenormaliseerd veld
 - Foutmeldingen in wachtwoord-URL omgezet naar vaste i18n-sleutels (geen exception-tekst meer in access logs)
 - Open redirect via Referer-header in locatie-switcher beperkt tot geldige interne paden
 - JWT: overtollige `rol` claim verwijderd uit token-payload (autorisatie leest altijd opnieuw uit DB)

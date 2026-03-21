@@ -95,7 +95,7 @@
             </div>
         </div>
 
-        {% if bewerk_modus and gebruiker.rol == 'super_beheerder' and alle_locaties %}
+        {% if bewerk_modus and heeft_rol(gebruiker, 'super_beheerder') and alle_locaties %}
         <div>
             <label class="block text-sm font-medium text-tekst mb-1">Locatie</label>
             <select name="nieuwe_locatie_id"
