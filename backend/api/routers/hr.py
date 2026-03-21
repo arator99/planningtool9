@@ -10,11 +10,21 @@ from sqlalchemy.orm import Session
 from i18n import maak_vertaler
 from api.dependencies import haal_db, vereiste_rol, haal_csrf_token, verifieer_csrf
 from api.sjablonen import sjablonen
+from models.audit_log import AuditLog
 from models.gebruiker import Gebruiker
 from models.hr import ERNST_NIVEAUS
 from services.hr_service import HRService
 
 logger = logging.getLogger(__name__)
+
+
+def _log(db: Session, gebruiker_id: int, locatie_id: int, actie: str, doel_id: int | None = None) -> None:
+    try:
+        db.add(AuditLog(gebruiker_id=gebruiker_id, locatie_id=locatie_id, actie=actie,
+                        doel_type="HRRegel", doel_id=doel_id))
+        db.commit()
+    except Exception as exc:
+        logger.warning("Audit log mislukt (%s): %s", actie, exc)
 
 router = APIRouter(prefix="/hr", tags=["hr"])
 
@@ -122,6 +132,7 @@ def sla_override_op(
         return RedirectResponse(
             url=f"/hr/{uuid}/override?fout={fout}", status_code=303
         )
+    _log(db, gebruiker.id, gebruiker.locatie_id, "hr.override.opslaan", regel.id)
     return RedirectResponse(url="/hr?bericht=Override+opgeslagen", status_code=303)
 
 
@@ -138,6 +149,7 @@ def verwijder_override(
     except ValueError:
         return RedirectResponse(url="/hr?fout=Niet+gevonden", status_code=303)
     svc.verwijder_override(regel.id, gebruiker.locatie_id)
+    _log(db, gebruiker.id, gebruiker.locatie_id, "hr.override.verwijderd", regel.id)
     return RedirectResponse(url="/hr?bericht=Override+verwijderd", status_code=303)
 
 
@@ -152,4 +164,5 @@ def sla_rode_lijn_op(
         HRService(db).sla_rode_lijn_config_op(referentie_datum)
     except ValueError as fout:
         return RedirectResponse(url=f"/hr?fout={fout}", status_code=303)
+    _log(db, gebruiker.id, gebruiker.locatie_id, "hr.rode_lijn.opslaan")
     return RedirectResponse(url="/hr?bericht=Rode+lijn+opgeslagen", status_code=303)

@@ -652,9 +652,9 @@ def vereiste_beheerder_of_hoger(
 
 ### Taken
 
-- [ ] `backend/templates/components/kaart.html:19`: voeg veiligheidscommentaar toe bij `{{ inhoud | safe }}`
-- [ ] `backend/templates/components/formulier_veld.html:37,45,61`: veiligheidscommentaar bij `{{ extra | safe }}`
-- [ ] `backend/templates/components/knop.html:31`: veiligheidscommentaar bij `{{ extra | safe }}`
+- [x] `backend/templates/components/kaart.html:19`: voeg veiligheidscommentaar toe bij `{{ inhoud | safe }}`
+- [x] `backend/templates/components/formulier_veld.html:37,45,61`: veiligheidscommentaar bij `{{ extra | safe }}`
+- [x] `backend/templates/components/knop.html:31`: veiligheidscommentaar bij `{{ extra | safe }}`
 - [ ] Controleer alle aanroepende templates: bevat `inhoud`/`extra` ooit gebruikersinvoer?
 
 ---
@@ -687,11 +687,11 @@ Routers zoals `account.py:88`, `gebruikers.py:138`, `verlof.py:139` zetten vrije
 
 ### Taken
 
-- [ ] `backend/api/routers/hr.py`: voeg `AuditLog` toe bij override aanmaken
-- [ ] `backend/api/routers/hr.py`: voeg `AuditLog` toe bij override verwijderen
-- [ ] `backend/api/routers/hr.py`: voeg `AuditLog` toe bij rode lijn opslaan
-- [ ] `backend/api/routers/instellingen.py`: voeg `AuditLog` toe bij instelling opslaan
-- [ ] `backend/api/routers/verlof.py:300-325`: voeg `AuditLog` toe bij saldo aanpassen, jaar-overdracht, 1-mei verval
+- [x] `backend/api/routers/hr.py`: voeg `AuditLog` toe bij override aanmaken
+- [x] `backend/api/routers/hr.py`: voeg `AuditLog` toe bij override verwijderen
+- [x] `backend/api/routers/hr.py`: voeg `AuditLog` toe bij rode lijn opslaan
+- [x] `backend/api/routers/instellingen.py`: voeg `AuditLog` toe bij instelling opslaan
+- [x] `backend/api/routers/verlof.py:300-325`: voeg `AuditLog` toe bij saldo aanpassen, jaar-overdracht, 1-mei verval
 
 ---
 

@@ -8,12 +8,22 @@ from sqlalchemy.orm import Session
 from i18n import maak_vertaler
 from api.dependencies import haal_db, vereiste_rol, haal_csrf_token, verifieer_csrf
 from api.sjablonen import sjablonen
+from models.audit_log import AuditLog
 from models.gebruiker import Gebruiker
 from models.instelling import INSTELLING_SLEUTELS
 from services.instelling_service import InstellingService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/instellingen", tags=["instellingen"])
+
+
+def _log(db: Session, gebruiker_id: int, locatie_id: int, actie: str) -> None:
+    try:
+        db.add(AuditLog(gebruiker_id=gebruiker_id, locatie_id=locatie_id, actie=actie,
+                        doel_type="Instelling"))
+        db.commit()
+    except Exception as exc:
+        logger.warning("Audit log mislukt (%s): %s", actie, exc)
 
 
 def _context(request: Request, gebruiker: Gebruiker, **extra) -> dict:
@@ -56,4 +66,5 @@ def sla_instelling_op(
     except Exception:
         logger.exception("Fout bij opslaan instelling %s", sleutel)
         return RedirectResponse(url="/instellingen?fout=instelling_mislukt", status_code=303)
+    _log(db, gebruiker.id, gebruiker.locatie_id, "instelling.opslaan")
     return RedirectResponse(url="/instellingen?bericht=instelling_opgeslagen", status_code=303)

@@ -46,6 +46,13 @@ _BEKENDE_ACTIES = [
     "locatie.aanmaken",
     "locatie.bewerken",
     "locatie.deactiveren",
+    "hr.override.opslaan",
+    "hr.override.verwijderd",
+    "hr.rode_lijn.opslaan",
+    "instelling.opslaan",
+    "verlof.saldo.aanpassen",
+    "verlof.jaar_overdracht",
+    "verlof.1_mei_verval",
 ]
 
 

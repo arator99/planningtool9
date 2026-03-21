@@ -16,6 +16,8 @@
     </div>
   {% endif %}
   <div class="p-4">
+    {# VEILIGHEID: inhoud mag uitsluitend bestaan uit vertrouwde server-side HTML (bijv. een caller-block of
+       een andere Jinja2-macro). Geef nooit ongesaniteerde gebruikersinvoer door als inhoud. #}
     {{ inhoud | safe }}
   </div>
 </div>

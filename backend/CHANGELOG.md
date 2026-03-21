@@ -24,6 +24,9 @@ Formaat gebaseerd op [Keep a Changelog](https://keepachangelog.com/nl/1.0.0/).
 - Rate limiting (10/minuut) toegevoegd aan wachtwoord-reset endpoint voor beheerders
 - CSP: `unsafe-inline` voor scripts vervangen door nonce-gebaseerde CSP — per-request nonce via `ContextVar` in middleware, beschikbaar als `{{ csp_nonce() }}` in alle Jinja2-templates; alle 20 inline `<script>`-blokken voorzien van nonce-attribuut
 - AuditLog: aankondigingen (aanmaken/bewerken/activeren/deactiveren/verwijderen) en locaties (aanmaken/bewerken/deactiveren) worden nu gelogd
+- AuditLog: HR-overrides (opslaan/verwijderen), rode-lijn config, app-instellingen en verlof-saldo-acties (aanpassen/jaar-overdracht/1-mei-verval) worden nu gelogd
+- Veiligheidscommentaar toegevoegd aan `kaart.html`, `formulier_veld.html` en `knop.html` bij `| safe`-gebruik — documenterend dat alleen vertrouwde server-side HTML toegestaan is
+- Jaar-overdracht foutpad gebruikt vaste sleutel (`jaar_overdracht_deels_mislukt`) in redirect-URL i.p.v. interne foutlijst
 - Foutmeldingen in wachtwoord-URL omgezet naar vaste i18n-sleutels (geen exception-tekst meer in access logs)
 - Open redirect via Referer-header in locatie-switcher beperkt tot geldige interne paden
 - JWT: overtollige `rol` claim verwijderd uit token-payload (autorisatie leest altijd opnieuw uit DB)

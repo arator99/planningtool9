@@ -21,10 +21,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/verlof", tags=["verlof"])
 
 
-def _log(db: Session, gebruiker_id: int, locatie_id: int, actie: str, doel_id: int | None = None) -> None:
+def _log(db: Session, gebruiker_id: int, locatie_id: int, actie: str, doel_id: int | None = None, doel_type: str = "VerlofAanvraag") -> None:
     try:
         db.add(AuditLog(gebruiker_id=gebruiker_id, locatie_id=locatie_id, actie=actie,
-                        doel_type="VerlofAanvraag", doel_id=doel_id))
+                        doel_type=doel_type, doel_id=doel_id))
         db.commit()
     except Exception as exc:
         logger.warning("Audit log mislukt (%s): %s", actie, exc)
@@ -321,6 +321,7 @@ def pas_saldo_aan(
     except ValueError as fout:
         logger.warning("Saldo aanpassen mislukt: %s", fout)
         return RedirectResponse(url=f"/verlof/saldo?jaar={jaar}&fout=saldo_mislukt", status_code=303)
+    _log(db, gebruiker.id, gebruiker.locatie_id, "verlof.saldo.aanpassen", doel_type="VerlofSaldo")
     return RedirectResponse(url=f"/verlof/saldo?jaar={jaar}&bericht=Saldo+aangepast", status_code=303)
 
 
@@ -340,9 +341,9 @@ def jaar_overdracht(
     )
     fouten = stats.get("fouten", [])
     if fouten:
-        fout_tekst = f"Overdracht deels mislukt: {'; '.join(fouten[:2])}"
-        return RedirectResponse(url=f"/verlof/saldo?jaar={naar_jaar}&fout={fout_tekst}", status_code=303)
+        return RedirectResponse(url=f"/verlof/saldo?jaar={naar_jaar}&fout=jaar_overdracht_deels_mislukt", status_code=303)
 
+    _log(db, gebruiker.id, gebruiker.locatie_id, "verlof.jaar_overdracht", doel_type="VerlofSaldo")
     bericht = (
         f"Overdracht {van_jaar}→{naar_jaar}: "
         f"{stats['aantal_gebruikers']} medewerkers, "
@@ -377,5 +378,6 @@ def verval_1_mei(
     _csrf: None = Depends(verifieer_csrf),
 ):
     aantal = VerlofSaldoService(db).verwerk_1_mei_verval(gebruiker.locatie_id, jaar, gebruiker.id)
+    _log(db, gebruiker.id, gebruiker.locatie_id, "verlof.1_mei_verval", doel_type="VerlofSaldo")
     bericht = f"1-mei verval verwerkt: {aantal} medewerkers met vervallen overgedragen dagen"
     return RedirectResponse(url=f"/verlof/saldo?jaar={jaar}&bericht={bericht}", status_code=303)

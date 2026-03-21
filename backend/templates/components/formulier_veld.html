@@ -34,6 +34,8 @@
       class="{{ _input_klassen }} {{ _border }} {{ klasse | default('') }}"
       rows="3"
       {% if verplicht %}required{% endif %}
+      {# VEILIGHEID: extra mag uitsluitend HTML-attributen bevatten die door de template-auteur zijn aangeleverd.
+         Geef nooit ongesaniteerde gebruikersinvoer door als extra. #}
       {{ extra | default('') | safe }}
     >{{ waarde | default('') }}</textarea>
 
@@ -42,6 +44,7 @@
       id="{{ naam }}" name="{{ naam }}"
       class="{{ _input_klassen }} {{ _border }} {{ klasse | default('') }}"
       {% if verplicht %}required{% endif %}
+      {# VEILIGHEID: zie textarea-commentaar hierboven — extra alleen voor vertrouwde attributen. #}
       {{ extra | default('') | safe }}
     >
       {% for optie in opties | default([]) %}
@@ -58,6 +61,7 @@
       value="{{ waarde | default('') }}"
       class="{{ _input_klassen }} {{ _border }} {{ klasse | default('') }}"
       {% if verplicht %}required{% endif %}
+      {# VEILIGHEID: zie textarea-commentaar hierboven — extra alleen voor vertrouwde attributen. #}
       {{ extra | default('') | safe }}
     >
   {% endif %}
