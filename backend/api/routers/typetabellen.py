@@ -7,6 +7,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from api.dependencies import haal_csrf_token, haal_db, verifieer_csrf, vereiste_rol
+from services.domein.csrf_domein import genereer_csrf_token
 from api.sjablonen import sjablonen
 from i18n import maak_vertaler
 from models.gebruiker import Gebruiker
@@ -87,7 +88,7 @@ def maak_nieuw(
         return RedirectResponse(f"/typetabellen/{tt.uuid}/grid?bericht=Typetabel+aangemaakt", status_code=303)
     except ValueError as fout:
         db.rollback()
-        csrf_token = request.cookies.get("csrf_token", "")
+        csrf_token = genereer_csrf_token(str(gebruiker.id))
         return sjablonen.TemplateResponse(
             "pages/typetabellen/formulier.html",
             _context(request, gebruiker, typetabel=None, fout=str(fout), csrf_token=csrf_token),
@@ -135,7 +136,7 @@ def bewerk_opslaan(
         return RedirectResponse(f"/typetabellen/{tt.uuid}/grid?bericht=Wijzigingen+opgeslagen", status_code=303)
     except ValueError as fout:
         db.rollback()
-        csrf_token = request.cookies.get("csrf_token", "")
+        csrf_token = genereer_csrf_token(str(gebruiker.id))
         svc2 = TypetabelService(db, gebruiker.locatie_id)
         try:
             tt = svc2.haal_op_uuid(uuid)

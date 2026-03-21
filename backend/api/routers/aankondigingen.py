@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from i18n import maak_vertaler
 from api.dependencies import haal_csrf_token, haal_db, verifieer_csrf, vereiste_login, vereiste_super_beheerder
+from services.domein.csrf_domein import genereer_csrf_token
 from api.sjablonen import sjablonen
 from models.aankondiging import AANKONDIGING_SJABLONEN
 from models.gebruiker import Gebruiker
@@ -136,7 +137,7 @@ def verwerk_aanmaken(
                      invoer={"sjabloon": sjabloon, "extra_info": extra_info, "ernst": ernst,
                              "type": type, "gepland_van": gepland_van, "gepland_tot": gepland_tot},
                      fout=str(fout),
-                     csrf_token=request.cookies.get("csrf_token", "")),
+                     csrf_token=genereer_csrf_token(str(gebruiker.id))),
             status_code=422,
         )
     return RedirectResponse(url="/beheer/aankondigingen?melding=Aankondiging+aangemaakt", status_code=303)
@@ -207,7 +208,7 @@ def verwerk_bewerken(
                      invoer={"sjabloon": sjabloon, "extra_info": extra_info, "ernst": ernst,
                              "type": type, "gepland_van": gepland_van, "gepland_tot": gepland_tot},
                      fout=str(fout),
-                     csrf_token=request.cookies.get("csrf_token", "")),
+                     csrf_token=genereer_csrf_token(str(gebruiker.id))),
             status_code=422,
         )
     return RedirectResponse(url="/beheer/aankondigingen?melding=Aankondiging+opgeslagen", status_code=303)

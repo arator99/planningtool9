@@ -8,7 +8,10 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from i18n import maak_vertaler
+from config import instellingen
 from api.dependencies import haal_db, vereiste_super_beheerder, haal_csrf_token, verifieer_csrf
+
+_SECURE = instellingen.omgeving != "development"
 from api.sjablonen import sjablonen
 from models.gebruiker import Gebruiker
 from models.locatie import Locatie
@@ -145,6 +148,7 @@ def wissel_locatie_context(
         value=str(locatie_id),
         httponly=True,
         samesite="lax",
+        secure=_SECURE,
         max_age=86400 * 7,
     )
     return response

@@ -12,8 +12,8 @@ logger = logging.getLogger(__name__)
 def seed_test_data() -> None:
     """Maakt een testlocatie + team + beheerder aan als de database leeg is."""
     from config import instellingen
-    if instellingen.omgeving == "production":
-        logger.info("Seeden overgeslagen (productie-omgeving).")
+    if instellingen.omgeving != "development":
+        logger.info("Seeden overgeslagen (omgeving=%s).", instellingen.omgeving)
         return
 
     from models.locatie import Locatie
@@ -46,7 +46,8 @@ def seed_test_data() -> None:
         if not seed_wachtwoord:
             alfabet = string.ascii_letters + string.digits + "!@#$%"
             seed_wachtwoord = "".join(secrets.choice(alfabet) for _ in range(16))
-            logger.warning("SEED_ADMIN_WACHTWOORD niet ingesteld — tijdelijk wachtwoord gegenereerd: %s", seed_wachtwoord)
+            logger.warning("SEED_ADMIN_WACHTWOORD niet ingesteld — tijdelijk wachtwoord gegenereerd (zie stdout).")
+            print(f"[SEED] Tijdelijk admin-wachtwoord: {seed_wachtwoord}", flush=True)  # noqa: T201
 
         # Beheerder aanmaken
         admin = Gebruiker(

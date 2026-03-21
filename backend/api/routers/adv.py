@@ -8,6 +8,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from api.dependencies import haal_csrf_token, haal_db, verifieer_csrf, vereiste_rol
+from services.domein.csrf_domein import genereer_csrf_token
 from api.sjablonen import sjablonen
 from i18n import maak_vertaler
 from models.audit_log import AuditLog
@@ -153,7 +154,7 @@ def maak_nieuw(
         )
     except ValueError as fout:
         db.rollback()
-        csrf_token = request.cookies.get("csrf_token", "")
+        csrf_token = genereer_csrf_token(str(gebruiker.id))
         teamleden = GebruikerService(db).haal_actieve_medewerkers(gebruiker.locatie_id)
         try:
             voor_gebruiker = GebruikerService(db).haal_op_uuid(voor_gebruiker_uuid)
@@ -227,7 +228,7 @@ def bewerk_opslaan(
         return RedirectResponse("/verlof/adv?bericht=ADV-toekenning+bijgewerkt", status_code=303)
     except ValueError as fout:
         db.rollback()
-        csrf_token = request.cookies.get("csrf_token", "")
+        csrf_token = genereer_csrf_token(str(gebruiker.id))
         try:
             t = AdvService(db, gebruiker.locatie_id).haal_op_uuid(uuid)
             voor_gebruiker = t.gebruiker

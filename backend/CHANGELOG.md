@@ -14,6 +14,15 @@ Formaat gebaseerd op [Keep a Changelog](https://keepachangelog.com/nl/1.0.0/).
 - `scripts/maak_super_beheerder.py`: bootstrap-script om een gebruiker tot super_beheerder te promoveren
 - Aankondigingensysteem: super_beheerder kan systeemberichten aanmaken (gepland onderhoud, updates, ...) die als banner of dialoogbox verschijnen bij alle ingelogde gebruikers; beheerbaar via `/beheer/aankondigingen` in het menu Nationaal Beheer; ondersteuning voor tijdvensters (zichtbaar van/tot), ernstniveaus (info/waarschuwing/kritiek) en direct activeren/deactiveren
 
+### Security
+- Seed-guard: check gewijzigd van `omgeving == "production"` naar `omgeving != "development"` — voorkomt onbedoeld seeden bij elke niet-development waarde (`productie`, `staging`, ...)
+- Seed-wachtwoord niet meer naar logs geschreven — tijdelijk wachtwoord gaat nu uitsluitend naar stdout
+- `locatie_context`-cookie krijgt nu `secure=True` in productie
+- CSP: `https://cdn.tailwindcss.com` verwijderd (Tailwind wordt via CLI gebouwd, CDN nooit gebruikt)
+- Logboek toegankelijk gemaakt voor `super_beheerder` via `vereiste_beheerder_of_hoger`
+- CSRF-fallback gecorrigeerd: `request.cookies.get("csrf_token")` vervangen door `genereer_csrf_token()` in aankondigingen, ADV en typetabellen — leeg CSRF-token na validatiefout was niet meer mogelijk
+- Rate limiting (10/minuut) toegevoegd aan wachtwoord-reset endpoint voor beheerders
+
 ### Opgelost
 - Aankondigingenbanner werd niet weergegeven: de HTMX-partial miste de `t()` vertaalfunctie in zijn template-context, waardoor sjabloonteksten niet konden worden opgezocht
 - Activeren/deactiveren van aankondiging gaf internal server error: `zet_actief()` logde nog `obj.titel` na hernoem naar `obj.sjabloon`

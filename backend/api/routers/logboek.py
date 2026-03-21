@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
-from api.dependencies import haal_db, vereiste_rol
+from api.dependencies import haal_db, vereiste_beheerder_of_hoger
 from api.sjablonen import sjablonen
 from i18n import maak_vertaler
 from models.audit_log import AuditLog
@@ -58,7 +58,7 @@ def toon_logboek(
     van_datum: Optional[date] = Query(None),
     tot_datum: Optional[date] = Query(None),
     filter_gebruiker_id: Optional[int] = Query(None),
-    gebruiker: Gebruiker = Depends(vereiste_rol("beheerder")),
+    gebruiker: Gebruiker = Depends(vereiste_beheerder_of_hoger),
     db: Session = Depends(haal_db),
 ):
     offset = (pagina - 1) * _PAGINA_GROOTTE

@@ -7,6 +7,7 @@ from typing import Optional
 
 from i18n import maak_vertaler
 from api.dependencies import haal_db, vereiste_rol, haal_csrf_token, verifieer_csrf, vereiste_beheerder_of_hoger, haal_actieve_locatie_id
+from api.rate_limiter import limiter
 from api.sjablonen import sjablonen
 from models.gebruiker import Gebruiker
 from models.team import Team
@@ -325,6 +326,7 @@ def toon_wachtwoord_formulier(
 
 
 @router.post("/{uuid}/wachtwoord")
+@limiter.limit("10/minute")
 def verwerk_wachtwoord_reset(
     request: Request,
     uuid: str,

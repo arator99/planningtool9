@@ -10,7 +10,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     _CSP_PRODUCTIE = (
         "default-src 'self'; "
         "script-src 'self' 'unsafe-inline' https://unpkg.com; "
-        "style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; "
+        "style-src 'self' 'unsafe-inline'; "
         "img-src 'self' data: https://flagcdn.com; "
         "connect-src 'self';"
     )
