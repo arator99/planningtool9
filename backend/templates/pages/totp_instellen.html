@@ -87,7 +87,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce() }}">
     // Genereer QR code client-side
     new QRCode(document.getElementById("qr-code"), {
         text: "{{ totp_uri }}",

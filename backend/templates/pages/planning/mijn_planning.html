@@ -132,7 +132,7 @@
 {% endif %}
 </div>
 
-<script>
+<script nonce="{{ csp_nonce() }}">
 // Shift-data vanuit Jinja2 naar JS
 const SHIFTS = {{ shifts | tojson }};
 const COLLEGA_SHIFTS = {{ collega_shifts | tojson }};

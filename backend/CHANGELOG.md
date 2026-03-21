@@ -22,6 +22,11 @@ Formaat gebaseerd op [Keep a Changelog](https://keepachangelog.com/nl/1.0.0/).
 - Logboek toegankelijk gemaakt voor `super_beheerder` via `vereiste_beheerder_of_hoger`
 - CSRF-fallback gecorrigeerd: `request.cookies.get("csrf_token")` vervangen door `genereer_csrf_token()` in aankondigingen, ADV en typetabellen — leeg CSRF-token na validatiefout was niet meer mogelijk
 - Rate limiting (10/minuut) toegevoegd aan wachtwoord-reset endpoint voor beheerders
+- CSP: `unsafe-inline` voor scripts vervangen door nonce-gebaseerde CSP — per-request nonce via `ContextVar` in middleware, beschikbaar als `{{ csp_nonce() }}` in alle Jinja2-templates; alle 20 inline `<script>`-blokken voorzien van nonce-attribuut
+- AuditLog: aankondigingen (aanmaken/bewerken/activeren/deactiveren/verwijderen) en locaties (aanmaken/bewerken/deactiveren) worden nu gelogd
+- Foutmeldingen in wachtwoord-URL omgezet naar vaste i18n-sleutels (geen exception-tekst meer in access logs)
+- Open redirect via Referer-header in locatie-switcher beperkt tot geldige interne paden
+- JWT: overtollige `rol` claim verwijderd uit token-payload (autorisatie leest altijd opnieuw uit DB)
 
 ### Opgelost
 - Aankondigingenbanner werd niet weergegeven: de HTMX-partial miste de `t()` vertaalfunctie in zijn template-context, waardoor sjabloonteksten niet konden worden opgezocht

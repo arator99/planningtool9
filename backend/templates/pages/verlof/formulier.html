@@ -127,7 +127,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce() }}">
 // Zorg dat einddatum nooit vóór startdatum ligt
 document.querySelector('[name="start_datum"]').addEventListener('change', function () {
     const eind = document.querySelector('[name="eind_datum"]');

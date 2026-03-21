@@ -131,7 +131,7 @@
     </div>
 </form>
 
-<script>
+<script nonce="{{ csp_nonce() }}">
 function toggleDagKeuze(type) {
     const el = document.getElementById('dag-keuze');
     if (type === 'dag_per_week') {

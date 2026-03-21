@@ -93,7 +93,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce() }}">
 const vertalingen = {{ js_vertalingen | tojson }};
 
 function kiesTaal(taal) {

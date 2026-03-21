@@ -127,7 +127,7 @@
     </form>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce() }}">
 function updateLidFormAction(lidId) {
     const form = document.getElementById('lid-toevoegen-form');
     const submit = document.getElementById('lid-submit');

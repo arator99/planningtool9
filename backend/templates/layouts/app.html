@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block titel %}Planning Tool{% endblock %}</title>
     {# ── Dark mode init — vóór CSS laden om flash te voorkomen ── #}
-    <script>
+    <script nonce="{{ csp_nonce() }}">
         (function () {
             var opgeslagen = localStorage.getItem('thema') || 'light';
             if (opgeslagen === 'dark') document.documentElement.classList.add('dark');
@@ -21,7 +21,7 @@
     </style>
     {% block extra_head %}{% endblock %}
     {# ── Service Worker registratie ── #}
-    <script>
+    <script nonce="{{ csp_nonce() }}">
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function () {
                 navigator.serviceWorker.register('/static/sw.js')
@@ -654,7 +654,7 @@
     </form>
 </dialog>
 
-<script>
+<script nonce="{{ csp_nonce() }}">
 (function () {
     const HTML = document.documentElement;
     const opgeslagen = localStorage.getItem('thema') || 'light';

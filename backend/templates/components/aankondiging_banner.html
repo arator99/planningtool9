@@ -57,7 +57,7 @@
         </button>
     </div>
 </dialog>
-<script>
+<script nonce="{{ csp_nonce() }}">
 (function() {
     var dlg = document.getElementById('aankondiging-dialog-{{ aankondiging.uuid }}');
     if (dlg && !sessionStorage.getItem('aankondiging-gezien-{{ aankondiging.uuid }}')) {

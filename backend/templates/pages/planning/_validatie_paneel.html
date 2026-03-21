@@ -149,7 +149,7 @@
 
 {% endif %}
 
-<script>
+<script nonce="{{ csp_nonce() }}">
 // Markeer cellen in de grid op basis van validatiefouten
 (function () {
     // Verwijder bestaande markeringen

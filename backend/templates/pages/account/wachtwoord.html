@@ -107,7 +107,7 @@
     {% endif %}
 </div>
 
-<script>
+<script nonce="{{ csp_nonce() }}">
 function controleerSterkte(ww) {
     const balk = document.getElementById('sterkte-balk');
     const tekst = document.getElementById('sterkte-tekst');

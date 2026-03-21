@@ -6,7 +6,7 @@
     <title>{% block titel %}Planningtool{% endblock %}</title>
 
     {# ── Theme-init: zet dark-class VOOR Tailwind laadt om flash te voorkomen ── #}
-    <script>
+    <script nonce="{{ csp_nonce() }}">
         (function () {
             var voorkeur = "{{ (huidige_gebruiker.thema if huidige_gebruiker is defined and huidige_gebruiker else 'systeem') }}";
             if (voorkeur === 'dark' ||

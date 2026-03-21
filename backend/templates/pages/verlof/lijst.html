@@ -216,7 +216,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce() }}">
 function updateBulkToolbar() {
     const checked = document.querySelectorAll('.aanvraag-checkbox:checked');
     const toolbar = document.getElementById('bulk-toolbar');
