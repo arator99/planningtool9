@@ -7,6 +7,10 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from i18n import maak_vertaler
+
+_WACHTWOORD_FOUT_SLEUTELS = frozenset({
+    "geen_match", "huidig_onjuist", "te_zwak",
+})
 from api.dependencies import haal_db, vereiste_login, haal_csrf_token, verifieer_csrf
 from api.sjablonen import sjablonen
 from models.gebruiker import Gebruiker
@@ -29,11 +33,14 @@ def wachtwoord_formulier(
     gebruiker: Gebruiker = Depends(vereiste_login),
     csrf_token: str = Depends(haal_csrf_token),
 ):
+    t = maak_vertaler(gebruiker.taal)
+    fout_sleutel = request.query_params.get("fout")
+    fout = t(f"account.wachtwoord.fout.{fout_sleutel}") if fout_sleutel in _WACHTWOORD_FOUT_SLEUTELS else None
     return sjablonen.TemplateResponse(
         "pages/account/wachtwoord.html",
         _context(request, gebruiker,
                  csrf_token=csrf_token,
-                 fout=request.query_params.get("fout"),
+                 fout=fout,
                  bericht=request.query_params.get("bericht")),
     )
 
@@ -78,14 +85,13 @@ def wachtwoord_wijzigen(
     _csrf: None = Depends(verifieer_csrf),
 ):
     if nieuw_wachtwoord != nieuw_wachtwoord_bevestig:
-        return RedirectResponse(
-            url="/account/wachtwoord?fout=Nieuwe+wachtwoorden+komen+niet+overeen.",
-            status_code=303,
-        )
+        return RedirectResponse(url="/account/wachtwoord?fout=geen_match", status_code=303)
     try:
         AuthService(db).wijzig_wachtwoord(gebruiker.id, huidig_wachtwoord, nieuw_wachtwoord)
     except ValueError as fout:
-        return RedirectResponse(url=f"/account/wachtwoord?fout={fout}", status_code=303)
+        # Vaste foutsleutels voorkomen dat exception-tekst in URL-logs terechtkomt.
+        sleutel = "huidig_wachtwoord_onjuist" if "onjuist" in str(fout) else "wachtwoord_te_zwak"
+        return RedirectResponse(url=f"/account/wachtwoord?fout={sleutel}", status_code=303)
     return RedirectResponse(url="/account/wachtwoord?bericht=Wachtwoord+succesvol+gewijzigd.", status_code=303)
 
 

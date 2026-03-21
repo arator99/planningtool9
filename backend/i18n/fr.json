@@ -247,6 +247,9 @@
   "account.voorkeur_geen": "Aucune préférence",
   "account.voorkeur_rang": "Préférence",
   "account.voorkeuren_opgeslagen": "Préférences de shift enregistrées",
+  "account.wachtwoord.fout.geen_match": "Les nouveaux mots de passe ne correspondent pas.",
+  "account.wachtwoord.fout.huidig_onjuist": "Le mot de passe actuel est incorrect.",
+  "account.wachtwoord.fout.te_zwak": "Le nouveau mot de passe ne répond pas aux exigences de sécurité.",
 
   "nav.rechten": "Droits d'accès",
 

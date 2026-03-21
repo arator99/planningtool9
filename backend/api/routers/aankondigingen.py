@@ -12,11 +12,21 @@ from api.dependencies import haal_csrf_token, haal_db, verifieer_csrf, vereiste_
 from services.domein.csrf_domein import genereer_csrf_token
 from api.sjablonen import sjablonen
 from models.aankondiging import AANKONDIGING_SJABLONEN
+from models.audit_log import AuditLog
 from models.gebruiker import Gebruiker
 from services.aankondiging_service import AankondigingService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["aankondigingen"])
+
+
+def _log(db: Session, gebruiker_id: int, locatie_id: int, actie: str, doel_id: int | None = None) -> None:
+    try:
+        db.add(AuditLog(gebruiker_id=gebruiker_id, locatie_id=locatie_id, actie=actie,
+                        doel_type="Aankondiging", doel_id=doel_id))
+        db.commit()
+    except Exception as exc:
+        logger.warning("Audit log mislukt (%s): %s", actie, exc)
 
 
 def _context(request: Request, gebruiker: Gebruiker, **extra) -> dict:
@@ -117,7 +127,7 @@ def verwerk_aanmaken(
     _csrf: None = Depends(verifieer_csrf),
 ):
     try:
-        AankondigingService(db).maak_aan(
+        obj = AankondigingService(db).maak_aan(
             sjabloon=sjabloon,
             extra_info=extra_info,
             ernst=ernst,
@@ -140,6 +150,8 @@ def verwerk_aanmaken(
                      csrf_token=genereer_csrf_token(str(gebruiker.id))),
             status_code=422,
         )
+    else:
+        _log(db, gebruiker.id, gebruiker.locatie_id, "aankondiging.aanmaken", obj.id)
     return RedirectResponse(url="/beheer/aankondigingen?melding=Aankondiging+aangemaakt", status_code=303)
 
 
@@ -184,7 +196,7 @@ def verwerk_bewerken(
 ):
     svc = AankondigingService(db)
     try:
-        svc.bewerk(
+        obj = svc.bewerk(
             uuid=uuid,
             sjabloon=sjabloon,
             extra_info=extra_info,
@@ -211,6 +223,8 @@ def verwerk_bewerken(
                      csrf_token=genereer_csrf_token(str(gebruiker.id))),
             status_code=422,
         )
+    else:
+        _log(db, gebruiker.id, gebruiker.locatie_id, "aankondiging.bewerken", obj.id)
     return RedirectResponse(url="/beheer/aankondigingen?melding=Aankondiging+opgeslagen", status_code=303)
 
 
@@ -222,9 +236,10 @@ def activeer(
     _csrf: None = Depends(verifieer_csrf),
 ):
     try:
-        AankondigingService(db).zet_actief(uuid, True)
+        obj = AankondigingService(db).zet_actief(uuid, True)
     except ValueError:
         return RedirectResponse(url="/beheer/aankondigingen?fout=Niet+gevonden", status_code=303)
+    _log(db, gebruiker.id, gebruiker.locatie_id, "aankondiging.activeren", obj.id)
     return RedirectResponse(url="/beheer/aankondigingen?melding=Aankondiging+geactiveerd", status_code=303)
 
 
@@ -236,9 +251,10 @@ def deactiveer(
     _csrf: None = Depends(verifieer_csrf),
 ):
     try:
-        AankondigingService(db).zet_actief(uuid, False)
+        obj = AankondigingService(db).zet_actief(uuid, False)
     except ValueError:
         return RedirectResponse(url="/beheer/aankondigingen?fout=Niet+gevonden", status_code=303)
+    _log(db, gebruiker.id, gebruiker.locatie_id, "aankondiging.deactiveren", obj.id)
     return RedirectResponse(url="/beheer/aankondigingen?melding=Aankondiging+gedeactiveerd", status_code=303)
 
 
@@ -249,8 +265,12 @@ def verwijder(
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
 ):
+    svc = AankondigingService(db)
     try:
-        AankondigingService(db).verwijder(uuid)
+        obj = svc.haal_op_uuid(uuid)
+        doel_id = obj.id
+        svc.verwijder(uuid)
     except ValueError:
         return RedirectResponse(url="/beheer/aankondigingen?fout=Niet+gevonden", status_code=303)
+    _log(db, gebruiker.id, gebruiker.locatie_id, "aankondiging.verwijderen", doel_id)
     return RedirectResponse(url="/beheer/aankondigingen?melding=Aankondiging+verwijderd", status_code=303)

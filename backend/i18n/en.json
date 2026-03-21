@@ -414,6 +414,9 @@
   "account.voorkeur_geen": "No preference",
   "account.voorkeur_rang": "Preference",
   "account.voorkeuren_opgeslagen": "Shift preferences saved",
+  "account.wachtwoord.fout.geen_match": "The new passwords do not match.",
+  "account.wachtwoord.fout.huidig_onjuist": "Current password is incorrect.",
+  "account.wachtwoord.fout.te_zwak": "The new password does not meet the strength requirements.",
 
   "nav.rechten": "Screen rights",
 

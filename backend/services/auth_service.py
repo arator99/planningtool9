@@ -57,7 +57,7 @@ class AuthService:
 
         return {
             "stap": "ingelogd",
-            "token": maak_access_token(gebruiker.id, gebruiker.rol),
+            "token": maak_access_token(gebruiker.id),
             "gebruiker": gebruiker,
         }
 
@@ -168,7 +168,7 @@ class AuthService:
             raise ValueError("Ongeldige authenticatiecode — probeer opnieuw")
 
         logger.info("TOTP geslaagd voor gebruiker %s", gebruiker.gebruikersnaam)
-        return maak_access_token(gebruiker.id, gebruiker.rol)
+        return maak_access_token(gebruiker.id)
 
     # ------------------------------------------------------------------ #
     # Wachtwoord beheer                                                    #

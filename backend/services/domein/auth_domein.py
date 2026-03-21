@@ -78,19 +78,18 @@ _AUD_TOEGANG = "toegang"
 _AUD_TOTP_STAP = "totp_stap"
 
 
-def maak_access_token(gebruiker_id: int, rol: str) -> str:
+def maak_access_token(gebruiker_id: int) -> str:
     """
     Maak een ondertekend JWT access token.
 
     Args:
         gebruiker_id: ID van de gebruiker (wordt 'sub' claim).
-        rol: Rol van de gebruiker (wordt 'rol' claim).
 
     Returns:
         Geserialiseerde JWT string.
     """
     verlooptijd = int(time.time()) + (instellingen.toegangs_token_verlopen_minuten * 60)
-    payload = {"sub": gebruiker_id, "rol": rol, "exp": verlooptijd, "aud": _AUD_TOEGANG}
+    payload = {"sub": gebruiker_id, "exp": verlooptijd, "aud": _AUD_TOEGANG}
     return jwt.encode(payload, instellingen.geheime_sleutel, algorithm="HS256")
 
 

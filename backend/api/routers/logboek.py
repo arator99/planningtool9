@@ -38,6 +38,14 @@ _BEKENDE_ACTIES = [
     "typetabel.bewerken",
     "typetabel.verwijderen",
     "typetabel.activeren",
+    "aankondiging.aanmaken",
+    "aankondiging.bewerken",
+    "aankondiging.activeren",
+    "aankondiging.deactiveren",
+    "aankondiging.verwijderen",
+    "locatie.aanmaken",
+    "locatie.bewerken",
+    "locatie.deactiveren",
 ]
 
 

@@ -405,6 +405,9 @@
   "account.voorkeur_geen": "Geen voorkeur",
   "account.voorkeur_rang": "Voorkeur",
   "account.voorkeuren_opgeslagen": "Shift voorkeuren opgeslagen",
+  "account.wachtwoord.fout.geen_match": "De nieuwe wachtwoorden komen niet overeen.",
+  "account.wachtwoord.fout.huidig_onjuist": "Huidig wachtwoord is onjuist.",
+  "account.wachtwoord.fout.te_zwak": "Het nieuwe wachtwoord voldoet niet aan de sterkte-eisen.",
 
   "nav.rechten": "Scherm rechten",
 
