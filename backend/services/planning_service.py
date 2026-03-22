@@ -70,15 +70,17 @@ class PlanningService:
             .all()
         )
 
+        # Shifts: user-based query — shifts volgen de medewerker, niet het team
+        actieve_gebruiker_ids = [g.id for g in gebruikers]
         shifts_db = (
             self.db.query(Planning)
             .filter(
-                Planning.team_id.in_(actieve_team_ids),
+                Planning.gebruiker_id.in_(actieve_gebruiker_ids),
                 Planning.datum >= datums[0],
                 Planning.datum <= datums[-1],
             )
             .all()
-        )
+        ) if actieve_gebruiker_ids else []
         shifts_idx = {(s.gebruiker_id, s.datum): s for s in shifts_db}
 
         grid = []
@@ -97,6 +99,9 @@ class PlanningService:
                 }
             grid.append(rij)
 
+        # Ex-leden: voormalige teamleden met historische shifts in deze periode
+        ex_grid = self._bouw_ex_grid(actieve_team_ids, actieve_gebruiker_ids, datums)
+
         vorige, volgende = bereken_navigatie(jaar, maand)
 
         # is_gepubliceerd: enkel relevant voor het gefilterde team (of primaire team bij geen filter)
@@ -104,6 +109,7 @@ class PlanningService:
 
         return {
             "grid": grid,
+            "ex_grid": ex_grid,
             "dag_info": bouw_dag_info(datums),
             "jaar": jaar,
             "maand": maand,
@@ -360,6 +366,73 @@ class PlanningService:
             "volgende": volgende,
             "maand_naam": MAAND_NAMEN[maand],
         }
+
+    def _bouw_ex_grid(
+        self,
+        actieve_team_ids: list[int],
+        actieve_gebruiker_ids: list[int],
+        datums: list,
+    ) -> list[dict]:
+        """Bouw grid-rijen voor ex-leden met historische shifts in de gegeven periode.
+
+        Toont shifts van gebruikers die ooit in deze teams zaten (GebruikerRol.is_actief=False),
+        gefilterd op Planning.team_id zodat enkel shifts uit deze teams worden getoond.
+        Actieve leden worden uitgesloten (hun shifts staan al in het hoofdgrid).
+        """
+        ex_rollen = (
+            self.db.query(GebruikerRol)
+            .filter(
+                GebruikerRol.scope_id.in_(actieve_team_ids),
+                GebruikerRol.rol.in_(["teamlid", "planner"]),
+                GebruikerRol.is_actief == False,
+            )
+            .all()
+        )
+        ex_gebruiker_ids = [
+            r.gebruiker_id for r in ex_rollen
+            if r.gebruiker_id not in actieve_gebruiker_ids
+        ]
+        if not ex_gebruiker_ids:
+            return []
+
+        ex_shifts = (
+            self.db.query(Planning)
+            .filter(
+                Planning.team_id.in_(actieve_team_ids),
+                Planning.gebruiker_id.in_(ex_gebruiker_ids),
+                Planning.datum >= datums[0],
+                Planning.datum <= datums[-1],
+            )
+            .all()
+        )
+        # Alleen ex-leden die daadwerkelijk shifts hebben in deze periode tonen
+        ex_gebruikers_met_shifts = {s.gebruiker_id for s in ex_shifts}
+        if not ex_gebruikers_met_shifts:
+            return []
+
+        ex_shifts_idx = {(s.gebruiker_id, s.datum): s for s in ex_shifts}
+
+        ex_gebruikers = (
+            self.db.query(Gebruiker)
+            .filter(Gebruiker.id.in_(ex_gebruikers_met_shifts))
+            .order_by(Gebruiker.volledige_naam)
+            .all()
+        )
+
+        ex_grid = []
+        for gebruiker in ex_gebruikers:
+            rij = {
+                "id": gebruiker.id,
+                "naam": gebruiker.volledige_naam or gebruiker.gebruikersnaam,
+                "shifts": {},
+            }
+            for datum in datums:
+                shift = ex_shifts_idx.get((gebruiker.id, datum))
+                rij["shifts"][datum.isoformat()] = {
+                    "code": shift.shift_code if shift else None,
+                }
+            ex_grid.append(rij)
+        return ex_grid
 
     def _locatie_van_team(self, team_id: int) -> Optional[int]:
         """Hulpfunctie: geeft locatie_id van een team."""

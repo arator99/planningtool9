@@ -26,6 +26,15 @@
     <input type="text" name="zoek" value="{{ zoek }}"
            placeholder="Zoeken op naam..."
            class="flex-1 min-w-[180px] text-sm rounded-lg border border-rand px-3 py-1.5 outline-none focus:ring-2 focus:ring-blue-300">
+    {% if teams_lijst %}
+    <select name="team_id" onchange="this.form.submit()"
+            class="text-sm rounded-lg border border-rand px-3 py-1.5 outline-none bg-oppervlak">
+        <option value="">Alle teams</option>
+        {% for team in teams_lijst %}
+        <option value="{{ team.id }}" {% if team_id == team.id %}selected{% endif %}>{{ team.naam }}</option>
+        {% endfor %}
+    </select>
+    {% endif %}
     <select name="rol" onchange="this.form.submit()"
             class="text-sm rounded-lg border border-rand px-3 py-1.5 outline-none bg-oppervlak">
         <option value="" {% if not rol %}selected{% endif %}>Alle rollen</option>
@@ -44,7 +53,7 @@
             class="text-sm px-3 py-1.5 rounded-lg bg-achtergrond hover:bg-gray-200 text-tekst transition-colors">
         {{ t('algemeen.zoeken') }}
     </button>
-    {% if zoek or rol or status != 'actief' %}
+    {% if zoek or rol or team_id or status != 'actief' %}
     <a href="/beheer/gebruikers"
        class="text-sm px-3 py-1.5 rounded-lg text-tekst-zacht hover:text-tekst transition-colors">
         Wis filters

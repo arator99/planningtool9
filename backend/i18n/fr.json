@@ -17,6 +17,7 @@
   "dashboard.instellingen_omschrijving": "Configuration du groupe",
   "dashboard.locaties_omschrijving": "Emplacements et régions",
   "dashboard.hr_nationaal_omschrijving": "Règles RH nationales",
+  "dashboard.database_omschrijving": "Sauvegardes, restauration et import/fusion",
   "dashboard.binnenkort": "Bientôt disponible",
 
   "nav.dashboard": "Tableau de bord",
@@ -238,6 +239,8 @@
 
   "planning.filter_team": "Filtrer par équipe",
   "planning.alle_teams": "Toutes les équipes",
+  "planning.ex_leden": "Anciens membres",
+  "planning.ex_lid_kolom": "Collaborateur (parti)",
   "planning.mijn_shifts": "Mes shifts",
 
   "account.voorkeuren": "Préférences de shift",
@@ -496,5 +499,28 @@
   "aankondiging.sjabloon.storing.titel": "Panne",
   "aankondiging.sjabloon.storing.bericht": "Une panne est en cours. Nos techniciens en sont informés.",
   "aankondiging.sjabloon.overige.titel": "Message système",
-  "aankondiging.sjabloon.overige.bericht": "Voir les informations supplémentaires ci-dessous."
+  "aankondiging.sjabloon.overige.bericht": "Voir les informations supplémentaires ci-dessous.",
+
+  "nav.beheer_database": "Gestion base de données",
+
+  "backup.gemaakt": "Sauvegarde créée avec succès.",
+  "backup.mislukt": "Échec de la création de la sauvegarde.",
+  "backup.verwijderd": "Sauvegarde supprimée.",
+  "backup.verwijder_mislukt": "Échec de la suppression.",
+  "backup.niet_gevonden": "Fichier de sauvegarde introuvable.",
+  "backup.ongeldig_pad": "Nom de fichier invalide.",
+
+  "restore.gelukt": "Base de données restaurée.",
+  "restore.mislukt": "Restauration échouée. Voir les logs.",
+  "restore.ongeldig_bestand": "Seuls les fichiers .dump sont acceptés.",
+  "restore.te_groot": "Fichier trop grand (max 200 Mo).",
+
+  "export.mislukt": "Échec de l'export.",
+
+  "import.gelukt": "Fusion réussie.",
+  "import.mislukt": "Échec de la fusion.",
+  "import.ongeldig_bestand": "Seuls les fichiers .json sont acceptés.",
+  "import.ongeldig_formaat": "Fichier d'export invalide ou incompatible.",
+  "import.te_groot": "Fichier trop grand (max 200 Mo).",
+  "import.geen_bestand": "Pas d'aperçu actif. Uploadez d'abord un fichier."
 }

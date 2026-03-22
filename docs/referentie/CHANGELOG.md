@@ -8,6 +8,27 @@ Formaat gebaseerd op [Keep a Changelog](https://keepachangelog.com/nl/1.0.0/).
 
 ---
 
+## [0.9.1] — 2026-03-22
+
+### Toegevoegd
+
+-   **Team filter in gebruikersbeheer** — dropdown in de filterbalk om gebruikers te filteren op teamlidmaatschap
+-   **Ledenkolom in teambeheer** — overzichtspagina toont direct de actieve leden per team als badges
+-   **Ex-leden sectie in planningsgrid** — inklapbaar greyed-out paneel onderaan het grid; toont voormalige teamleden met hun historische shifts (read-only, geen nieuwe shifts mogelijk)
+-   **Alembic migratie 009** — `verwijderd_op` en `verwijderd_door_id` kolommen op `gebruiker_rollen` tabel
+
+### Gewijzigd
+
+-   **Planningsgrid laadt shifts per medewerker** — query gebruikt `gebruiker_id` i.p.v. `team_id`, zodat de volledige shift-geschiedenis meebeweegt wanneer een medewerker van team wisselt
+-   **`verwijder_lid` gebruikt soft delete** — `GebruikerRol.is_actief = False` + `verwijderd_op` + `verwijderd_door_id` i.p.v. fysiek verwijderen; historische shifts blijven zichtbaar voor het oude team
+
+### Opgelost
+
+-   **TOTP-setup 401 "niet ingelogd"** voor geïmporteerde gebruikers — `bevestig_totp_geforceerde_setup` gebruikte `Depends(verifieer_csrf)` wat een `toegangs_token` vereiste op een pre-auth route; vervangen door inline CSRF-check op basis van `gebruiker_id` uit `totp_setup_token`
+-   **Planningsgrid team-filter crashte bij "alle teams"** — lege `team_id=` querystring kon niet als `int` worden geparsed; dropdown stuurt nu geen `team_id` parameter wanneer "alle teams" geselecteerd is
+
+---
+
 ## [0.8.11] — 2026-03-15
 
 ### Toegevoegd
@@ -69,7 +90,41 @@ Formaat gebaseerd op [Keep a Changelog](https://keepachangelog.com/nl/1.0.0/).
 
 ## [Unreleased]
 
-### Gepland
+### Toegevoegd
+
+-   **Database Beheer module** (`/beheer/database`, super_beheerder only):
+    -   **Automatische backups** — dagelijks, wekelijks en maandelijks via `pg_dump` bij app-opstart; bewaarbeleid (30/12/12)
+    -   **Handmatige backup** — aanmaken via GUI met optioneel label; download als `.dump`
+    -   **Restore** — herstel vanuit bestaande backup of geüpload `.dump`-bestand; pre-restore backup wordt automatisch aangemaakt
+    -   **JSON-export** — volledige database exporteren als `.json` (download)
+    -   **Import/Merge** — upload een JSON-export van een andere instantie; voorvertoning toont hoeveel records nieuw zijn vs. al aanwezig; samenvoegen op UUID (bestaande records worden overgeslagen)
+    -   Navbar-link en dashboard-tegel voor super_beheerder
+-   **Migratiescript meerdere databases** (`scripts/migreer_sqlite_multi.py`):
+    -   Verwerkt meerdere v0.7 SQLite-bestanden tegelijk (PAT + TO)
+    -   Leidt locatie_code automatisch af uit bestandsnaam
+    -   Werkposten deduplicatie op naam (case-insensitive)
+    -   Shiftcodes zonder UUID krijgen deterministisch uuid5
+    -   Robuuste ID-remapping — geen conflicten bij overlappende SQLite integer-IDs
+-   **`BackupService`** — pg_dump/pg_restore wrapper met pre-restore backupbescherming
+-   **`DatabaseExportService`** — SQLAlchemy → JSON serialisatie voor alle operationele tabellen
+-   **`DatabaseImportService`** — JSON merge met uuid-gebaseerde conflictdetectie en voorvertoning
+-   **`SqliteImportService`** — importeer een v0.7 SQLite `.db` bestand rechtstreeks via de GUI:
+    -   Locatiecode automatisch afgeleid uit bestandsnaam (`database.PAT.db` → PAT)
+    -   Voorvertoning toont per entiteitstype (teams, werkposten, shiftcodes, gebruikers, planning, verlof): totaal in bestand vs. nieuw te importeren
+    -   Dezelfde conflict-strategie als JSON-merge: skip bestaande records op uuid/naam/gebruikersnaam
+    -   Pre-import backup vóór uitvoering
+    -   Endpoints: `POST /beheer/database/import/sqlite/voorvertoning` en `/uitvoeren`
+    -   Import-tab uitgebreid met aparte upload-sectie voor `.db` bestanden
+-   **i18n** — backup/restore/import/sqlite sleutels toegevoegd in nl/fr/en
+
+### Gewijzigd
+
+-   **Dockerfile** — `postgresql-client` toegevoegd (vereist voor `pg_dump`/`pg_restore` in app-container)
+-   **docker-compose.yml** — `backup_data` volume toegevoegd, gemount op `/backups` in app-container
+
+---
+
+## Eerder gepland (verplaatst)
 
 -   Fase 8: Typetabellen beheer
 -   Fase 9: Geavanceerd beschikbaarheidsbeheer (ADV)

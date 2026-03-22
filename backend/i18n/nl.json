@@ -168,6 +168,8 @@
   "planning.score": "Score",
   "planning.filter_team": "Filter op team",
   "planning.alle_teams": "Alle teams",
+  "planning.ex_leden": "Voormalige leden",
+  "planning.ex_lid_kolom": "Medewerker (vertrokken)",
   "planning.mijn_shifts": "Mijn shifts",
 
   "gebruiker.titel": "Gebruikers",
@@ -346,6 +348,7 @@
   "dashboard.instellingen_omschrijving": "Groep configuratie",
   "dashboard.locaties_omschrijving": "Locaties en gebieden",
   "dashboard.hr_nationaal_omschrijving": "Nationale HR-regels",
+  "dashboard.database_omschrijving": "Backups, restore en import/merge",
   "dashboard.binnenkort": "Binnenkort",
 
   "fout.niet_gevonden": "Niet gevonden",
@@ -485,5 +488,28 @@
   "aankondiging.sjabloon.storing.titel": "Storing",
   "aankondiging.sjabloon.storing.bericht": "Er is momenteel een storing. Onze technici zijn op de hoogte.",
   "aankondiging.sjabloon.overige.titel": "Systeemmelding",
-  "aankondiging.sjabloon.overige.bericht": "Zie extra informatie hieronder."
+  "aankondiging.sjabloon.overige.bericht": "Zie extra informatie hieronder.",
+
+  "nav.beheer_database": "Database Beheer",
+
+  "backup.gemaakt": "Backup succesvol aangemaakt.",
+  "backup.mislukt": "Backup aanmaken mislukt.",
+  "backup.verwijderd": "Backup verwijderd.",
+  "backup.verwijder_mislukt": "Backup verwijderen mislukt.",
+  "backup.niet_gevonden": "Backup-bestand niet gevonden.",
+  "backup.ongeldig_pad": "Ongeldig bestandsnaam.",
+
+  "restore.gelukt": "Database hersteld.",
+  "restore.mislukt": "Restore mislukt. Zie logs. Pre-restore backup is aangemaakt.",
+  "restore.ongeldig_bestand": "Alleen .dump bestanden worden ondersteund.",
+  "restore.te_groot": "Bestand te groot (max 200 MB).",
+
+  "export.mislukt": "Export mislukt. Zie logs.",
+
+  "import.gelukt": "Merge succesvol afgerond.",
+  "import.mislukt": "Merge mislukt. Zie logs.",
+  "import.ongeldig_bestand": "Alleen .json exportbestanden worden ondersteund.",
+  "import.ongeldig_formaat": "Ongeldig of incompatibel exportbestand.",
+  "import.te_groot": "Bestand te groot (max 200 MB).",
+  "import.geen_bestand": "Geen voorvertoning actief. Upload eerst een bestand."
 }

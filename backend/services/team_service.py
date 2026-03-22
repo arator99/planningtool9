@@ -1,5 +1,6 @@
 """Team service — beheer van teams en teamleden."""
 import logging
+from datetime import datetime
 
 from sqlalchemy.orm import Session
 
@@ -86,6 +87,7 @@ class TeamService:
             .filter(
                 GebruikerRol.scope_id == team_id,
                 GebruikerRol.rol.in_(["teamlid", "planner"]),
+                GebruikerRol.is_actief == True,
             )
             .all()
         )
@@ -101,7 +103,7 @@ class TeamService:
         )
 
     def voeg_lid_toe(self, team_id: int, gebruiker_id: int, is_reserve: bool) -> None:
-        """Voeg een gebruiker als teamlid toe. Updatet is_reserve bij bestaand lidmaatschap."""
+        """Voeg een gebruiker als teamlid toe. Heractiveer bij eerder verwijderd lidmaatschap."""
         bestaand = (
             self.db.query(GebruikerRol)
             .filter(
@@ -113,6 +115,9 @@ class TeamService:
         )
         if bestaand:
             bestaand.is_reserve = is_reserve
+            bestaand.is_actief = True
+            bestaand.verwijderd_op = None
+            bestaand.verwijderd_door_id = None
         else:
             self.db.add(GebruikerRol(
                 gebruiker_id=gebruiker_id,
@@ -124,18 +129,33 @@ class TeamService:
         self.db.commit()
         logger.info("Lid %d toegevoegd aan team %d (reserve=%s)", gebruiker_id, team_id, is_reserve)
 
-    def verwijder_lid(self, team_id: int, gebruiker_id: int) -> None:
-        """Verwijder een teamlid-koppeling."""
+    def verwijder_lid(self, team_id: int, gebruiker_id: int, verwijderd_door_id: int | None = None) -> None:
+        """Deactiveer een teamlid-koppeling (soft delete). Behoudt historische shifts zichtbaarheid."""
         koppeling = (
             self.db.query(GebruikerRol)
             .filter(
                 GebruikerRol.gebruiker_id == gebruiker_id,
                 GebruikerRol.scope_id == team_id,
                 GebruikerRol.rol.in_(["teamlid", "planner"]),
+                GebruikerRol.is_actief == True,
             )
             .first()
         )
         if koppeling:
-            self.db.delete(koppeling)
+            koppeling.is_actief = False
+            koppeling.verwijderd_op = datetime.utcnow()
+            koppeling.verwijderd_door_id = verwijderd_door_id
             self.db.commit()
-            logger.info("Lid %d verwijderd uit team %d", gebruiker_id, team_id)
+            logger.info("Lid %d gedeactiveerd uit team %d", gebruiker_id, team_id)
+
+    def haal_ex_leden(self, team_id: int) -> list[GebruikerRol]:
+        """Geeft inactieve GebruikerRol-records voor dit team (voormalige leden)."""
+        return (
+            self.db.query(GebruikerRol)
+            .filter(
+                GebruikerRol.scope_id == team_id,
+                GebruikerRol.rol.in_(["teamlid", "planner"]),
+                GebruikerRol.is_actief == False,
+            )
+            .all()
+        )

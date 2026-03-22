@@ -42,6 +42,8 @@ class GebruikerRol(Basis):
     is_reserve = Column(Boolean, default=False, nullable=False)
     is_actief = Column(Boolean, default=True, nullable=False)
     aangemaakt_op = Column(DateTime, server_default=func.now(), nullable=False)
+    verwijderd_op = Column(DateTime, nullable=True)
+    verwijderd_door_id = Column(Integer, nullable=True)
 
     # Relatie
     gebruiker = relationship("Gebruiker", back_populates="rollen")

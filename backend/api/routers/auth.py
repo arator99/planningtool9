@@ -1,11 +1,11 @@
 import logging
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from api.dependencies import haal_db, haal_huidige_gebruiker, haal_csrf_token, verifieer_csrf
-from services.domein.csrf_domein import genereer_csrf_token
+from services.domein.csrf_domein import genereer_csrf_token, verifieer_csrf_token
 from api.rate_limiter import limiter
 from api.sjablonen import sjablonen
 from config import instellingen
@@ -214,20 +214,30 @@ def toon_totp_geforceerde_setup(
 def bevestig_totp_geforceerde_setup(
     request: Request,
     code: str = Form(...),
+    csrf_token: str = Form(None),
     db: Session = Depends(haal_db),
-    _csrf: None = Depends(verifieer_csrf),
 ):
     """Bevestigt de verplichte TOTP-setup en geeft een volledig access token."""
     setup_token = request.cookies.get("totp_setup_token")
     if not setup_token:
         return RedirectResponse(url="/login", status_code=303)
+
+    # CSRF-check op basis van totp_setup_token (geen toegangs_token beschikbaar)
+    try:
+        gebruiker_id_voor_csrf = AuthService(db).verifieer_totp_setup_token(setup_token)
+    except ValueError:
+        antwoord = RedirectResponse(url="/login", status_code=303)
+        antwoord.delete_cookie("totp_setup_token")
+        return antwoord
+    if not csrf_token or not verifieer_csrf_token(csrf_token, str(gebruiker_id_voor_csrf)):
+        logger.warning("CSRF-validatie mislukt op /auth/totp-setup/bevestig")
+        raise HTTPException(status_code=403, detail="Ongeldige of ontbrekende CSRF-token")
     try:
         access_token = AuthService(db).bevestig_geforceerde_totp(setup_token, code)
     except ValueError as fout:
         try:
-            gebruiker_id = AuthService(db).verifieer_totp_setup_token(setup_token)
-            gebruiker = db.query(Gebruiker).filter(Gebruiker.id == gebruiker_id).first()
-            resultaat = AuthService(db).haal_bestaand_totp(gebruiker_id)
+            gebruiker = db.query(Gebruiker).filter(Gebruiker.id == gebruiker_id_voor_csrf).first()
+            resultaat = AuthService(db).haal_bestaand_totp(gebruiker_id_voor_csrf)
         except ValueError:
             antwoord = RedirectResponse(url="/login", status_code=303)
             antwoord.delete_cookie("totp_setup_token")
@@ -240,7 +250,7 @@ def bevestig_totp_geforceerde_setup(
                 "totp_uri": resultaat["uri"],
                 "totp_geheim": resultaat["geheim"],
                 "fout": str(fout),
-                "csrf_token": genereer_csrf_token(str(gebruiker_id)),
+                "csrf_token": genereer_csrf_token(str(gebruiker_id_voor_csrf)),
                 "totp_verplicht": True,
             },
             status_code=400,

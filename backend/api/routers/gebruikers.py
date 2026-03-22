@@ -46,6 +46,7 @@ def toon_lijst(
     zoek: str = "",
     rol: str = "",
     status: str = "actief",
+    team_id: Optional[int] = None,
     melding: Optional[str] = None,
     fout: Optional[str] = None,
     gebruiker: Gebruiker = Depends(vereiste_beheerder_of_hoger),
@@ -54,11 +55,12 @@ def toon_lijst(
     csrf_token: str = Depends(haal_csrf_token),
 ):
     svc = GebruikerService(db)
-    gebruikers = svc.haal_gefilterd(actieve_locatie_id, zoek=zoek, rol=rol, status=status)
+    gebruikers = svc.haal_gefilterd(actieve_locatie_id, zoek=zoek, rol=rol, status=status, team_id=team_id)
     totaal_actief = len(svc.haal_actieve_medewerkers(actieve_locatie_id))
     melding_type = "fout" if fout else "ok"
     # Teams en locaties als lookup voor rollen-badges in template
-    alle_teams = {t.id: t for t in db.query(Team).filter(Team.locatie_id == gebruiker.locatie_id).all()}
+    teams_lijst = db.query(Team).filter(Team.locatie_id == actieve_locatie_id, Team.is_actief == True).order_by(Team.naam).all()
+    alle_teams = {t.id: t for t in teams_lijst}
     alle_locaties = {l.id: l for l in db.query(Locatie).all()}
     return sjablonen.TemplateResponse(
         "pages/gebruikers/lijst.html",
@@ -68,6 +70,8 @@ def toon_lijst(
                  zoek=zoek,
                  rol=rol,
                  status=status,
+                 team_id=team_id,
+                 teams_lijst=teams_lijst,
                  melding=fout or melding,
                  melding_type=melding_type,
                  alle_teams=alle_teams,

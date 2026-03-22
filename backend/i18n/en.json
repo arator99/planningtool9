@@ -17,6 +17,7 @@
   "dashboard.instellingen_omschrijving": "Group configuration",
   "dashboard.locaties_omschrijving": "Locations and regions",
   "dashboard.hr_nationaal_omschrijving": "National HR rules",
+  "dashboard.database_omschrijving": "Backups, restore and import/merge",
   "dashboard.binnenkort": "Coming soon",
 
   "nav.dashboard": "Dashboard",
@@ -408,6 +409,8 @@
 
   "planning.filter_team": "Filter by team",
   "planning.alle_teams": "All teams",
+  "planning.ex_leden": "Former members",
+  "planning.ex_lid_kolom": "Employee (departed)",
   "planning.mijn_shifts": "My shifts",
 
   "account.voorkeuren": "Shift preferences",
@@ -494,5 +497,28 @@
   "aankondiging.sjabloon.storing.titel": "Outage",
   "aankondiging.sjabloon.storing.bericht": "There is currently an outage. Our technicians have been notified.",
   "aankondiging.sjabloon.overige.titel": "System message",
-  "aankondiging.sjabloon.overige.bericht": "See additional information below."
+  "aankondiging.sjabloon.overige.bericht": "See additional information below.",
+
+  "nav.beheer_database": "Database Management",
+
+  "backup.gemaakt": "Backup created successfully.",
+  "backup.mislukt": "Backup creation failed.",
+  "backup.verwijderd": "Backup deleted.",
+  "backup.verwijder_mislukt": "Failed to delete backup.",
+  "backup.niet_gevonden": "Backup file not found.",
+  "backup.ongeldig_pad": "Invalid filename.",
+
+  "restore.gelukt": "Database restored.",
+  "restore.mislukt": "Restore failed. Check logs.",
+  "restore.ongeldig_bestand": "Only .dump files are supported.",
+  "restore.te_groot": "File too large (max 200 MB).",
+
+  "export.mislukt": "Export failed.",
+
+  "import.gelukt": "Merge completed successfully.",
+  "import.mislukt": "Merge failed. Check logs.",
+  "import.ongeldig_bestand": "Only .json export files are supported.",
+  "import.ongeldig_formaat": "Invalid or incompatible export file.",
+  "import.te_groot": "File too large (max 200 MB).",
+  "import.geen_bestand": "No preview active. Upload a file first."
 }

@@ -67,8 +67,9 @@ class GebruikerService:
         zoek: str = "",
         rol: str = "",
         status: str = "actief",
+        team_id: int | None = None,
     ) -> list[Gebruiker]:
-        """Gefilterde gebruikerslijst op basis van zoekterm, rol en status."""
+        """Gefilterde gebruikerslijst op basis van zoekterm, rol, status en optioneel team."""
         query = self.db.query(Gebruiker).filter(Gebruiker.locatie_id == locatie_id)
         if status == "actief":
             query = query.filter(Gebruiker.is_actief == True)
@@ -76,6 +77,12 @@ class GebruikerService:
             query = query.filter(Gebruiker.is_actief == False)
         if rol:
             query = query.filter(Gebruiker.rol == rol)
+        if team_id:
+            query = query.join(GebruikerRol, GebruikerRol.gebruiker_id == Gebruiker.id).filter(
+                GebruikerRol.scope_id == team_id,
+                GebruikerRol.rol.in_(["teamlid", "planner"]),
+                GebruikerRol.is_actief == True,
+            )
         if zoek:
             patroon = f"%{zoek}%"
             query = query.filter(

@@ -42,7 +42,7 @@
     <div class="flex items-center gap-2">
         <label for="team-filter" class="text-sm text-tekst-zacht whitespace-nowrap">{{ t("planning.filter_team") }}</label>
         <select id="team-filter"
-                onchange="window.location.href='/planning?jaar={{ jaar }}&maand={{ maand }}&team_id=' + (this.value || '')"
+                onchange="var v=this.value; window.location.href='/planning?jaar={{ jaar }}&maand={{ maand }}' + (v ? '&team_id=' + v : '')"
                 class="text-sm bg-oppervlak border border-rand text-tekst rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primair">
             <option value="" {% if not actief_team_id %}selected{% endif %}>{{ t("planning.alle_teams") }}</option>
             {% for team in teams %}
@@ -264,6 +264,61 @@
 {% endif %}
 
 <!-- ================================================================ -->
+<!-- Ex-leden Paneel (voormalige leden met historische shifts)        -->
+<!-- ================================================================ -->
+{% if ex_grid %}
+<div class="mt-5 rounded-xl border overflow-hidden" style="border-color: var(--rand); background: var(--achtergrond-widget);">
+    <button type="button" onclick="toggleExLeden()"
+            class="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold"
+            style="color: var(--tekst);">
+        <span>{{ t("planning.ex_leden") }}
+            <span class="ml-1.5 text-xs font-normal px-2 py-0.5 rounded-full"
+                  style="background: var(--achtergrond-alt); color: var(--tekst-secundair);">{{ ex_grid | length }}</span>
+        </span>
+        <svg id="ex-leden-pijl" class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+    </button>
+    <div id="ex-leden-inhoud" class="hidden border-t overflow-x-auto" style="border-color: var(--rand);">
+        <table class="border-collapse text-sm" style="min-width: max-content; opacity: 0.6;">
+            <thead>
+                <tr class="bg-achtergrond border-b border-rand">
+                    <th class="sticky left-0 z-10 bg-achtergrond text-left px-4 py-2 font-medium text-tekst-zacht
+                               border-r border-rand min-w-[160px]">{{ t("planning.ex_lid_kolom") }}</th>
+                    {% for dag in dag_info %}
+                    <th class="text-center px-0 py-2 font-medium min-w-[44px] w-[44px]
+                               {% if dag.is_weekend %}text-blue-500 bg-info-zacht{% else %}text-tekst-zacht{% endif %}">
+                        <div class="text-xs leading-none">{{ dag.dag_naam }}</div>
+                        <div class="text-sm font-bold leading-tight">{{ dag.dag }}</div>
+                    </th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for rij in ex_grid %}
+                <tr class="border-b border-rand">
+                    <td class="sticky left-0 z-10 bg-oppervlak px-4 py-0 font-medium text-tekst-zacht
+                               border-r border-rand whitespace-nowrap h-8 italic">
+                        {{ rij.naam }}
+                    </td>
+                    {% for dag in dag_info %}
+                    {% set shift = rij.shifts[dag.datum] %}
+                    <td class="border-r border-rand p-0 h-8
+                               {% if dag.is_weekend %}bg-info-zacht/50{% endif %}">
+                        <div class="w-full h-8 flex items-center justify-center text-center text-xs font-semibold uppercase text-tekst-zacht">
+                            {{ shift.code or '' }}
+                        </div>
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- ================================================================ -->
 <!-- HR Validatie Paneel                                               -->
 <!-- ================================================================ -->
 <div id="validatie-paneel" class="mt-5">
@@ -441,6 +496,14 @@
     window.toggleReserves = function () {
         const inhoud = document.getElementById('reserves-inhoud');
         const pijl = document.getElementById('reserves-pijl');
+        if (!inhoud) return;
+        inhoud.classList.toggle('hidden');
+        if (pijl) pijl.style.transform = inhoud.classList.contains('hidden') ? '' : 'rotate(180deg)';
+    };
+
+    window.toggleExLeden = function () {
+        const inhoud = document.getElementById('ex-leden-inhoud');
+        const pijl = document.getElementById('ex-leden-pijl');
         if (!inhoud) return;
         inhoud.classList.toggle('hidden');
         if (pijl) pijl.style.transform = inhoud.classList.contains('hidden') ? '' : 'rotate(180deg)';

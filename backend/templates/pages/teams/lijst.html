@@ -38,15 +38,30 @@
             <tr style="border-bottom: 1px solid var(--rand); background: var(--achtergrond-alt);">
                 <th class="text-left px-4 py-3 font-semibold" style="color: var(--tekst);">{{ t('team.code') }}</th>
                 <th class="text-left px-4 py-3 font-semibold" style="color: var(--tekst);">{{ t('team.naam') }}</th>
+                <th class="text-left px-4 py-3 font-semibold" style="color: var(--tekst);">{{ t('team.leden') }}</th>
                 <th class="text-center px-4 py-3 font-semibold" style="color: var(--tekst);">{{ t('algemeen.status') }}</th>
                 <th class="px-4 py-3"></th>
             </tr>
         </thead>
         <tbody>
             {% for team in teams %}
+            {% set leden = leden_per_team[team.id] if leden_per_team is defined and team.id in leden_per_team else [] %}
             <tr style="border-bottom: 1px solid var(--rand);">
                 <td class="px-4 py-3 font-mono font-medium" style="color: var(--tekst);">{{ team.code }}</td>
                 <td class="px-4 py-3 font-medium" style="color: var(--tekst);">{{ team.naam }}</td>
+                <td class="px-4 py-3">
+                    {% if leden %}
+                    <div class="flex flex-wrap gap-1">
+                        {% for lid in leden %}
+                        <span class="text-xs px-2 py-0.5 rounded-full" style="background: var(--achtergrond-alt); color: var(--tekst-secundair);">
+                            {{ lid.volledige_naam or lid.gebruikersnaam }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <span class="text-xs" style="color: var(--tekst-secundair);">—</span>
+                    {% endif %}
+                </td>
                 <td class="px-4 py-3 text-center">
                     {% if team.is_actief %}
                     <span class="text-xs px-2 py-0.5 rounded-full font-medium" style="background: var(--msg-succes-bg); color: var(--succes);">{{ t('algemeen.actief') }}</span>
@@ -71,7 +86,7 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="4" class="px-4 py-8 text-center text-sm" style="color: var(--tekst-secundair);">
+                <td colspan="5" class="px-4 py-8 text-center text-sm" style="color: var(--tekst-secundair);">
                     Geen teams gevonden.
                 </td>
             </tr>
