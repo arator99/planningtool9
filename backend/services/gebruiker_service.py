@@ -204,6 +204,29 @@ class GebruikerService:
         gebruiker.achternaam = achternaam
         gebruiker.rol = rol
         gebruiker.startweek_typedienst = startweek_typedienst
+
+        # Synchroniseer de locatie-gebonden GebruikerRol met het nieuwe rol.
+        # De locatie-gebonden record is de primaire rol (beheerder/hr/planner aangemaakt
+        # zonder team, of teamlid zonder team). Team-gekoppelde records (scope_id = team_id)
+        # worden niet aangeraakt — die worden beheerd via teambeheer.
+        primaire_rol_record = next(
+            (r for r in gebruiker.rollen if r.is_actief and r.scope_id == locatie_id),
+            None,
+        )
+        if primaire_rol_record:
+            primaire_rol_record.rol = rol
+        else:
+            # Geen locatie-gebonden record gevonden (bijv. gebruiker heeft enkel team-rollen):
+            # maak een nieuw locatie-gebonden record aan voor beheerder/hr.
+            if rol not in ("teamlid", "planner"):
+                self.db.add(GebruikerRol(
+                    gebruiker_id=gebruiker_id,
+                    rol=rol,
+                    scope_id=locatie_id,
+                    is_reserve=False,
+                    is_actief=True,
+                ))
+
         if nieuwe_locatie_id is not None:
             oude_locatie_id = gebruiker.locatie_id
             gebruiker.locatie_id = nieuwe_locatie_id
