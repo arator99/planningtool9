@@ -8,6 +8,10 @@ Formaat gebaseerd op [Keep a Changelog](https://keepachangelog.com/nl/1.0.0/).
 ## [0.9.1] — In ontwikkeling
 
 ### Nieuw
+- Team filter in gebruikersbeheer: dropdown in de filterbalk om de gebruikerslijst te filteren op teamlidmaatschap
+- Ledenkolom in teambeheer: overzichtspagina toont direct de actieve leden per team als badges
+- Ex-leden sectie in planningsgrid: inklapbaar greyed-out paneel onderaan het grid; toont voormalige teamleden met hun historische shifts (read-only, geen nieuwe shifts mogelijk)
+- Alembic migratie `009_gebruikerrol_soft_delete`: `verwijderd_op` en `verwijderd_door_id` kolommen op `gebruiker_rollen` tabel
 - Locatiebeheer voor super_beheerder: gebruikers toewijzen aan een locatie via het bewerkformulier
 - Locatie context switcher in de navbar: super_beheerder kan via een dropdown wisselen tussen locaties zonder van rol te wisselen; context wordt opgeslagen in een cookie (`locatie_context`)
 - Gebruikersbeheer en teamsbeheer respeiteren de actieve locatiecontext (`haal_actieve_locatie_id` dependency)
@@ -39,6 +43,8 @@ Formaat gebaseerd op [Keep a Changelog](https://keepachangelog.com/nl/1.0.0/).
 - CSP: `https://cdn.jsdelivr.net` toegevoegd (QR-code generator op TOTP-instelpagina)
 
 ### Opgelost
+- TOTP-setup gaf 401 "niet ingelogd" voor geïmporteerde gebruikers: `bevestig_totp_geforceerde_setup` gebruikte `Depends(verifieer_csrf)` wat een `toegangs_token` vereiste op een pre-auth route; vervangen door inline CSRF-check op basis van `gebruiker_id` uit `totp_setup_token`
+- Planningsgrid team-filter crashte bij selectie "alle teams": lege `team_id=` querystring kon niet als `int` worden geparsed; dropdown stuurt nu geen `team_id` parameter mee wanneer geen team geselecteerd is
 - Aankondigingenbanner werd niet weergegeven: de HTMX-partial miste de `t()` vertaalfunctie in zijn template-context, waardoor sjabloonteksten niet konden worden opgezocht
 - Activeren/deactiveren van aankondiging gaf internal server error: `zet_actief()` logde nog `obj.titel` na hernoem naar `obj.sjabloon`
 - Formulier "Gebruiker bewerken" werd nooit opgeslagen: geneste `<form>` elementen (teamkoppelingen) verbraken de buitenste form; teamkoppelingen-sectie verplaatst naar buiten `</form>`
@@ -48,6 +54,8 @@ Formaat gebaseerd op [Keep a Changelog](https://keepachangelog.com/nl/1.0.0/).
 - NAT-locatie ontbrak in de locatie-switcher dropdown: `LocatieService.haal_alle()` sluit NAT bewust uit; switcher queryet nu direct inclusief NAT
 
 ### Gewijzigd
+- `verwijder_lid` gebruikt nu soft delete (`is_actief=False` + `verwijderd_op` + `verwijderd_door_id`) i.p.v. fysiek verwijderen; historische shifts blijven zichtbaar voor het oude team
+- Planningsgrid laadt shifts via `gebruiker_id` i.p.v. `team_id` zodat shift-geschiedenis meebeweegt wanneer een medewerker van team wisselt
 - Rolkeuze in gebruikersformulier: "gebruiker" vervangen door "teamlid" (correct rolnaam)
 - Hardcoded Tailwind-kleurcodes (`text-blue-600`, `focus:ring-blue-500`) in gebruikersformulier vervangen door semantische klassen
 
