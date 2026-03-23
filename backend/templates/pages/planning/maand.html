@@ -338,7 +338,7 @@
 {% if shiftcodes_gegroepeerd %}
 <div id="shiftcode-hud"
      class="hidden fixed z-50 bg-oppervlak rounded-xl shadow-xl border border-rand select-none"
-     style="width: 320px; top: 80px; right: 24px;">
+     style="width: 340px; top: 80px; right: 24px;">
 
     <!-- Titelbalk (drag handle) -->
     <div id="hud-header"
@@ -353,17 +353,57 @@
         <button onclick="toggleHUD()" class="text-tekst-zacht hover:text-gevaar transition-colors text-lg leading-none">&times;</button>
     </div>
 
+    <!-- Werkpost filter -->
+    {% if hud_werkposten %}
+    <div class="px-3 py-2 border-b border-rand bg-achtergrond">
+        <div class="flex items-center justify-between mb-1.5">
+            <span class="text-xs font-semibold text-tekst-zacht uppercase tracking-wide">Werkpost</span>
+            <div class="flex gap-2">
+                <button type="button" onclick="hudFilterAlles(true)"
+                        class="text-xs text-primair hover:text-primair-hover">alles</button>
+                <span class="text-xs text-tekst-zacht">·</span>
+                <button type="button" onclick="hudFilterAlles(false)"
+                        class="text-xs text-primair hover:text-primair-hover">geen</button>
+            </div>
+        </div>
+        <div class="flex flex-wrap gap-x-3 gap-y-1">
+            {% for wp in hud_werkposten %}
+            <label class="flex items-center gap-1 cursor-pointer">
+                <input type="checkbox" class="hud-wp-filter w-3 h-3 rounded border-rand accent-primair"
+                       value="{{ wp }}" checked onchange="hudFilterToepassen()">
+                <span class="text-xs text-tekst">{{ wp }}</span>
+            </label>
+            {% endfor %}
+            <label class="flex items-center gap-1 cursor-pointer">
+                <input type="checkbox" class="hud-wp-filter w-3 h-3 rounded border-rand accent-primair"
+                       value="" checked onchange="hudFilterToepassen()">
+                <span class="text-xs text-tekst-zacht italic">overig</span>
+            </label>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Inhoud -->
-    <div class="overflow-y-auto rounded-b-xl" style="max-height: 480px;">
+    <div class="overflow-y-auto rounded-b-xl" style="max-height: 420px;">
         {% for groep in shiftcodes_gegroepeerd %}
         <!-- Categorie header -->
         <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wide border-b"
              style="background-color: {{ groep.var_bg }}; color: {{ groep.var_tekst }}; border-color: rgba(0,0,0,0.08);">
             {{ groep.naam }}
         </div>
+        {% for sub in groep.sub_groepen %}
+        <!-- Dagtype sub-header (enkel als er meerdere dag-types zijn binnen dit shift-type) -->
+        {% if groep.sub_groepen | length > 1 %}
+        <div class="hud-dag-header px-4 py-0.5 text-xs font-semibold border-b"
+             data-dag="{{ sub.dag_type or '' }}"
+             style="background-color: {{ groep.var_bg }}; color: {{ groep.var_tekst }}; opacity: 0.8; border-color: rgba(0,0,0,0.06);">
+            {{ sub.dag_label }}
+        </div>
+        {% endif %}
         <!-- Code rijen -->
-        {% for sc in groep.codes %}
-        <div class="flex items-center px-3 py-1 text-xs border-b"
+        {% for sc in sub.codes %}
+        <div class="hud-rij flex items-center px-3 py-1 text-xs border-b"
+             data-werkpost="{{ sc.werkpost.naam if sc.werkpost else '' }}"
              style="background-color: {{ groep.var_bg }}; border-color: rgba(0,0,0,0.04);"
              title="{{ sc.code }}{% if sc.start_uur %} · {{ sc.start_uur }}–{{ sc.eind_uur }}{% endif %}">
             <span class="font-bold w-14 shrink-0" style="color: {{ groep.var_tekst }};">{{ sc.code }}</span>
@@ -374,6 +414,7 @@
             </span>
             <span class="truncate" style="color: var(--tekst-secundair);">{{ sc.werkpost.naam if sc.werkpost else '' }}</span>
         </div>
+        {% endfor %}
         {% endfor %}
         {% endfor %}
     </div>
@@ -520,6 +561,22 @@
         hud.classList.toggle('hidden');
         const knop = document.getElementById('hud-toggle-knop');
         if (knop) knop.classList.toggle('bg-indigo-50', !hud.classList.contains('hidden'));
+    };
+
+    window.hudFilterToepassen = function () {
+        const actief = new Set(
+            [...document.querySelectorAll('.hud-wp-filter')]
+                .filter(cb => cb.checked)
+                .map(cb => cb.value)
+        );
+        document.querySelectorAll('.hud-rij').forEach(rij => {
+            rij.style.display = actief.has(rij.dataset.werkpost) ? '' : 'none';
+        });
+    };
+
+    window.hudFilterAlles = function (aan) {
+        document.querySelectorAll('.hud-wp-filter').forEach(cb => cb.checked = aan);
+        hudFilterToepassen();
     };
 
     if (hud && hudHeader) {

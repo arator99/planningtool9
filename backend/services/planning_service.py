@@ -117,6 +117,7 @@ class PlanningService:
             "is_gepubliceerd": self._is_gepubliceerd(check_team_id, jaar, maand),
             "shiftcodes": self.haal_shiftcodes(locatie_id),
             "shiftcodes_gegroepeerd": self.haal_shiftcodes_gegroepeerd(locatie_id),
+            "hud_werkposten": self.haal_hud_werkposten(locatie_id),
             "vorige": vorige,
             "volgende": volgende,
         }
@@ -140,6 +141,11 @@ class PlanningService:
             .order_by(Shiftcode.code)
             .all()
         )
+
+    def haal_hud_werkposten(self, locatie_id: int) -> list[str]:
+        """Geeft gesorteerde lijst van unieke werkpost-namen uit de shiftcodes voor de HUD-filter."""
+        codes = self.haal_shiftcodes(locatie_id)
+        return sorted({sc.werkpost.naam for sc in codes if sc.werkpost})
 
     def haal_shiftcodes_gegroepeerd(self, locatie_id: int) -> list[dict]:
         codes = (

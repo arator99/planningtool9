@@ -11,6 +11,14 @@ from typing import Any
 
 SHIFT_TYPE_VOLGORDE: list[str | None] = ["vroeg", "laat", "nacht", "dag", "rust", None]
 
+DAG_TYPE_VOLGORDE: list[str | None] = ["werkdag", "zaterdag", "zondag", None]
+DAG_TYPE_LABELS: dict[str | None, str] = {
+    "werkdag": "Weekdag",
+    "zaterdag": "Zaterdag",
+    "zondag": "Zondag",
+    None: "Alle dagen",
+}
+
 SHIFT_TYPE_CONFIG: dict[str | None, dict[str, str]] = {
     "vroeg": {"naam": "Vroege Dienst", "var_bg": "var(--grid-vroeg)",   "var_tekst": "var(--grid-vroeg-tekst)"},
     "laat":  {"naam": "Late Dienst",   "var_bg": "var(--grid-laat)",    "var_tekst": "var(--grid-laat-tekst)"},
@@ -100,13 +108,14 @@ def bereken_navigatie(jaar: int, maand: int) -> tuple[dict[str, int], dict[str, 
 
 def groepeer_shiftcodes(codes: list[Any]) -> list[dict[str, Any]]:
     """
-    Groepeer shiftcodes per shift_type categorie, in de vaste volgorde.
+    Groepeer shiftcodes per shift_type, met sub-groepen per dag_type.
 
     Args:
-        codes: Lijst van Shiftcode ORM-objecten met attribuut 'shift_type'.
+        codes: Lijst van Shiftcode ORM-objecten met 'shift_type' en 'dag_type'.
 
     Returns:
-        Lijst van dicts met 'naam', 'var_bg', 'var_tekst', 'codes'.
+        Lijst van dicts met 'naam', 'var_bg', 'var_tekst', 'sub_groepen'.
+        Elke sub_groep: {'dag_label', 'dag_type', 'codes'}.
     """
     gegroepeerd: dict[str | None, list] = {}
     for sc in codes:
@@ -118,10 +127,27 @@ def groepeer_shiftcodes(codes: list[Any]) -> list[dict[str, Any]]:
         if shift_type not in gegroepeerd:
             continue
         cfg = SHIFT_TYPE_CONFIG[shift_type]
+
+        # Sub-groepeer per dag_type binnen dit shift-type
+        dag_gegroepeerd: dict[str | None, list] = {}
+        for sc in gegroepeerd[shift_type]:
+            dag_key = sc.dag_type if sc.dag_type in DAG_TYPE_LABELS else None
+            dag_gegroepeerd.setdefault(dag_key, []).append(sc)
+
+        sub_groepen = [
+            {
+                "dag_label": DAG_TYPE_LABELS[dag_type],
+                "dag_type": dag_type,
+                "codes": dag_gegroepeerd[dag_type],
+            }
+            for dag_type in DAG_TYPE_VOLGORDE
+            if dag_type in dag_gegroepeerd
+        ]
+
         resultaat.append({
             "naam": cfg["naam"],
             "var_bg": cfg["var_bg"],
             "var_tekst": cfg["var_tekst"],
-            "codes": gegroepeerd[shift_type],
+            "sub_groepen": sub_groepen,
         })
     return resultaat
