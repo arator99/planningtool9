@@ -46,6 +46,22 @@ class GebruikerService:
             query = query.filter(GebruikerRol.is_reserve == False)
         return query.order_by(Gebruiker.volledige_naam).all()
 
+    def haal_team_leden_meervoud(self, team_ids: list[int]) -> list[Gebruiker]:
+        """Geeft actieve gebruikers gekoppeld aan een of meerdere teams via GebruikerRol."""
+        return (
+            self.db.query(Gebruiker)
+            .join(GebruikerRol, GebruikerRol.gebruiker_id == Gebruiker.id)
+            .filter(
+                GebruikerRol.scope_id.in_(team_ids),
+                GebruikerRol.rol.in_(["teamlid", "planner"]),
+                GebruikerRol.is_actief == True,
+                Gebruiker.is_actief == True,
+            )
+            .distinct()
+            .order_by(Gebruiker.volledige_naam)
+            .all()
+        )
+
     def haal_reserves(self, team_id: int) -> list[Gebruiker]:
         """Geeft gebruikers die als reserve gekoppeld zijn aan dit team."""
         return (

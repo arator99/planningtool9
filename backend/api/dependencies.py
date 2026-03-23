@@ -195,6 +195,31 @@ def haal_primaire_team_id(gebruiker_id: int, db: Session) -> int | None:
     return None
 
 
+def haal_planner_team_ids(gebruiker_id: int, db: Session) -> list[int]:
+    """
+    Geeft de team_ids waarvoor een gebruiker actief planner is.
+    Filtert op echte teams (scope_id moet bestaan in de teams-tabel).
+    """
+    from models.team import Team
+
+    planner_scope_ids = [
+        r.scope_id
+        for r in db.query(GebruikerRol).filter(
+            GebruikerRol.gebruiker_id == gebruiker_id,
+            GebruikerRol.rol == "planner",
+            GebruikerRol.is_actief == True,
+        ).all()
+    ]
+    if not planner_scope_ids:
+        return []
+    return [
+        t.id for t in db.query(Team).filter(
+            Team.id.in_(planner_scope_ids),
+            Team.is_actief == True,
+        ).all()
+    ]
+
+
 def heeft_rol_in_locatie(
     gebruiker_id: int,
     locatie_id: int,

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from i18n import maak_vertaler
-from api.dependencies import haal_db, vereiste_login, vereiste_rol, haal_csrf_token, verifieer_csrf, heeft_rol_in_locatie
+from api.dependencies import haal_db, vereiste_login, vereiste_rol, haal_csrf_token, verifieer_csrf, heeft_rol_in_locatie, haal_planner_team_ids
 from services.planning_service import PlanningService
 from api.sjablonen import sjablonen
 from models.gebruiker import Gebruiker
@@ -34,6 +34,33 @@ def _context(request: Request, gebruiker: Gebruiker, **extra) -> dict:
     return {"request": request, "gebruiker": gebruiker, "t": maak_vertaler(gebruiker.taal if gebruiker else "nl"), **extra}
 
 
+def _haal_verlof_aanvragen(
+    svc: VerlofService,
+    gebruiker: Gebruiker,
+    db,
+) -> tuple[list, bool]:
+    """
+    Bepaal het toegangsniveau en geef de juiste verlofaanvragen terug.
+
+    Returns:
+        (aanvragen, is_behandelaar)
+        - beheerder/hr (locatie-scope): alle aanvragen van de locatie
+        - planner (team-scope): enkel aanvragen van eigen teams
+        - overig: enkel eigen aanvragen
+    """
+    is_locatie_behandelaar = heeft_rol_in_locatie(
+        gebruiker.id, gebruiker.locatie_id, ("beheerder", "hr"), db
+    )
+    if is_locatie_behandelaar:
+        return svc.haal_alle(gebruiker.locatie_id), True
+
+    team_ids = haal_planner_team_ids(gebruiker.id, db)
+    if team_ids:
+        return svc.haal_voor_teams(team_ids), True
+
+    return svc.haal_eigen(gebruiker.id), False
+
+
 # ------------------------------------------------------------------ #
 # Overzicht                                                            #
 # ------------------------------------------------------------------ #
@@ -47,9 +74,7 @@ def toon_verlof(
     csrf_token: str = Depends(haal_csrf_token),
 ):
     svc = VerlofService(db)
-    is_behandelaar = heeft_rol_in_locatie(gebruiker.id, gebruiker.locatie_id, tuple(BEHANDELAAR_ROLLEN), db)
-
-    alle_aanvragen = svc.haal_alle(gebruiker.locatie_id) if is_behandelaar else svc.haal_eigen(gebruiker.id)
+    alle_aanvragen, is_behandelaar = _haal_verlof_aanvragen(svc, gebruiker, db)
     verlofcodes = svc.haal_verlofcodes()
 
     if status_filter != "alle":
@@ -93,10 +118,14 @@ def toon_formulier(
     csrf_token: str = Depends(haal_csrf_token),
 ):
     svc = VerlofService(db)
-    is_behandelaar = heeft_rol_in_locatie(gebruiker.id, gebruiker.locatie_id, tuple(BEHANDELAAR_ROLLEN), db)
+    _, is_behandelaar = _haal_verlof_aanvragen(svc, gebruiker, db)
     medewerkers = []
     if is_behandelaar:
-        medewerkers = GebruikerService(db).haal_actieve_medewerkers(gebruiker.locatie_id)
+        team_ids = haal_planner_team_ids(gebruiker.id, db)
+        if team_ids:
+            medewerkers = GebruikerService(db).haal_team_leden_meervoud(team_ids)
+        else:
+            medewerkers = GebruikerService(db).haal_actieve_medewerkers(gebruiker.locatie_id)
     saldo_overzicht = VerlofSaldoService(db).bereken_overzicht(
         gebruiker.id, date.today().year
     )
@@ -251,7 +280,12 @@ def toon_overzicht(
     jaar = jaar or huidig.year
     maand = maand or huidig.month
 
-    data = VerlofService(db).haal_maand_overzicht(gebruiker.locatie_id, jaar, maand)
+    team_ids = haal_planner_team_ids(gebruiker.id, db)
+    locatie_behandelaar = heeft_rol_in_locatie(gebruiker.id, gebruiker.locatie_id, ("beheerder", "hr"), db)
+    data = VerlofService(db).haal_maand_overzicht(
+        gebruiker.locatie_id, jaar, maand,
+        team_ids=None if locatie_behandelaar else (team_ids or None),
+    )
     navigatie = PlanningService(db).haal_maand_navigatie(jaar, maand)
 
     return sjablonen.TemplateResponse(
@@ -361,7 +395,12 @@ def pending_aantal(
     """HTMX fragment: badge met openstaande verlofaanvragen of leeg."""
     if not gebruiker.locatie_id:
         return HTMLResponse("")
-    aantal = VerlofService(db).haal_pending_count(gebruiker.locatie_id)
+    team_ids = haal_planner_team_ids(gebruiker.id, db)
+    locatie_behandelaar = heeft_rol_in_locatie(gebruiker.id, gebruiker.locatie_id, ("beheerder", "hr"), db)
+    aantal = VerlofService(db).haal_pending_count(
+        gebruiker.locatie_id,
+        team_ids=None if locatie_behandelaar else (team_ids or None),
+    )
     if aantal > 0:
         return HTMLResponse(
             f'<span class="inline-flex items-center justify-center w-4 h-4 text-xs font-bold '

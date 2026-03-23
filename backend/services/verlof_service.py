@@ -6,6 +6,7 @@ from datetime import date, datetime, timedelta
 from sqlalchemy.orm import Session
 
 from models.gebruiker import Gebruiker
+from models.gebruiker_rol import GebruikerRol
 from models.planning import SpecialCode
 from models.verlof import VerlofAanvraag
 from services.domein.verlof_domein import (
@@ -31,6 +32,22 @@ class VerlofService:
             self.db.query(VerlofAanvraag)
             .join(Gebruiker, Gebruiker.id == VerlofAanvraag.gebruiker_id)
             .filter(Gebruiker.locatie_id == locatie_id)
+            .order_by(VerlofAanvraag.aangevraagd_op.desc())
+            .all()
+        )
+
+    def haal_voor_teams(self, team_ids: list[int]) -> list[VerlofAanvraag]:
+        """Aanvragen voor medewerkers in de opgegeven teams (planner-scope)."""
+        return (
+            self.db.query(VerlofAanvraag)
+            .join(Gebruiker, Gebruiker.id == VerlofAanvraag.gebruiker_id)
+            .join(GebruikerRol, GebruikerRol.gebruiker_id == Gebruiker.id)
+            .filter(
+                GebruikerRol.scope_id.in_(team_ids),
+                GebruikerRol.rol.in_(["teamlid", "planner"]),
+                GebruikerRol.is_actief == True,
+            )
+            .distinct()
             .order_by(VerlofAanvraag.aangevraagd_op.desc())
             .all()
         )
@@ -148,29 +165,62 @@ class VerlofService:
         self.db.delete(aanvraag)
         self.db.commit()
 
-    def haal_maand_overzicht(self, locatie_id: int, jaar: int, maand: int) -> dict:
+    def haal_maand_overzicht(
+        self,
+        locatie_id: int,
+        jaar: int,
+        maand: int,
+        team_ids: list[int] | None = None,
+    ) -> dict:
         laatste_dag = calendar.monthrange(jaar, maand)[1]
         eerste = date(jaar, maand, 1)
         laatste = date(jaar, maand, laatste_dag)
 
-        medewerkers = (
-            self.db.query(Gebruiker)
-            .filter(Gebruiker.locatie_id == locatie_id, Gebruiker.is_actief == True)
-            .order_by(Gebruiker.volledige_naam)
-            .all()
-        )
+        if team_ids is not None:
+            medewerkers = (
+                self.db.query(Gebruiker)
+                .join(GebruikerRol, GebruikerRol.gebruiker_id == Gebruiker.id)
+                .filter(
+                    GebruikerRol.scope_id.in_(team_ids),
+                    GebruikerRol.rol.in_(["teamlid", "planner"]),
+                    GebruikerRol.is_actief == True,
+                    Gebruiker.is_actief == True,
+                )
+                .distinct()
+                .order_by(Gebruiker.volledige_naam)
+                .all()
+            )
+        else:
+            medewerkers = (
+                self.db.query(Gebruiker)
+                .filter(Gebruiker.locatie_id == locatie_id, Gebruiker.is_actief == True)
+                .order_by(Gebruiker.volledige_naam)
+                .all()
+            )
 
-        aanvragen = (
+        aanvragen_query = (
             self.db.query(VerlofAanvraag)
             .join(Gebruiker, Gebruiker.id == VerlofAanvraag.gebruiker_id)
             .filter(
-                Gebruiker.locatie_id == locatie_id,
                 VerlofAanvraag.start_datum <= laatste,
                 VerlofAanvraag.eind_datum >= eerste,
                 VerlofAanvraag.status.in_(["pending", "goedgekeurd"]),
             )
-            .all()
         )
+        if team_ids is not None:
+            aanvragen_query = (
+                aanvragen_query
+                .join(GebruikerRol, GebruikerRol.gebruiker_id == Gebruiker.id)
+                .filter(
+                    GebruikerRol.scope_id.in_(team_ids),
+                    GebruikerRol.rol.in_(["teamlid", "planner"]),
+                    GebruikerRol.is_actief == True,
+                )
+                .distinct()
+            )
+        else:
+            aanvragen_query = aanvragen_query.filter(Gebruiker.locatie_id == locatie_id)
+        aanvragen = aanvragen_query.all()
 
         verlof_per_dag: dict[int, dict[str, str]] = {}
         for a in aanvragen:
@@ -187,14 +237,27 @@ class VerlofService:
             "verlof_per_dag": verlof_per_dag,
         }
 
-    def haal_pending_count(self, locatie_id: int) -> int:
-        """Aantal openstaande verlofaanvragen voor de locatie."""
-        return (
+    def haal_pending_count(self, locatie_id: int, team_ids: list[int] | None = None) -> int:
+        """Aantal openstaande verlofaanvragen. Indien team_ids opgegeven: enkel die teams."""
+        query = (
             self.db.query(VerlofAanvraag)
             .join(Gebruiker, Gebruiker.id == VerlofAanvraag.gebruiker_id)
-            .filter(Gebruiker.locatie_id == locatie_id, VerlofAanvraag.status == "pending")
-            .count()
+            .filter(VerlofAanvraag.status == "pending")
         )
+        if team_ids is not None:
+            query = (
+                query
+                .join(GebruikerRol, GebruikerRol.gebruiker_id == Gebruiker.id)
+                .filter(
+                    GebruikerRol.scope_id.in_(team_ids),
+                    GebruikerRol.rol.in_(["teamlid", "planner"]),
+                    GebruikerRol.is_actief == True,
+                )
+                .distinct()
+            )
+        else:
+            query = query.filter(Gebruiker.locatie_id == locatie_id)
+        return query.count()
 
     # ------------------------------------------------------------------ #
     # Intern                                                               #
