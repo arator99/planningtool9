@@ -11,9 +11,9 @@ from typing import Any
 
 SHIFT_TYPE_VOLGORDE: list[str | None] = ["vroeg", "laat", "nacht", "dag", "rust", None]
 
-DAG_TYPE_VOLGORDE: list[str | None] = ["werkdag", "zaterdag", "zondag", None]
+DAG_TYPE_VOLGORDE: list[str | None] = ["weekdag", "zaterdag", "zondag", None]
 DAG_TYPE_LABELS: dict[str | None, str] = {
-    "werkdag": "Weekdag",
+    "weekdag": "Weekdag",
     "zaterdag": "Zaterdag",
     "zondag": "Zondag",
     None: "Alle dagen",
@@ -128,7 +128,8 @@ def groepeer_shiftcodes(codes: list[Any]) -> list[dict[str, Any]]:
             continue
         cfg = SHIFT_TYPE_CONFIG[shift_type]
 
-        # Sub-groepeer per dag_type binnen dit shift-type
+        # Sub-groepeer per dag_type binnen dit shift-type.
+        # Onbekende waarden (niet in DAG_TYPE_LABELS) vallen naar None → "Alle dagen".
         dag_gegroepeerd: dict[str | None, list] = {}
         for sc in gegroepeerd[shift_type]:
             dag_key = sc.dag_type if sc.dag_type in DAG_TYPE_LABELS else None
