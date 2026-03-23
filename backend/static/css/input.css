@@ -140,3 +140,13 @@ html.dark {
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Voorkom dat iOS Safari / Chrome autofill de achtergrond overschrijft */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--tekst);
+  -webkit-box-shadow: 0 0 0 1000px var(--achtergrond-widget) inset;
+  box-shadow: 0 0 0 1000px var(--achtergrond-widget) inset;
+  transition: background-color 5000s ease-in-out 0s;
+}
