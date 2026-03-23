@@ -352,6 +352,7 @@
   "dashboard.binnenkort": "Binnenkort",
 
   "fout.niet_gevonden": "Niet gevonden",
+  "fout.laatste_lidmaatschap": "Dit is het laatste teamlidmaatschap van deze gebruiker. Voeg eerst een ander team toe voor je dit verwijdert.",
   "fout.geen_toegang": "Geen toegang",
   "fout.verplicht": "Dit veld is verplicht",
   "fout.ongeldig_formaat": "Ongeldig formaat",

@@ -5,7 +5,8 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from models.notitie import Notitie, MAILBOX_ROLLEN
-from models.gebruiker_rol import GebruikerRol
+from models.gebruiker_rol import GebruikerRol, GebruikerRolType
+from models.lidmaatschap import Lidmaatschap
 from services.domein.notitie_domein import valideer_bericht, valideer_prioriteit
 
 logger = logging.getLogger(__name__)
@@ -102,6 +103,18 @@ class NotitieService:
             .all()
         )
 
+    def _haal_alle_super_beheerder_mailbox(self) -> list[Notitie]:
+        """Alle berichten gericht aan super_beheerders (geen scope-filter)."""
+        return (
+            self.db.query(Notitie)
+            .filter(
+                Notitie.naar_rol == "super_beheerders",
+                Notitie.verwijderd_op.is_(None),
+            )
+            .order_by(Notitie.aangemaakt_op.desc())
+            .all()
+        )
+
     def haal_alle_inboxen(
         self,
         gebruiker_id: int,
@@ -125,34 +138,47 @@ class NotitieService:
         persoonlijk = self.haal_persoonlijke_inbox(gebruiker_id, locatie_id)
 
         mailboxen = []
+
+        # Planner mailboxen via actieve Lidmaatschap.is_planner
+        planner_leden = (
+            self.db.query(Lidmaatschap)
+            .filter(
+                Lidmaatschap.gebruiker_id == gebruiker_id,
+                Lidmaatschap.is_planner == True,
+                Lidmaatschap.is_actief == True,
+                Lidmaatschap.verwijderd_op == None,
+            )
+            .all()
+        )
+        for lid in planner_leden:
+            notities = self.haal_mailbox("planners", lid.team_id)
+            mailboxen.append({
+                "label": f"planners:{lid.team_id}",
+                "rol": "planners",
+                "scope_id": lid.team_id,
+                "notities": notities,
+            })
+
+        # Admin-rollen via GebruikerRol (beheerder / super_beheerder)
         for rol_record in rollen:
             if not rol_record.is_actief:
                 continue
-            if rol_record.rol == "planner":
-                # Planners zien de 'planners' mailbox van hun team
-                notities = self.haal_mailbox("planners", rol_record.scope_id)
+            rol_waarde = rol_record.rol.value if isinstance(rol_record.rol, GebruikerRolType) else str(rol_record.rol)
+            if rol_waarde == "beheerder":
+                scope = rol_record.scope_locatie_id
+                notities = self.haal_mailbox("beheerders", scope)
                 mailboxen.append({
-                    "label": f"planners:{rol_record.scope_id}",
-                    "rol": "planners",
-                    "scope_id": rol_record.scope_id,
-                    "notities": notities,
-                })
-            elif rol_record.rol == "beheerder":
-                # Beheerders zien de 'beheerders' mailbox van hun locatie
-                notities = self.haal_mailbox("beheerders", rol_record.scope_id)
-                mailboxen.append({
-                    "label": f"beheerders:{rol_record.scope_id}",
+                    "label": f"beheerders:{scope}",
                     "rol": "beheerders",
-                    "scope_id": rol_record.scope_id,
+                    "scope_id": scope,
                     "notities": notities,
                 })
-            elif rol_record.rol == "super_beheerder":
-                # Super_beheerder ziet de nationale mailbox
-                notities = self.haal_mailbox("super_beheerders", rol_record.scope_id)
+            elif rol_waarde == "super_beheerder":
+                notities = self._haal_alle_super_beheerder_mailbox()
                 mailboxen.append({
                     "label": "super_beheerders",
                     "rol": "super_beheerders",
-                    "scope_id": rol_record.scope_id,
+                    "scope_id": None,
                     "notities": notities,
                 })
 
@@ -162,7 +188,7 @@ class NotitieService:
         self,
         gebruiker_id: int,
         rollen: list[GebruikerRol],
-        locatie_id: int,
+        locatie_id: int | None,
     ) -> int:
         """Totaal aantal ongelezen berichten over alle inboxen."""
         # Persoonlijke ongelezen
@@ -178,30 +204,67 @@ class NotitieService:
         )
 
         mailbox_count = 0
-        seen_mailboxen: set[tuple[str, int]] = set()
-        for rol_record in rollen:
-            if not rol_record.is_actief:
-                continue
-            mailbox_key: tuple[str, int] | None = None
-            if rol_record.rol == "planner":
-                mailbox_key = ("planners", rol_record.scope_id)
-            elif rol_record.rol == "beheerder":
-                mailbox_key = ("beheerders", rol_record.scope_id)
-            elif rol_record.rol == "super_beheerder":
-                mailbox_key = ("super_beheerders", rol_record.scope_id)
+        seen_mailboxen: set[tuple] = set()
 
-            if mailbox_key and mailbox_key not in seen_mailboxen:
-                seen_mailboxen.add(mailbox_key)
+        # Planner mailboxen
+        planner_leden = (
+            self.db.query(Lidmaatschap)
+            .filter(
+                Lidmaatschap.gebruiker_id == gebruiker_id,
+                Lidmaatschap.is_planner == True,
+                Lidmaatschap.is_actief == True,
+                Lidmaatschap.verwijderd_op == None,
+            )
+            .all()
+        )
+        for lid in planner_leden:
+            key = ("planners", lid.team_id)
+            if key not in seen_mailboxen:
+                seen_mailboxen.add(key)
                 mailbox_count += (
                     self.db.query(Notitie)
                     .filter(
-                        Notitie.naar_rol == mailbox_key[0],
-                        Notitie.naar_scope_id == mailbox_key[1],
+                        Notitie.naar_rol == "planners",
+                        Notitie.naar_scope_id == lid.team_id,
                         Notitie.is_gelezen == False,
                         Notitie.verwijderd_op.is_(None),
                     )
                     .count()
                 )
+
+        # Admin-rollen
+        for rol_record in rollen:
+            if not rol_record.is_actief:
+                continue
+            rol_waarde = rol_record.rol.value if isinstance(rol_record.rol, GebruikerRolType) else str(rol_record.rol)
+            if rol_waarde == "beheerder":
+                scope = rol_record.scope_locatie_id
+                key = ("beheerders", scope)
+                if key not in seen_mailboxen:
+                    seen_mailboxen.add(key)
+                    mailbox_count += (
+                        self.db.query(Notitie)
+                        .filter(
+                            Notitie.naar_rol == "beheerders",
+                            Notitie.naar_scope_id == scope,
+                            Notitie.is_gelezen == False,
+                            Notitie.verwijderd_op.is_(None),
+                        )
+                        .count()
+                    )
+            elif rol_waarde == "super_beheerder":
+                key = ("super_beheerders", None)
+                if key not in seen_mailboxen:
+                    seen_mailboxen.add(key)
+                    mailbox_count += (
+                        self.db.query(Notitie)
+                        .filter(
+                            Notitie.naar_rol == "super_beheerders",
+                            Notitie.is_gelezen == False,
+                            Notitie.verwijderd_op.is_(None),
+                        )
+                        .count()
+                    )
 
         return persoonlijk_count + mailbox_count
 

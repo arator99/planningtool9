@@ -13,9 +13,19 @@ sjablonen.env.globals["csp_nonce"] = haal_csp_nonce  # per-request nonce voor in
 
 
 def heeft_rol(gebruiker, *rollen: str) -> bool:
-    """Jinja2 helper: True als gebruiker minstens één van de opgegeven rollen actief heeft."""
+    """Jinja2 helper: True als gebruiker minstens één van de opgegeven rollen actief heeft.
+
+    'planner' is geen GebruikerRol meer — wordt gecheckt via Lidmaatschap.is_planner.
+    """
     actieve = {r.rol for r in gebruiker.rollen if r.is_actief}
-    return bool(actieve.intersection(rollen))
+    if bool(actieve.intersection(rollen)):
+        return True
+    if 'planner' in rollen:
+        return any(
+            lid.is_planner and lid.is_actief and lid.verwijderd_op is None
+            for lid in gebruiker.lidmaatschappen
+        )
+    return False
 
 
 sjablonen.env.globals["heeft_rol"] = heeft_rol

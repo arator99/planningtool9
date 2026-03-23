@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from i18n import maak_vertaler
 from config import instellingen
-from api.dependencies import haal_db, vereiste_super_beheerder, haal_csrf_token, verifieer_csrf
+from api.dependencies import haal_db, vereiste_super_beheerder, haal_csrf_token, verifieer_csrf, haal_actieve_locatie_id
 from models.audit_log import AuditLog
 
 _SECURE = instellingen.omgeving != "development"
@@ -110,7 +110,7 @@ def verwerk_aanmaken(
         return RedirectResponse(
             url="/beheer/locaties/nieuw?fout=fout.aanmaken_mislukt", status_code=303
         )
-    _log(db, gebruiker.id, gebruiker.locatie_id, "locatie.aanmaken", loc.id)
+    _log(db, gebruiker.id, loc.id, "locatie.aanmaken", loc.id)
     return RedirectResponse(
         url=f"/beheer/locaties?melding={naam}+aangemaakt", status_code=303
     )
@@ -124,16 +124,12 @@ def verwerk_aanmaken(
 def locatie_switcher_partial(
     request: Request,
     gebruiker: Gebruiker = Depends(vereiste_super_beheerder),
+    actieve_id: int | None = Depends(haal_actieve_locatie_id),
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
 ):
     """HTML-partial voor de locatie-switcher in de navbar (geladen via HTMX)."""
     locaties = db.query(Locatie).filter(Locatie.is_actief == True).order_by(Locatie.naam).all()
-    cookie_val = request.cookies.get("locatie_context")
-    try:
-        actieve_id = int(cookie_val) if cookie_val else gebruiker.locatie_id
-    except (ValueError, TypeError):
-        actieve_id = gebruiker.locatie_id
     return sjablonen.TemplateResponse(
         "components/locatie_switcher.html",
         _context(request, gebruiker,
@@ -221,7 +217,7 @@ def verwerk_bewerken(
         return RedirectResponse(
             url=f"/beheer/locaties/{uuid}/bewerk?fout=fout.bewerken_mislukt", status_code=303
         )
-    _log(db, gebruiker.id, gebruiker.locatie_id, "locatie.bewerken", locatie.id)
+    _log(db, gebruiker.id, locatie.id, "locatie.bewerken", locatie.id)
     return RedirectResponse(
         url=f"/beheer/locaties?melding={naam}+opgeslagen", status_code=303
     )
@@ -245,7 +241,7 @@ def deactiveer(
     except ValueError as fout:
         logger.warning("Locatie deactiveren mislukt (uuid=%s): %s", uuid, fout)
         return RedirectResponse(url="/beheer/locaties?fout=fout.actie_mislukt", status_code=303)
-    _log(db, gebruiker.id, gebruiker.locatie_id, "locatie.deactiveren", locatie.id)
+    _log(db, gebruiker.id, locatie.id, "locatie.deactiveren", locatie.id)
     return RedirectResponse(
         url="/beheer/locaties?melding=Locatie+gedeactiveerd", status_code=303
     )

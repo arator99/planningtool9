@@ -50,6 +50,25 @@
   --hr-critical-rand:     #ef5350;
   --hr-critical-tekst:    #d32f2f;
 
+  /* Rol-kleuren (account CTA-knop in navbar) */
+  --rol-super:            #f97316;
+  --rol-beheerder:        #a855f7;
+  --rol-planner:          #2563eb;
+  --rol-hr:               #10b981;
+
+  /* Tegel icoon-achtergronden (dashboard moduletegels) */
+  --tegel-planning:       #3b82f6;
+  --tegel-verlof:         #10b981;
+  --tegel-gebruikers:     #a855f7;
+  --tegel-shiftcodes:     #6366f1;
+  --tegel-hr:             #f97316;
+  --tegel-rapporten:      #14b8a6;
+  --tegel-notities:       #f59e0b;
+  --tegel-instellingen:   #64748b;
+  --tegel-locaties:       #f43f5e;
+  --tegel-hr-nationaal:   #f59e0b;
+  --tegel-database:       #3b82f6;
+
   /* Grid celkleuren */
   --grid-vroeg:           #E3F2FD;
   --grid-vroeg-tekst:     #1565C0;
@@ -74,6 +93,25 @@
 
 /* ── CSS Variabelen — Dark mode ── */
 html.dark {
+  /* Rol-kleuren — zelfde waarden als light (later aanpasbaar) */
+  --rol-super:            #f97316;
+  --rol-beheerder:        #a855f7;
+  --rol-planner:          #3b82f6;
+  --rol-hr:               #10b981;
+
+  /* Tegel icoon-achtergronden — zelfde waarden als light */
+  --tegel-planning:       #3b82f6;
+  --tegel-verlof:         #10b981;
+  --tegel-gebruikers:     #a855f7;
+  --tegel-shiftcodes:     #6366f1;
+  --tegel-hr:             #f97316;
+  --tegel-rapporten:      #14b8a6;
+  --tegel-notities:       #f59e0b;
+  --tegel-instellingen:   #64748b;
+  --tegel-locaties:       #f43f5e;
+  --tegel-hr-nationaal:   #f59e0b;
+  --tegel-database:       #3b82f6;
+
   --primair:              #3b82f6;
   --primair-hover:        #2563eb;
   --primair-zacht:        #1e3a5f;

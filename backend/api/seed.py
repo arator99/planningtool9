@@ -19,7 +19,8 @@ def seed_test_data() -> None:
     from models.locatie import Locatie
     from models.team import Team
     from models.gebruiker import Gebruiker
-    from models.gebruiker_rol import GebruikerRol
+    from models.gebruiker_rol import GebruikerRol, GebruikerRolType
+    from models.lidmaatschap import Lidmaatschap
     from models.hr import NationaleHRRegel
     from models.planning import Shiftcode
     from services.domein.auth_domein import hash_wachtwoord
@@ -29,16 +30,14 @@ def seed_test_data() -> None:
         if db.query(Gebruiker).count() > 0:
             return  # Al geseed
 
-        # Locatie aanmaken
-        locatie = Locatie(naam="Locatie 1", code="LOC1", area_label="Gebied A", is_actief=True)
-        db.add(locatie)
+        # Vaste NAT-locatie
+        nat_locatie = Locatie(naam="Nationaal", code="NAT", is_actief=True)
+        db.add(nat_locatie)
         db.flush()
 
-        # Teams aanmaken
-        team_pat = Team(naam="PAT", code="PAT", locatie_id=locatie.id, is_actief=True)
-        team_to = Team(naam="TO", code="TO", locatie_id=locatie.id, is_actief=True)
-        db.add(team_pat)
-        db.add(team_to)
+        # NAT team — elke gebruiker vereist minstens 1 lidmaatschap
+        nat_team = Team(naam="Nationaal", code="NAT", locatie_id=nat_locatie.id, is_actief=True)
+        db.add(nat_team)
         db.flush()
 
         # Seed-wachtwoord ophalen uit omgevingsvariabele
@@ -49,13 +48,12 @@ def seed_test_data() -> None:
             logger.warning("SEED_ADMIN_WACHTWOORD niet ingesteld — tijdelijk wachtwoord gegenereerd (zie stdout).")
             print(f"[SEED] Tijdelijk admin-wachtwoord: {seed_wachtwoord}", flush=True)  # noqa: T201
 
-        # Beheerder aanmaken
+        # Super_beheerder aanmaken
         admin = Gebruiker(
             gebruikersnaam="admin",
             gehashed_wachtwoord=hash_wachtwoord(seed_wachtwoord),
             volledige_naam="Beheerder",
-            locatie_id=locatie.id,
-            rol="beheerder",
+            rol="super_beheerder",
             is_actief=True,
             totp_actief=False,
             taal="nl",
@@ -63,12 +61,20 @@ def seed_test_data() -> None:
         db.add(admin)
         db.flush()
 
-        # GebruikerRol voor admin (beheerder → scope = locatie)
+        # GebruikerRol voor admin (super_beheerder — geen scope)
         db.add(GebruikerRol(
             gebruiker_id=admin.id,
-            rol="beheerder",
-            scope_id=locatie.id,
-            is_reserve=False,
+            rol=GebruikerRolType.super_beheerder,
+            scope_locatie_id=None,
+            scope_area_id=None,
+            is_actief=True,
+        ))
+
+        # Lidmaatschap — invariant: elke gebruiker heeft minstens 1 actief lidmaatschap
+        db.add(Lidmaatschap(
+            gebruiker_id=admin.id,
+            team_id=nat_team.id,
+            is_planner=True,
             is_actief=True,
         ))
 
@@ -99,10 +105,9 @@ def seed_test_data() -> None:
 
         logger.info("=" * 60)
         logger.info("TESTDATA AANGEMAAKT:")
-        logger.info("  Locatie        : Locatie 1 (LOC1)")
-        logger.info("  Teams          : PAT, TO")
+        logger.info("  Locatie        : Nationaal (NAT)")
         logger.info("  Gebruikersnaam : admin")
-        logger.info("  Rol            : beheerder")
+        logger.info("  Rol            : super_beheerder")
         logger.info("  Nationale HR   : 5 regels geseed")
         logger.info("=" * 60)
     except Exception as fout:

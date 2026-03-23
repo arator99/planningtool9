@@ -6,7 +6,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from i18n import maak_vertaler
-from api.dependencies import haal_db, vereiste_rol, haal_csrf_token, verifieer_csrf
+from api.dependencies import haal_db, vereiste_rol, haal_csrf_token, verifieer_csrf, haal_actieve_locatie_id
 from api.sjablonen import sjablonen
 from models.audit_log import AuditLog
 from models.gebruiker import Gebruiker
@@ -36,8 +36,9 @@ def toon_instellingen(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder")),
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
-    waarden = InstellingService(db).haal_alle(gebruiker.locatie_id)
+    waarden = InstellingService(db).haal_alle(actieve_locatie_id)
     return sjablonen.TemplateResponse(
         "pages/instellingen/lijst.html",
         _context(
@@ -58,13 +59,14 @@ def sla_instelling_op(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     try:
-        InstellingService(db).sla_op(gebruiker.locatie_id, sleutel, waarde, gebruiker.id)
+        InstellingService(db).sla_op(actieve_locatie_id, sleutel, waarde, gebruiker.id)
     except ValueError:
         return RedirectResponse(url="/instellingen?fout=instelling_onbekend", status_code=303)
     except Exception:
         logger.exception("Fout bij opslaan instelling %s", sleutel)
         return RedirectResponse(url="/instellingen?fout=instelling_mislukt", status_code=303)
-    _log(db, gebruiker.id, gebruiker.locatie_id, "instelling.opslaan")
+    _log(db, gebruiker.id, actieve_locatie_id, "instelling.opslaan")
     return RedirectResponse(url="/instellingen?bericht=instelling_opgeslagen", status_code=303)

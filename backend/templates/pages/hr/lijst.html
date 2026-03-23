@@ -43,7 +43,7 @@
                     <th class="text-right px-4 py-2 font-medium w-28" style="color: var(--tekst-secundair);">Lokaal</th>
                     <th class="text-left px-4 py-2 font-medium w-20" style="color: var(--tekst-secundair);">Eenheid</th>
                     <th class="text-center px-4 py-2 font-medium w-20" style="color: var(--tekst-secundair);">Status</th>
-                    {% if gebruiker.locatie_id %}
+                    {% if actieve_locatie_id %}
                     <th class="px-4 py-2 w-28"></th>
                     {% endif %}
                 </tr>
@@ -81,7 +81,7 @@
                         </span>
                         {% endif %}
                     </td>
-                    {% if gebruiker.locatie_id %}
+                    {% if actieve_locatie_id %}
                     <td class="px-4 py-2 text-right whitespace-nowrap">
                         <a href="/hr/{{ r.uuid }}/override"
                            class="text-xs font-medium px-2.5 py-1 rounded-md transition-colors"
@@ -115,7 +115,7 @@
     <p class="text-xs mb-4" style="color: var(--tekst-secundair);">
         Rode lijn datums worden berekend als <code>referentiedatum + n × 28 dagen</code>. De datum wordt nooit opgeslagen.
     </p>
-    {% if gebruiker.locatie_id %}
+    {% if actieve_locatie_id %}
     <form method="post" action="/hr/rode-lijn" class="flex flex-wrap items-end gap-4">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <div>

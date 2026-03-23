@@ -5,7 +5,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from i18n import maak_vertaler
-from api.dependencies import haal_db, vereiste_rol, haal_csrf_token, verifieer_csrf
+from api.dependencies import haal_db, vereiste_rol, haal_csrf_token, verifieer_csrf, haal_actieve_locatie_id
 from api.sjablonen import sjablonen
 from models.gebruiker import Gebruiker
 from services.competentie_service import CompetentieService
@@ -29,8 +29,9 @@ def lijst(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
-    competenties = CompetentieService(db).haal_alle(gebruiker.locatie_id, ook_inactief=True)
+    competenties = CompetentieService(db).haal_alle(actieve_locatie_id, ook_inactief=True)
     bericht = request.query_params.get("bericht")
     fout = request.query_params.get("fout")
     return sjablonen.TemplateResponse(
@@ -70,10 +71,11 @@ def maak_aan(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     try:
         CompetentieService(db).maak_aan(
-            locatie_id=gebruiker.locatie_id,
+            locatie_id=actieve_locatie_id,
             naam=naam,
             beschrijving=beschrijving or None,
             categorie=categorie or None,
@@ -118,6 +120,7 @@ def bewerk(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     svc = CompetentieService(db)
     try:
@@ -127,7 +130,7 @@ def bewerk(
     try:
         svc.bewerk(
             competentie_id=comp.id,
-            locatie_id=gebruiker.locatie_id,
+            locatie_id=actieve_locatie_id,
             naam=naam,
             beschrijving=beschrijving or None,
             categorie=categorie or None,
@@ -148,11 +151,12 @@ def deactiveer(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     svc = CompetentieService(db)
     try:
         comp = svc.haal_op_uuid(uuid)
-        svc.deactiveer(comp.id, gebruiker.locatie_id)
+        svc.deactiveer(comp.id, actieve_locatie_id)
     except ValueError as fout:
         logger.warning("Competentie deactiveren mislukt: %s", fout)
         return RedirectResponse(url="/competenties?fout=actie_mislukt", status_code=303)

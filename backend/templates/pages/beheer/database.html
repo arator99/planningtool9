@@ -1,0 +1,493 @@
+{% extends "layouts/app.html" %}
+{% set actief_menu = "beheer" %}
+
+{% block titel %}Database Beheer — Planning Tool{% endblock %}
+
+{% block inhoud %}
+{% include "components/desktop_only.html" %}
+<div class="hidden md:block">
+
+<div class="flex items-center justify-between mb-6">
+    <h1 class="text-xl font-bold" style="color: var(--tekst);">Database Beheer</h1>
+    <span class="text-sm px-2 py-1 rounded font-medium" style="background: var(--gevaar-zacht); color: var(--gevaar);">
+        Alleen super_beheerder
+    </span>
+</div>
+
+{% if bericht %}
+<div class="mb-4 px-4 py-2.5 rounded-lg text-sm font-medium" style="background: var(--msg-succes-bg); color: var(--succes);">
+    {% if bericht == 'backup.gemaakt' %}Backup succesvol aangemaakt.
+    {% elif bericht == 'backup.verwijderd' %}Backup verwijderd.
+    {% elif bericht == 'restore.gelukt' %}Database hersteld. De app verwerkt de nieuwe data.
+    {% elif bericht == 'export.gelukt' %}Export gedownload.
+    {% elif bericht == 'import.gelukt' %}Merge succesvol afgerond.
+    {% elif bericht == 'sqlite.gelukt' %}SQLite import succesvol afgerond.
+    {% else %}{{ bericht }}
+    {% endif %}
+</div>
+{% endif %}
+{% if fout %}
+<div class="mb-4 px-4 py-2.5 rounded-lg text-sm font-medium" style="background: var(--msg-fout-bg); color: var(--fout);">
+    {% if fout == 'backup.mislukt' %}Backup aanmaken mislukt. Controleer of postgresql-client beschikbaar is.
+    {% elif fout == 'backup.niet_gevonden' %}Backup-bestand niet gevonden.
+    {% elif fout == 'backup.verwijder_mislukt' %}Backup verwijderen mislukt.
+    {% elif fout == 'backup.ongeldig_pad' %}Ongeldig bestandsnaam.
+    {% elif fout == 'restore.mislukt' %}Restore mislukt. Zie logs voor details. Een pre-restore backup is aangemaakt.
+    {% elif fout == 'restore.ongeldig_bestand' %}Alleen .dump bestanden worden ondersteund.
+    {% elif fout == 'restore.te_groot' %}Bestand te groot (max 200 MB).
+    {% elif fout == 'export.mislukt' %}Export mislukt. Zie logs.
+    {% elif fout == 'import.mislukt' %}Merge mislukt. Zie logs. De database is ongewijzigd (pre-backup aangemaakt).
+    {% elif fout == 'import.ongeldig_bestand' %}Alleen .json exportbestanden worden ondersteund.
+    {% elif fout == 'import.ongeldig_formaat' %}Ongeldig of incompatibel exportbestand.
+    {% elif fout == 'import.te_groot' %}Bestand te groot (max 200 MB).
+    {% elif fout == 'import.geen_bestand' %}Geen voorvertoning actief. Upload eerst een bestand.
+    {% elif fout == 'sqlite.ongeldig_bestand' %}Alleen .db SQLite bestanden worden ondersteund.
+    {% elif fout == 'sqlite.te_groot' %}Bestand te groot (max 200 MB).
+    {% elif fout == 'sqlite.mislukt' %}SQLite import mislukt. Zie logs. Een pre-backup is aangemaakt.
+    {% elif fout == 'sqlite.ontbrekende_locatie' %}Voer een locatiecode in.
+    {% else %}{{ fout }}
+    {% endif %}
+</div>
+{% endif %}
+
+{# ── Tabbladennavigatie ─────────────────────────────────────────── #}
+<div class="flex border-b mb-6" style="border-color: var(--rand);">
+    {% set tabs = [
+        ('backups',  'Backups'),
+        ('restore',  'Restore'),
+        ('import',   'Import / Merge'),
+    ] %}
+    {% for tab_id, tab_label in tabs %}
+    <a href="/beheer/database/{{ tab_id }}"
+       class="px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors"
+       style="{% if actief_tabblad == tab_id %}border-color: var(--primair); color: var(--primair);{% else %}border-color: transparent; color: var(--tekst-secundair);{% endif %}">
+        {{ tab_label }}
+    </a>
+    {% endfor %}
+    {# Export is een directe download, geen tabblad #}
+    <a href="/beheer/database/export"
+       class="px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ml-auto"
+       style="border-color: transparent; color: var(--tekst-secundair);"
+       title="Download de volledige database als JSON">
+        ↓ Exporteer JSON
+    </a>
+</div>
+
+{# ════════════════════════════════════════ TAB: BACKUPS ═════════════════════════════════ #}
+{% if actief_tabblad == 'backups' %}
+
+<div class="flex items-center justify-between mb-4">
+    <p class="text-sm" style="color: var(--tekst-secundair);">
+        Automatische backups worden aangemaakt bij elke app-opstart (dagelijks, wekelijks, maandelijks).
+        Backups worden opgeslagen in het <code>/backups</code> Docker-volume.
+    </p>
+    <form method="post" action="/beheer/database/backups/maak" class="flex items-center gap-2 shrink-0 ml-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="text" name="label" placeholder="label (optioneel)"
+               class="text-sm px-3 py-1.5 rounded border"
+               style="border-color: var(--rand); background: var(--achtergrond-widget); color: var(--tekst);">
+        <button type="submit"
+                class="text-sm font-medium text-white px-4 py-1.5 rounded transition-colors"
+                style="background: var(--primair);"
+                onmouseover="this.style.background='var(--primair-hover)'"
+                onmouseout="this.style.background='var(--primair)'">
+            + Handmatige backup
+        </button>
+    </form>
+</div>
+
+{# Statistieken #}
+{% if stats %}
+<div class="grid grid-cols-5 gap-3 mb-5">
+    {% for type_naam, type_label in [('dagelijks','Dagelijks'),('wekelijks','Wekelijks'),('maandelijks','Maandelijks'),('handmatig','Handmatig'),('pre_restore','Pre-restore')] %}
+    <div class="rounded-lg p-3 text-center" style="background: var(--achtergrond-widget); border: 1px solid var(--rand);">
+        <div class="text-2xl font-bold" style="color: var(--tekst);">{{ stats[type_naam].aantal }}</div>
+        <div class="text-xs mt-0.5" style="color: var(--tekst-secundair);">{{ type_label }}</div>
+        <div class="text-xs" style="color: var(--tekst-secundair);">{{ "%.1f"|format(stats[type_naam].grootte_mb) }} MB</div>
+    </div>
+    {% endfor %}
+</div>
+<p class="text-xs mb-4" style="color: var(--tekst-secundair);">
+    Totaal: {{ "%.1f"|format(stats.totaal_mb) }} MB
+</p>
+{% endif %}
+
+{# Lijst #}
+{% if backups %}
+<div class="rounded-xl border overflow-hidden" style="border-color: var(--rand);">
+    <table class="w-full text-sm" style="background: var(--achtergrond-widget);">
+        <thead>
+            <tr style="border-bottom: 1px solid var(--rand);">
+                <th class="text-left px-4 py-2.5 font-medium" style="color: var(--tekst-secundair);">Bestand</th>
+                <th class="text-left px-4 py-2.5 font-medium w-28" style="color: var(--tekst-secundair);">Type</th>
+                <th class="text-right px-4 py-2.5 font-medium w-24" style="color: var(--tekst-secundair);">Grootte</th>
+                <th class="text-left px-4 py-2.5 font-medium w-44" style="color: var(--tekst-secundair);">Aangemaakt</th>
+                <th class="px-4 py-2.5 w-36"></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for b in backups %}
+            <tr class="border-b" style="border-color: var(--rand);">
+                <td class="px-4 py-2.5 font-mono text-xs truncate max-w-xs" style="color: var(--tekst);">
+                    {{ b.naam }}
+                </td>
+                <td class="px-4 py-2.5">
+                    <span class="text-xs px-2 py-0.5 rounded-full font-medium"
+                          style="background: var(--achtergrond); color: var(--tekst-secundair);">
+                        {{ b.type }}
+                    </span>
+                </td>
+                <td class="px-4 py-2.5 text-right" style="color: var(--tekst-secundair);">
+                    {{ b.grootte_mb }} MB
+                </td>
+                <td class="px-4 py-2.5 text-sm" style="color: var(--tekst-secundair);">
+                    {{ b.aangemaakt_op.strftime('%d/%m/%Y %H:%M') }}
+                </td>
+                <td class="px-4 py-2.5">
+                    <div class="flex items-center justify-end gap-2">
+                        <a href="/beheer/database/backups/{{ b.naam }}/download"
+                           class="text-xs font-medium hover:underline"
+                           style="color: var(--info);">
+                            Download
+                        </a>
+                        <form method="post" action="/beheer/database/restore/vanuit/{{ b.naam }}"
+                              onsubmit="return confirm('Database herstellen vanuit {{ b.naam }}? De huidige data wordt overschreven.')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="text-xs font-medium hover:underline"
+                                    style="color: var(--waarschuwing);">
+                                Restore
+                            </button>
+                        </form>
+                        <form method="post" action="/beheer/database/backups/{{ b.naam }}/verwijder"
+                              onsubmit="return confirm('Backup {{ b.naam }} definitief verwijderen?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="text-xs font-medium hover:underline"
+                                    style="color: var(--fout);">
+                                Verwijder
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="text-center py-12" style="color: var(--tekst-secundair);">
+    <p class="text-sm">Nog geen backups. Klik op "Handmatige backup" om de eerste te maken.</p>
+</div>
+{% endif %}
+
+{% endif %}{# einde tab: backups #}
+
+{# ════════════════════════════════════════ TAB: RESTORE ════════════════════════════════ #}
+{% if actief_tabblad == 'restore' %}
+
+<div class="max-w-xl">
+    <div class="mb-6 p-4 rounded-lg border" style="background: var(--gevaar-zacht); border-color: var(--fout);">
+        <p class="text-sm font-bold mb-1" style="color: var(--gevaar);">⚠ Waarschuwing</p>
+        <p class="text-sm" style="color: var(--tekst);">
+            Restore vervangt <strong>alle huidige data</strong> in de database.
+            Vóór het uitvoeren wordt automatisch een pre-restore backup aangemaakt.
+        </p>
+    </div>
+
+    <h2 class="text-base font-semibold mb-3" style="color: var(--tekst);">Restore vanuit bestaande backup</h2>
+    {% if backups %}
+    <div class="mb-6 rounded-xl border overflow-hidden" style="border-color: var(--rand);">
+        <table class="w-full text-sm" style="background: var(--achtergrond-widget);">
+            <tbody>
+                {% for b in backups[:10] %}
+                <tr class="border-b" style="border-color: var(--rand);">
+                    <td class="px-4 py-2.5 font-mono text-xs" style="color: var(--tekst);">{{ b.naam }}</td>
+                    <td class="px-4 py-2.5 text-xs text-right" style="color: var(--tekst-secundair);">
+                        {{ b.aangemaakt_op.strftime('%d/%m/%Y %H:%M') }}
+                    </td>
+                    <td class="px-4 py-2.5 text-right">
+                        <form method="post" action="/beheer/database/restore/vanuit/{{ b.naam }}"
+                              onsubmit="return confirm('Database herstellen vanuit {{ b.naam }}?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="text-xs font-medium hover:underline"
+                                    style="color: var(--waarschuwing);">
+                                Restore
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-sm mb-6" style="color: var(--tekst-secundair);">Geen lokale backups beschikbaar.</p>
+    {% endif %}
+
+    <h2 class="text-base font-semibold mb-3" style="color: var(--tekst);">Restore vanuit geüpload bestand</h2>
+    <form method="post" action="/beheer/database/restore/upload"
+          enctype="multipart/form-data"
+          onsubmit="return confirm('Database herstellen vanuit het geüpload bestand? Alle huidige data wordt overschreven.')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="mb-3">
+            <label class="block text-sm font-medium mb-1.5" style="color: var(--tekst);">
+                Backup-bestand (.dump)
+            </label>
+            <input type="file" name="bestand" accept=".dump" required
+                   class="block w-full text-sm"
+                   style="color: var(--tekst);">
+            <p class="text-xs mt-1" style="color: var(--tekst-secundair);">Maximaal 200 MB. Alleen PostgreSQL custom-format (.dump).</p>
+        </div>
+        <button type="submit"
+                class="text-sm font-medium text-white px-5 py-2 rounded transition-colors"
+                style="background: var(--gevaar);"
+                onmouseover="this.style.opacity='0.85'"
+                onmouseout="this.style.opacity='1'">
+            Restore uitvoeren
+        </button>
+    </form>
+</div>
+
+{% endif %}{# einde tab: restore #}
+
+{# ════════════════════════════════════════ TAB: IMPORT ═════════════════════════════════ #}
+{% if actief_tabblad == 'import' %}
+
+<div class="max-w-xl">
+    <p class="text-sm mb-5" style="color: var(--tekst-secundair);">
+        Upload een JSON-exportbestand (gegenereerd via "Exporteer JSON") of een v0.7 SQLite .db bestand.
+        Bestaande records worden overgeslagen — er wordt niks overschreven.
+        Vóór de import wordt automatisch een pre-backup aangemaakt.
+    </p>
+
+    {% if not voorvertoning and not sqlite_voorvertoning %}
+    {# Stap 1: Upload voor voorvertoning #}
+
+    {# JSON import #}
+    <h2 class="text-base font-semibold mb-3" style="color: var(--tekst);">JSON-exportbestand importeren</h2>
+    <form method="post" action="/beheer/database/import/voorvertoning" enctype="multipart/form-data" class="mb-8">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="mb-4">
+            <label class="block text-sm font-medium mb-1.5" style="color: var(--tekst);">
+                Export-bestand (.json)
+            </label>
+            <input type="file" name="bestand" accept=".json" required
+                   class="block w-full text-sm"
+                   style="color: var(--tekst);">
+            <p class="text-xs mt-1" style="color: var(--tekst-secundair);">Maximaal 200 MB. Gegenereerd via "Exporteer JSON".</p>
+        </div>
+        <button type="submit"
+                class="text-sm font-medium text-white px-5 py-2 rounded transition-colors"
+                style="background: var(--primair);"
+                onmouseover="this.style.background='var(--primair-hover)'"
+                onmouseout="this.style.background='var(--primair)'">
+            Analyseer JSON-bestand
+        </button>
+    </form>
+
+    {# SQLite import #}
+    <div class="border-t pt-6 mb-2" style="border-color: var(--rand);">
+        <h2 class="text-base font-semibold mb-1" style="color: var(--tekst);">v0.7 SQLite database importeren</h2>
+        <p class="text-xs mb-3" style="color: var(--tekst-secundair);">
+            Importeer een v0.7 database (.db). De locatiecode wordt afgeleid van de bestandsnaam
+            (<span class="font-mono">database.PAT.db</span> → PAT).
+        </p>
+        <form method="post" action="/beheer/database/import/sqlite/voorvertoning" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1.5" style="color: var(--tekst);">
+                        Doellocatie code <span style="color: var(--fout);">*</span>
+                    </label>
+                    <input type="text" name="doellocatie_code" required
+                           placeholder="bv. HOOFD"
+                           maxlength="20"
+                           class="w-full text-sm px-3 py-1.5 rounded border font-mono uppercase"
+                           style="border-color: var(--rand); background: var(--achtergrond-widget); color: var(--tekst);">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1.5" style="color: var(--tekst);">
+                        Doellocatie naam
+                    </label>
+                    <input type="text" name="doellocatie_naam"
+                           placeholder="bv. Hoofdlocatie"
+                           maxlength="100"
+                           class="w-full text-sm px-3 py-1.5 rounded border"
+                           style="border-color: var(--rand); background: var(--achtergrond-widget); color: var(--tekst);">
+                </div>
+            </div>
+            <p class="text-xs mb-4" style="color: var(--tekst-secundair);">
+                Gebruik dezelfde locatiecode voor meerdere .db bestanden om ze als teams onder één locatie te importeren.
+                De locatie wordt aangemaakt als ze nog niet bestaat.
+            </p>
+            <div class="mb-4">
+                <label class="block text-sm font-medium mb-1.5" style="color: var(--tekst);">
+                    SQLite database (.db)
+                </label>
+                <input type="file" name="bestand" accept=".db" required
+                       class="block w-full text-sm"
+                       style="color: var(--tekst);">
+                <p class="text-xs mt-1" style="color: var(--tekst-secundair);">Maximaal 200 MB.</p>
+            </div>
+            <button type="submit"
+                    class="text-sm font-medium text-white px-5 py-2 rounded transition-colors"
+                    style="background: var(--primair);"
+                    onmouseover="this.style.background='var(--primair-hover)'"
+                    onmouseout="this.style.background='var(--primair)'">
+                Analyseer SQLite database
+            </button>
+        </form>
+    </div>
+
+    {% elif voorvertoning %}
+    {# Stap 2: Voorvertoning tonen (JSON-export) #}
+    <div class="mb-4 p-3 rounded-lg text-sm" style="background: var(--achtergrond-widget); border: 1px solid var(--rand);">
+        <p class="font-medium mb-1" style="color: var(--tekst);">Export-details</p>
+        <p style="color: var(--tekst-secundair);">Versie: {{ voorvertoning.versie }} | Geëxporteerd: {{ voorvertoning.export_tijdstip or '—' }}</p>
+    </div>
+
+    <h2 class="text-base font-semibold mb-3" style="color: var(--tekst);">Stap 2 — Voorvertoning</h2>
+    <div class="rounded-xl border overflow-hidden mb-5" style="border-color: var(--rand);">
+        <table class="w-full text-sm" style="background: var(--achtergrond-widget);">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--rand);">
+                    <th class="text-left px-4 py-2 font-medium" style="color: var(--tekst-secundair);">Tabel</th>
+                    <th class="text-right px-4 py-2 font-medium w-24" style="color: var(--tekst-secundair);">In export</th>
+                    <th class="text-right px-4 py-2 font-medium w-24" style="color: var(--succes);">Nieuw</th>
+                    <th class="text-right px-4 py-2 font-medium w-28" style="color: var(--tekst-secundair);">Al aanwezig</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% set totaal_nieuw = namespace(n=0) %}
+                {% for tabel_naam, info in voorvertoning.tabellen.items() %}
+                {% set totaal_nieuw.n = totaal_nieuw.n + info.nieuw %}
+                <tr class="border-b" style="border-color: var(--rand);">
+                    <td class="px-4 py-2 font-mono text-xs" style="color: var(--tekst);">{{ tabel_naam }}</td>
+                    <td class="px-4 py-2 text-right" style="color: var(--tekst-secundair);">{{ info.export }}</td>
+                    <td class="px-4 py-2 text-right font-medium" style="color: {% if info.nieuw > 0 %}var(--succes){% else %}var(--tekst-secundair){% endif %};">
+                        {{ info.nieuw }}
+                    </td>
+                    <td class="px-4 py-2 text-right" style="color: var(--tekst-secundair);">{{ info.bestaand }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr style="border-top: 2px solid var(--rand);">
+                    <td class="px-4 py-2 font-semibold" style="color: var(--tekst);">Totaal nieuw</td>
+                    <td></td>
+                    <td class="px-4 py-2 text-right font-bold" style="color: var(--succes);">{{ totaal_nieuw.n }}</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    {% if totaal_nieuw.n > 0 %}
+    <form method="post" action="/beheer/database/import/uitvoeren"
+          onsubmit="return confirm('{{ totaal_nieuw.n }} nieuwe records importeren? Er wordt een pre-backup aangemaakt.')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="flex gap-3">
+            <button type="submit"
+                    class="text-sm font-medium text-white px-5 py-2 rounded transition-colors"
+                    style="background: var(--succes);"
+                    onmouseover="this.style.opacity='0.85'"
+                    onmouseout="this.style.opacity='1'">
+                Merge uitvoeren ({{ totaal_nieuw.n }} nieuw)
+            </button>
+            <a href="/beheer/database/import"
+               class="text-sm font-medium px-5 py-2 rounded border transition-colors"
+               style="border-color: var(--rand); color: var(--tekst-secundair);">
+                Annuleer
+            </a>
+        </div>
+    </form>
+    {% else %}
+    <div class="p-3 rounded-lg text-sm" style="background: var(--msg-succes-bg); color: var(--succes);">
+        Alle records uit het exportbestand zijn al aanwezig. Niets te importeren.
+    </div>
+    <div class="mt-3">
+        <a href="/beheer/database/import"
+           class="text-sm font-medium hover:underline"
+           style="color: var(--primair);">
+            ← Ander bestand kiezen
+        </a>
+    </div>
+    {% endif %}
+
+    {% endif %}{# einde voorvertoning #}
+
+    {# ── SQLite voorvertoning ─────────────────────────────────────── #}
+    {% if sqlite_voorvertoning %}
+    <div class="mb-4 p-3 rounded-lg text-sm" style="background: var(--achtergrond-widget); border: 1px solid var(--rand);">
+        <p class="font-medium mb-1" style="color: var(--tekst);">SQLite database: {{ sqlite_voorvertoning.bestandsnaam }}</p>
+        <p style="color: var(--tekst-secundair);">
+            Bron: <span class="font-mono font-semibold">{{ sqlite_voorvertoning.bron_code }}</span>
+            &nbsp;→&nbsp;
+            Doellocatie: <span class="font-mono font-semibold">{{ sqlite_voorvertoning.doellocatie_code }}</span>
+            {% if sqlite_voorvertoning.doellocatie_naam %}
+            ({{ sqlite_voorvertoning.doellocatie_naam }})
+            {% endif %}
+        </p>
+    </div>
+
+    <h2 class="text-base font-semibold mb-3" style="color: var(--tekst);">Voorvertoning — wat wordt geïmporteerd?</h2>
+    <div class="rounded-xl border overflow-hidden mb-5" style="border-color: var(--rand);">
+        <table class="w-full text-sm" style="background: var(--achtergrond-widget);">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--rand);">
+                    <th class="text-left px-4 py-2 font-medium" style="color: var(--tekst-secundair);">Entiteit</th>
+                    <th class="text-right px-4 py-2 font-medium w-28" style="color: var(--tekst-secundair);">In database</th>
+                    <th class="text-right px-4 py-2 font-medium w-24" style="color: var(--succes);">Nieuw</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% set sq_totaal = namespace(n=0) %}
+                {% for entiteit, info in sqlite_voorvertoning.tabellen.items() %}
+                {% set sq_totaal.n = sq_totaal.n + info.nieuw %}
+                <tr class="border-b" style="border-color: var(--rand);">
+                    <td class="px-4 py-2 font-mono text-xs" style="color: var(--tekst);">{{ entiteit }}</td>
+                    <td class="px-4 py-2 text-right" style="color: var(--tekst-secundair);">{{ info.totaal }}</td>
+                    <td class="px-4 py-2 text-right font-medium" style="color: {% if info.nieuw > 0 %}var(--succes){% else %}var(--tekst-secundair){% endif %};">
+                        {{ info.nieuw }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr style="border-top: 2px solid var(--rand);">
+                    <td class="px-4 py-2 font-semibold" style="color: var(--tekst);">Totaal nieuw</td>
+                    <td></td>
+                    <td class="px-4 py-2 text-right font-bold" style="color: var(--succes);">{{ sq_totaal.n }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    <p class="text-xs mb-4" style="color: var(--tekst-secundair);">
+        ※ Planning en verlof tonen het totaal aantal records — exacte conflict-telling pas bij uitvoering.
+        Bestaande records (op uuid/naam/gebruikersnaam) worden overgeslagen.
+    </p>
+
+    <form method="post" action="/beheer/database/import/sqlite/uitvoeren"
+          onsubmit="return confirm('SQLite database {{ sqlite_voorvertoning.bestandsnaam }} importeren naar locatie {{ sqlite_voorvertoning.doellocatie_code }}? Er wordt een pre-backup aangemaakt.')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="flex gap-3">
+            <button type="submit"
+                    class="text-sm font-medium text-white px-5 py-2 rounded transition-colors"
+                    style="background: var(--succes);"
+                    onmouseover="this.style.opacity='0.85'"
+                    onmouseout="this.style.opacity='1'">
+                Import uitvoeren → {{ sqlite_voorvertoning.doellocatie_code }}
+            </button>
+            <a href="/beheer/database/import"
+               class="text-sm font-medium px-5 py-2 rounded border transition-colors"
+               style="border-color: var(--rand); color: var(--tekst-secundair);">
+                Annuleer
+            </a>
+        </div>
+    </form>
+    {% endif %}{# einde sqlite_voorvertoning #}
+</div>
+
+{% endif %}{# einde tab: import #}
+
+</div>{# einde desktop-only wrapper #}
+{% endblock %}

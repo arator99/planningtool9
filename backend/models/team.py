@@ -28,6 +28,7 @@ class Team(Basis):
     # Relaties
     locatie = relationship("Locatie")
     config = relationship("TeamConfig", back_populates="team", uselist=False, cascade="all, delete-orphan")
+    lidmaatschappen = relationship("Lidmaatschap", back_populates="team", cascade="all, delete-orphan")
 
 
 class TeamConfig(Basis):

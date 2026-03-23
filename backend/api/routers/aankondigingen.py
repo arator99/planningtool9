@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from i18n import maak_vertaler
-from api.dependencies import haal_csrf_token, haal_db, verifieer_csrf, vereiste_login, vereiste_super_beheerder
+from api.dependencies import haal_csrf_token, haal_db, verifieer_csrf, vereiste_login, vereiste_super_beheerder, haal_actieve_locatie_id
 from services.domein.csrf_domein import genereer_csrf_token
 from api.sjablonen import sjablonen
 from models.aankondiging import AANKONDIGING_SJABLONEN
@@ -125,6 +125,7 @@ def verwerk_aanmaken(
     gebruiker: Gebruiker = Depends(vereiste_super_beheerder),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     try:
         obj = AankondigingService(db).maak_aan(
@@ -151,7 +152,7 @@ def verwerk_aanmaken(
             status_code=422,
         )
     else:
-        _log(db, gebruiker.id, gebruiker.locatie_id, "aankondiging.aanmaken", obj.id)
+        _log(db, gebruiker.id, actieve_locatie_id, "aankondiging.aanmaken", obj.id)
     return RedirectResponse(url="/beheer/aankondigingen?melding=Aankondiging+aangemaakt", status_code=303)
 
 
@@ -193,6 +194,7 @@ def verwerk_bewerken(
     gebruiker: Gebruiker = Depends(vereiste_super_beheerder),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     svc = AankondigingService(db)
     try:
@@ -224,7 +226,7 @@ def verwerk_bewerken(
             status_code=422,
         )
     else:
-        _log(db, gebruiker.id, gebruiker.locatie_id, "aankondiging.bewerken", obj.id)
+        _log(db, gebruiker.id, actieve_locatie_id, "aankondiging.bewerken", obj.id)
     return RedirectResponse(url="/beheer/aankondigingen?melding=Aankondiging+opgeslagen", status_code=303)
 
 
@@ -234,12 +236,13 @@ def activeer(
     gebruiker: Gebruiker = Depends(vereiste_super_beheerder),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     try:
         obj = AankondigingService(db).zet_actief(uuid, True)
     except ValueError:
         return RedirectResponse(url="/beheer/aankondigingen?fout=fout.niet_gevonden", status_code=303)
-    _log(db, gebruiker.id, gebruiker.locatie_id, "aankondiging.activeren", obj.id)
+    _log(db, gebruiker.id, actieve_locatie_id, "aankondiging.activeren", obj.id)
     return RedirectResponse(url="/beheer/aankondigingen?melding=Aankondiging+geactiveerd", status_code=303)
 
 
@@ -249,12 +252,13 @@ def deactiveer(
     gebruiker: Gebruiker = Depends(vereiste_super_beheerder),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     try:
         obj = AankondigingService(db).zet_actief(uuid, False)
     except ValueError:
         return RedirectResponse(url="/beheer/aankondigingen?fout=fout.niet_gevonden", status_code=303)
-    _log(db, gebruiker.id, gebruiker.locatie_id, "aankondiging.deactiveren", obj.id)
+    _log(db, gebruiker.id, actieve_locatie_id, "aankondiging.deactiveren", obj.id)
     return RedirectResponse(url="/beheer/aankondigingen?melding=Aankondiging+gedeactiveerd", status_code=303)
 
 
@@ -264,6 +268,7 @@ def verwijder(
     gebruiker: Gebruiker = Depends(vereiste_super_beheerder),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     svc = AankondigingService(db)
     try:
@@ -272,5 +277,5 @@ def verwijder(
         svc.verwijder(uuid)
     except ValueError:
         return RedirectResponse(url="/beheer/aankondigingen?fout=fout.niet_gevonden", status_code=303)
-    _log(db, gebruiker.id, gebruiker.locatie_id, "aankondiging.verwijderen", doel_id)
+    _log(db, gebruiker.id, actieve_locatie_id, "aankondiging.verwijderen", doel_id)
     return RedirectResponse(url="/beheer/aankondigingen?melding=Aankondiging+verwijderd", status_code=303)

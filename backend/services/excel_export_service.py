@@ -15,7 +15,7 @@ from openpyxl.utils import get_column_letter
 from sqlalchemy.orm import Session
 
 from models.gebruiker import Gebruiker
-from models.gebruiker_rol import GebruikerRol
+from models.lidmaatschap import Lidmaatschap
 from models.planning import Planning
 from services.domein.balans_domein import belgische_feestdagen
 from services.domein.planning_domein import MAAND_NAMEN
@@ -90,11 +90,11 @@ class ExcelExportService:
 
         gebruikers = (
             self.db.query(Gebruiker)
-            .join(GebruikerRol, GebruikerRol.gebruiker_id == Gebruiker.id)
+            .join(Lidmaatschap, Lidmaatschap.gebruiker_id == Gebruiker.id)
             .filter(
-                GebruikerRol.scope_id == team_id,
-                GebruikerRol.rol.in_(["teamlid", "planner"]),
-                GebruikerRol.is_actief == True,
+                Lidmaatschap.team_id == team_id,
+                Lidmaatschap.is_actief == True,
+                Lidmaatschap.verwijderd_op == None,
                 Gebruiker.is_actief == True,
             )
             .order_by(Gebruiker.volledige_naam)

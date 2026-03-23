@@ -437,6 +437,7 @@
   "instelling.waarde": "Valeur",
 
   "fout.niet_gevonden": "Introuvable",
+  "fout.laatste_lidmaatschap": "Ceci est le dernier rattachement d'équipe de cet utilisateur. Ajoutez d'abord une autre équipe avant de supprimer celle-ci.",
   "fout.geen_toegang": "Accès refusé",
   "fout.verplicht": "Ce champ est obligatoire",
   "fout.ongeldig_formaat": "Format invalide",

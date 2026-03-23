@@ -1,13 +1,10 @@
 """Gebruiker model — authenticatie, autorisatie en profiel."""
 import uuid
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, func
 from sqlalchemy.orm import relationship
 
 from database import Basis
-
-# Alle geldige rollen — ook gebruikt als denormalized display veld
-ROLLEN = ("teamlid", "planner", "hr", "beheerder", "super_beheerder")
 
 
 class Gebruiker(Basis):
@@ -27,11 +24,9 @@ class Gebruiker(Basis):
 
     # Autorisatie
     # `rol` is een gedenormaliseerde weergave van de hoogste GebruikerRol —
-    # enkel voor display en snelle queries. Authorisatie altijd via GebruikerRol.
+    # enkel voor display en snelle queries. Authorisatie altijd via GebruikerRol of Lidmaatschap.
+    # Waarden: "hr" | "beheerder" | "super_beheerder" | "planner" | "teamlid"
     rol = Column(String(20), nullable=False, default="teamlid")
-
-    # Locatie FK — de primaire locatie van de gebruiker (tenant-isolatie)
-    locatie_id = Column(Integer, ForeignKey("locaties.id"), nullable=True, index=True)
 
     # Planningsinstellingen
     startweek_typedienst = Column(Integer, nullable=True)  # 1-6
@@ -56,8 +51,8 @@ class Gebruiker(Basis):
     verwijderd_door_id = Column(Integer, nullable=True)
 
     # Relaties
-    locatie = relationship("Locatie")
     rollen = relationship("GebruikerRol", back_populates="gebruiker", cascade="all, delete-orphan", lazy="selectin")
+    lidmaatschappen = relationship("Lidmaatschap", back_populates="gebruiker", cascade="all, delete-orphan", lazy="selectin")
     planning_shifts = relationship("Planning", back_populates="gebruiker", cascade="all, delete-orphan")
     verlof_aanvragen = relationship(
         "VerlofAanvraag",

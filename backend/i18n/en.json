@@ -374,6 +374,7 @@
   "instelling.waarde": "Value",
 
   "fout.niet_gevonden": "Not found",
+  "fout.laatste_lidmaatschap": "This is the user's last team membership. Add another team first before removing this one.",
   "fout.geen_toegang": "Access denied",
   "fout.verplicht": "This field is required",
   "fout.ongeldig_formaat": "Invalid format",

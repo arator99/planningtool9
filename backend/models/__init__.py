@@ -1,8 +1,10 @@
 """Models package — registreert alle ORM-modellen bij SQLAlchemy Basis."""
+from models.area import Area  # noqa: F401
 from models.locatie import Locatie  # noqa: F401
 from models.team import Team, TeamConfig  # noqa: F401
-from models.gebruiker_rol import GebruikerRol  # noqa: F401
+from models.gebruiker_rol import GebruikerRol, GebruikerRolType  # noqa: F401
 from models.gebruiker import Gebruiker  # noqa: F401
+from models.lidmaatschap import Lidmaatschap, LidmaatschapType  # noqa: F401
 from models.planning import (  # noqa: F401
     Werkpost, Shiftcode, ShiftTijd, SpecialCode,
     Planning, PlanningOverride, PlanningWijziging, RodeLijnConfig,
@@ -21,10 +23,12 @@ from models.scherm_recht import SchermRecht  # noqa: F401
 from models.aankondiging import Aankondiging  # noqa: F401
 
 __all__ = [
+    "Area",
     "Locatie",
     "Team", "TeamConfig",
-    "GebruikerRol",
+    "GebruikerRol", "GebruikerRolType",
     "Gebruiker",
+    "Lidmaatschap", "LidmaatschapType",
     "Werkpost", "Shiftcode", "ShiftTijd", "SpecialCode",
     "Planning", "PlanningOverride", "PlanningWijziging", "RodeLijnConfig",
     "VerlofAanvraag", "VerlofTeamStatus",

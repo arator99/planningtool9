@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from i18n import maak_vertaler
-from api.dependencies import haal_db, haal_primaire_team_id, heeft_rol_in_team, vereiste_rol, haal_csrf_token, verifieer_csrf, vereiste_login
+from api.dependencies import haal_db, haal_primaire_team_id, heeft_rol_in_team, vereiste_planner_of_hoger, haal_csrf_token, verifieer_csrf, vereiste_login, haal_actieve_locatie_id
 from api.rate_limiter import limiter
 from api.sjablonen import sjablonen
 from models.gebruiker import Gebruiker
@@ -40,9 +40,10 @@ def toon_maandplanning(
     jaar: Optional[int] = None,
     maand: Optional[int] = None,
     team_id: Optional[int] = Query(None, description="Filter op team-ID; None = alle teams van de locatie"),
-    gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
+    gebruiker: Gebruiker = Depends(vereiste_planner_of_hoger),
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     huidig_jaar, huidige_maand = _huidige_maand()
     jaar = jaar or huidig_jaar
@@ -54,7 +55,7 @@ def toon_maandplanning(
 
     svc = PlanningService(db)
     grid_data = svc.haal_maandgrid(primair_team_id, jaar, maand, filter_team_id=team_id)
-    teams = svc.haal_teams_voor_locatie(gebruiker.locatie_id) if gebruiker.locatie_id else []
+    teams = svc.haal_teams_voor_locatie(actieve_locatie_id) if actieve_locatie_id else []
     reserves = GebruikerService(db).haal_reserves(primair_team_id)
     return sjablonen.TemplateResponse(
         "pages/planning/maand.html",
@@ -129,7 +130,7 @@ def sla_cel_op(
     gebruiker_uuid: str,
     datum_str: str = Path(..., pattern=r"^\d{4}-\d{2}-\d{2}$"),
     shift_code: str = Form(""),
-    gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
+    gebruiker: Gebruiker = Depends(vereiste_planner_of_hoger),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
 ):
@@ -165,7 +166,7 @@ def sla_cel_op(
 def publiceer(
     jaar: int = Form(...),
     maand: int = Form(...),
-    gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
+    gebruiker: Gebruiker = Depends(vereiste_planner_of_hoger),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
 ):
@@ -180,7 +181,7 @@ def publiceer(
 def zet_concept(
     jaar: int = Form(...),
     maand: int = Form(...),
-    gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
+    gebruiker: Gebruiker = Depends(vereiste_planner_of_hoger),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
 ):
@@ -200,13 +201,14 @@ def valideer_maand(
     request: Request,
     jaar: int,
     maand: int,
-    gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
+    gebruiker: Gebruiker = Depends(vereiste_planner_of_hoger),
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     """Draai alle HR validators en geef een HTMX fragment terug."""
     team_id = haal_primaire_team_id(gebruiker.id, db)
-    fouten = ValidatieService(db).valideer_maand(team_id, gebruiker.locatie_id, jaar, maand) if team_id else []
+    fouten = ValidatieService(db).valideer_maand(team_id, actieve_locatie_id, jaar, maand) if team_id else []
     return sjablonen.TemplateResponse(
         "pages/planning/_validatie_paneel.html",
         _context(request, gebruiker, fouten=fouten, jaar=jaar, maand=maand, csrf_token=csrf_token),
@@ -222,9 +224,10 @@ def toon_suggesties(
     request: Request,
     gebruiker_uuid: str,
     datum_str: str = Path(..., pattern=r"^\d{4}-\d{2}-\d{2}$"),
-    gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
+    gebruiker: Gebruiker = Depends(vereiste_planner_of_hoger),
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     """HTMX fragment: gescoorde shiftcode-suggesties voor één cel."""
     try:
@@ -239,7 +242,7 @@ def toon_suggesties(
     team_id = haal_primaire_team_id(gebruiker.id, db)
     suggesties = SuggestieService(db).haal_shiftcode_suggesties(
         team_id=team_id,
-        locatie_id=gebruiker.locatie_id,
+        locatie_id=actieve_locatie_id,
         gebruiker_id=doel.id,
         datum=datum,
     ) if team_id else []
@@ -261,9 +264,10 @@ def auto_invullen(
     request: Request,
     gebruiker_uuid: str = Form(...),
     datum_str: str = Form(...),
-    gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
+    gebruiker: Gebruiker = Depends(vereiste_planner_of_hoger),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     """Pas de beste suggestie toe voor één cel. Geeft 204 terug."""
     try:
@@ -280,7 +284,7 @@ def auto_invullen(
     try:
         SuggestieService(db).auto_invullen(
             team_id=team_id,
-            locatie_id=gebruiker.locatie_id,
+            locatie_id=actieve_locatie_id,
             gebruiker_id=doel.id,
             datum=datum,
         )
@@ -296,9 +300,10 @@ def batch_auto_invullen(
     request: Request,
     jaar: int = Form(...),
     maand: int = Form(...),
-    gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
+    gebruiker: Gebruiker = Depends(vereiste_planner_of_hoger),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     """Batch auto-invullen voor de hele maand op basis van historiek."""
     team_id = haal_primaire_team_id(gebruiker.id, db)
@@ -310,7 +315,7 @@ def batch_auto_invullen(
     try:
         toegepast = SuggestieService(db).batch_auto_invullen(
             team_id=team_id,
-            locatie_id=gebruiker.locatie_id,
+            locatie_id=actieve_locatie_id,
             jaar=jaar,
             maand=maand,
         )
@@ -335,10 +340,11 @@ def maak_override(
     reden: str = Form(...),
     jaar: int = Form(...),
     maand: int = Form(...),
-    gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
+    gebruiker: Gebruiker = Depends(vereiste_planner_of_hoger),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
     csrf_token: str = Depends(haal_csrf_token),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     """Sla een planneroverride op voor een CRITICAL overtreding."""
     try:
@@ -369,7 +375,7 @@ def maak_override(
         except ValueError as fout:
             logger.warning("Override mislukt: %s", fout)
     # Hervalideer en geef bijgewerkt paneel terug
-    fouten = ValidatieService(db).valideer_maand(team_id, gebruiker.locatie_id, jaar, maand) if team_id else []
+    fouten = ValidatieService(db).valideer_maand(team_id, actieve_locatie_id, jaar, maand) if team_id else []
     return sjablonen.TemplateResponse(
         "pages/planning/_validatie_paneel.html",
         _context(request, gebruiker, fouten=fouten, jaar=jaar, maand=maand, csrf_token=csrf_token),
@@ -386,7 +392,7 @@ def reserve_beschikbaarheid(
     request: Request,
     jaar: Optional[int] = None,
     maand: Optional[int] = None,
-    gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
+    gebruiker: Gebruiker = Depends(vereiste_planner_of_hoger),
     db: Session = Depends(haal_db),
 ):
     """HTMX fragment: shifts van een reserve over alle teams voor de opgegeven maand."""

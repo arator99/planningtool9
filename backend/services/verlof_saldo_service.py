@@ -6,6 +6,8 @@ from sqlalchemy import extract
 from sqlalchemy.orm import Session
 
 from models.gebruiker import Gebruiker
+from models.lidmaatschap import Lidmaatschap
+from models.team import Team
 from models.verlof import VerlofAanvraag
 from models.verlof_saldo import VerlofSaldo, VerlofSaldoMutatie
 from services.domein.verlof_saldo_domein import (
@@ -55,7 +57,15 @@ class VerlofSaldoService:
         """
         medewerkers = (
             self.db.query(Gebruiker)
-            .filter(Gebruiker.locatie_id == locatie_id, Gebruiker.is_actief == True)
+            .join(Lidmaatschap, Lidmaatschap.gebruiker_id == Gebruiker.id)
+            .join(Team, Team.id == Lidmaatschap.team_id)
+            .filter(
+                Team.locatie_id == locatie_id,
+                Lidmaatschap.is_actief == True,
+                Lidmaatschap.verwijderd_op == None,
+                Gebruiker.is_actief == True,
+            )
+            .distinct()
             .order_by(Gebruiker.volledige_naam)
             .all()
         )
@@ -150,7 +160,15 @@ class VerlofSaldoService:
         """
         medewerkers = (
             self.db.query(Gebruiker)
-            .filter(Gebruiker.locatie_id == locatie_id, Gebruiker.is_actief == True)
+            .join(Lidmaatschap, Lidmaatschap.gebruiker_id == Gebruiker.id)
+            .join(Team, Team.id == Lidmaatschap.team_id)
+            .filter(
+                Team.locatie_id == locatie_id,
+                Lidmaatschap.is_actief == True,
+                Lidmaatschap.verwijderd_op == None,
+                Gebruiker.is_actief == True,
+            )
+            .distinct()
             .all()
         )
 
@@ -200,10 +218,18 @@ class VerlofSaldoService:
         Returns:
             Aantal medewerkers met vervallen dagen
         """
-        # Haal gebruiker_ids op voor de locatie
+        # Haal gebruiker_ids op voor de locatie via lidmaatschappen
         gebruiker_ids = [
             g.id for g in self.db.query(Gebruiker)
-            .filter(Gebruiker.locatie_id == locatie_id, Gebruiker.is_actief == True)
+            .join(Lidmaatschap, Lidmaatschap.gebruiker_id == Gebruiker.id)
+            .join(Team, Team.id == Lidmaatschap.team_id)
+            .filter(
+                Team.locatie_id == locatie_id,
+                Lidmaatschap.is_actief == True,
+                Lidmaatschap.verwijderd_op == None,
+                Gebruiker.is_actief == True,
+            )
+            .distinct()
             .all()
         ]
         saldi = (

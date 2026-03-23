@@ -5,7 +5,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from i18n import maak_vertaler
-from api.dependencies import haal_db, vereiste_rol, haal_csrf_token, verifieer_csrf
+from api.dependencies import haal_db, vereiste_rol, haal_csrf_token, verifieer_csrf, haal_actieve_locatie_id
 from api.sjablonen import sjablonen
 from models.gebruiker import Gebruiker
 from services.werkpost_service import WerkpostService
@@ -29,8 +29,9 @@ def lijst(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
-    werkposten = WerkpostService(db).haal_alle(gebruiker.locatie_id, ook_inactief=True)
+    werkposten = WerkpostService(db).haal_alle(actieve_locatie_id, ook_inactief=True)
     bericht = request.query_params.get("bericht")
     fout = request.query_params.get("fout")
     return sjablonen.TemplateResponse(
@@ -72,10 +73,11 @@ def maak_aan(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     try:
         WerkpostService(db).maak_aan(
-            locatie_id=gebruiker.locatie_id,
+            locatie_id=actieve_locatie_id,
             naam=naam,
             beschrijving=beschrijving or None,
             telt_als_werkdag=bool(telt_als_werkdag),
@@ -124,6 +126,7 @@ def bewerk(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     svc = WerkpostService(db)
     try:
@@ -133,7 +136,7 @@ def bewerk(
     try:
         svc.bewerk(
             werkpost_id=wp.id,
-            locatie_id=gebruiker.locatie_id,
+            locatie_id=actieve_locatie_id,
             naam=naam,
             beschrijving=beschrijving or None,
             telt_als_werkdag=bool(telt_als_werkdag),
@@ -156,11 +159,12 @@ def deactiveer(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     svc = WerkpostService(db)
     try:
         wp = svc.haal_op_uuid(uuid)
-        svc.deactiveer(wp.id, gebruiker.locatie_id)
+        svc.deactiveer(wp.id, actieve_locatie_id)
     except ValueError as fout:
         logger.warning("Werkpost deactiveren mislukt: %s", fout)
         return RedirectResponse(url="/werkposten?fout=actie_mislukt", status_code=303)
@@ -173,11 +177,12 @@ def activeer(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     svc = WerkpostService(db)
     try:
         wp = svc.haal_op_uuid(uuid)
-        svc.activeer(wp.id, gebruiker.locatie_id)
+        svc.activeer(wp.id, actieve_locatie_id)
     except ValueError as fout:
         logger.warning("Werkpost activeren mislukt: %s", fout)
         return RedirectResponse(url="/werkposten?fout=actie_mislukt", status_code=303)

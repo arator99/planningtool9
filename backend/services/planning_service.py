@@ -6,7 +6,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from models.gebruiker import Gebruiker
-from models.gebruiker_rol import GebruikerRol
+from models.lidmaatschap import Lidmaatschap, LidmaatschapType
 from models.planning import Planning, Shiftcode
 from models.team import Team
 from services.domein.planning_domein import (
@@ -58,11 +58,11 @@ class PlanningService:
 
         gebruikers = (
             self.db.query(Gebruiker)
-            .join(GebruikerRol, GebruikerRol.gebruiker_id == Gebruiker.id)
+            .join(Lidmaatschap, Lidmaatschap.gebruiker_id == Gebruiker.id)
             .filter(
-                GebruikerRol.rol.in_(["teamlid", "planner"]),
-                GebruikerRol.scope_id.in_(actieve_team_ids),
-                GebruikerRol.is_actief == True,
+                Lidmaatschap.team_id.in_(actieve_team_ids),
+                Lidmaatschap.is_actief == True,
+                Lidmaatschap.verwijderd_op == None,
                 Gebruiker.is_actief == True,
             )
             .order_by(Gebruiker.volledige_naam)
@@ -310,12 +310,12 @@ class PlanningService:
         """Geef alle actieve teamleden (exclusief reserves) van een team."""
         return (
             self.db.query(Gebruiker)
-            .join(GebruikerRol, GebruikerRol.gebruiker_id == Gebruiker.id)
+            .join(Lidmaatschap, Lidmaatschap.gebruiker_id == Gebruiker.id)
             .filter(
-                GebruikerRol.scope_id == team_id,
-                GebruikerRol.rol.in_(["teamlid", "planner"]),
-                GebruikerRol.is_reserve == False,
-                GebruikerRol.is_actief == True,
+                Lidmaatschap.team_id == team_id,
+                Lidmaatschap.type != LidmaatschapType.reserve,
+                Lidmaatschap.is_actief == True,
+                Lidmaatschap.verwijderd_op == None,
                 Gebruiker.is_actief == True,
             )
             .order_by(Gebruiker.volledige_naam)
@@ -385,18 +385,17 @@ class PlanningService:
         gefilterd op Planning.team_id zodat enkel shifts uit deze teams worden getoond.
         Actieve leden worden uitgesloten (hun shifts staan al in het hoofdgrid).
         """
-        ex_rollen = (
-            self.db.query(GebruikerRol)
+        ex_lidmaatschappen = (
+            self.db.query(Lidmaatschap)
             .filter(
-                GebruikerRol.scope_id.in_(actieve_team_ids),
-                GebruikerRol.rol.in_(["teamlid", "planner"]),
-                GebruikerRol.is_actief == False,
+                Lidmaatschap.team_id.in_(actieve_team_ids),
+                Lidmaatschap.is_actief == False,
             )
             .all()
         )
         ex_gebruiker_ids = [
-            r.gebruiker_id for r in ex_rollen
-            if r.gebruiker_id not in actieve_gebruiker_ids
+            l.gebruiker_id for l in ex_lidmaatschappen
+            if l.gebruiker_id not in actieve_gebruiker_ids
         ]
         if not ex_gebruiker_ids:
             return []

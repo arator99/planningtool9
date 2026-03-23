@@ -17,7 +17,7 @@ from api.routers import (
     rapporten, account, help, werkposten, competenties, logboek, teams,
 )
 from api.routers import instellingen as instellingen_router
-from api.routers import beheer_hr, dashboard, locaties
+from api.routers import beheer_hr, beheer_database, dashboard, locaties
 from api.routers import typetabellen as typetabellen_router
 from api.routers import adv as adv_router
 from api.routers import scherm_rechten as scherm_rechten_router
@@ -25,6 +25,7 @@ from api.routers import aankondigingen as aankondigingen_router
 from api.seed import seed_test_data
 from config import instellingen
 from database import Basis, motor
+from services.backup_service import BackupService
 
 logging.basicConfig(
     level=logging.INFO,
@@ -41,6 +42,13 @@ async def levensduur(app: FastAPI):
     Basis.metadata.create_all(bind=motor)
     logger.info("Database tabellen aangemaakt/gecontroleerd")
     seed_test_data()
+    # Automatische backups bij elke startup (alleen als pg_dump beschikbaar)
+    try:
+        dag, week, maand = BackupService.voer_automatische_backups_uit()
+        if dag or week or maand:
+            logger.info("Automatische backups aangemaakt: dag=%s week=%s maand=%s", dag, week, maand)
+    except Exception as backup_fout:
+        logger.warning("Automatische backup overgeslagen: %s", backup_fout)
     yield
     logger.info("Planning Tool v0.9 afgesloten")
 
@@ -80,6 +88,7 @@ app.include_router(logboek.router)
 app.include_router(instellingen_router.router)
 app.include_router(teams.router)
 app.include_router(beheer_hr.router)
+app.include_router(beheer_database.router)
 app.include_router(locaties.router)
 app.include_router(typetabellen_router.router)
 app.include_router(adv_router.router)

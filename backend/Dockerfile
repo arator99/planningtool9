@@ -11,7 +11,7 @@ COPY backend/ .
 
 # ── Tailwind CLI — statisch binair, geen npm/node nodig ──
 # Pin op v3.x (v4 heeft ander config-formaat)
-RUN apt-get update && apt-get install -y --no-install-recommends curl \
+RUN apt-get update && apt-get install -y --no-install-recommends curl postgresql-client \
     && rm -rf /var/lib/apt/lists/* \
     && curl -sL https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.17/tailwindcss-linux-x64 \
          -o /usr/local/bin/tailwindcss \

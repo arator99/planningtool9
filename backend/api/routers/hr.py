@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from i18n import maak_vertaler
-from api.dependencies import haal_db, vereiste_rol, haal_csrf_token, verifieer_csrf
+from api.dependencies import haal_db, vereiste_rol, haal_csrf_token, verifieer_csrf, haal_actieve_locatie_id
 from api.sjablonen import sjablonen
 from models.audit_log import AuditLog
 from models.gebruiker import Gebruiker
@@ -44,12 +44,13 @@ def overzicht(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "hr")),
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     svc = HRService(db)
     nationale_regels = svc.haal_alle_nationale_regels()
     overrides = {
         o.nationale_regel_id: o
-        for o in svc.haal_overrides_voor_locatie(gebruiker.locatie_id)
+        for o in svc.haal_overrides_voor_locatie(actieve_locatie_id)
     }
     rode_lijn = svc.haal_rode_lijn_config()
 
@@ -77,6 +78,7 @@ def overzicht(
             gegroepeerd=gegroepeerd,
             ernst_niveaus=ERNST_NIVEAUS,
             rode_lijn=rode_lijn,
+            actieve_locatie_id=actieve_locatie_id,
             bericht=request.query_params.get("bericht"),
             fout=maak_vertaler(gebruiker.taal)(request.query_params.get("fout", "")) or None,
             csrf_token=csrf_token,
@@ -91,13 +93,14 @@ def override_formulier(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder")),
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     svc = HRService(db)
     try:
         regel = svc.haal_op_uuid(uuid)
     except ValueError:
         return RedirectResponse(url="/hr?fout=fout.niet_gevonden", status_code=303)
-    override = svc.haal_override(regel.id, gebruiker.locatie_id)
+    override = svc.haal_override(regel.id, actieve_locatie_id)
     return sjablonen.TemplateResponse(
         "pages/hr/override_formulier.html",
         _context(
@@ -116,6 +119,7 @@ def sla_override_op(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     svc = HRService(db)
     try:
@@ -125,7 +129,7 @@ def sla_override_op(
     try:
         svc.sla_override_op(
             nationale_regel_id=regel.id,
-            locatie_id=gebruiker.locatie_id,
+            locatie_id=actieve_locatie_id,
             waarde=waarde,
         )
     except ValueError as fout:
@@ -133,7 +137,7 @@ def sla_override_op(
         return RedirectResponse(
             url=f"/hr/{uuid}/override?fout=fout.validatie_mislukt", status_code=303
         )
-    _log(db, gebruiker.id, gebruiker.locatie_id, "hr.override.opslaan", regel.id)
+    _log(db, gebruiker.id, actieve_locatie_id, "hr.override.opslaan", regel.id)
     return RedirectResponse(url="/hr?bericht=Override+opgeslagen", status_code=303)
 
 
@@ -143,14 +147,15 @@ def verwijder_override(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     svc = HRService(db)
     try:
         regel = svc.haal_op_uuid(uuid)
     except ValueError:
         return RedirectResponse(url="/hr?fout=fout.niet_gevonden", status_code=303)
-    svc.verwijder_override(regel.id, gebruiker.locatie_id)
-    _log(db, gebruiker.id, gebruiker.locatie_id, "hr.override.verwijderd", regel.id)
+    svc.verwijder_override(regel.id, actieve_locatie_id)
+    _log(db, gebruiker.id, actieve_locatie_id, "hr.override.verwijderd", regel.id)
     return RedirectResponse(url="/hr?bericht=Override+verwijderd", status_code=303)
 
 
@@ -160,11 +165,12 @@ def sla_rode_lijn_op(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     try:
         HRService(db).sla_rode_lijn_config_op(referentie_datum)
     except ValueError as fout:
         logger.warning("Rode lijn opslaan mislukt: %s", fout)
         return RedirectResponse(url="/hr?fout=fout.bewerken_mislukt", status_code=303)
-    _log(db, gebruiker.id, gebruiker.locatie_id, "hr.rode_lijn.opslaan")
+    _log(db, gebruiker.id, actieve_locatie_id, "hr.rode_lijn.opslaan")
     return RedirectResponse(url="/hr?bericht=Rode+lijn+opgeslagen", status_code=303)

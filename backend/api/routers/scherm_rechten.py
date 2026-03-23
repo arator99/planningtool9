@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
-from api.dependencies import haal_csrf_token, haal_db, verifieer_csrf, vereiste_rol
+from api.dependencies import haal_csrf_token, haal_db, verifieer_csrf, vereiste_rol, haal_actieve_locatie_id
 from api.sjablonen import sjablonen
 from i18n import maak_vertaler
 from models.gebruiker import Gebruiker
@@ -30,9 +30,10 @@ def toon_matrix(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder")),
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     """Toon de volledige rechtenmatrix voor de beheerder."""
-    svc = SchermRechtenService(db, gebruiker.locatie_id)
+    svc = SchermRechtenService(db, actieve_locatie_id)
     matrix = svc.haal_rechten_matrix()
 
     return sjablonen.TemplateResponse(
@@ -58,9 +59,10 @@ def toggle_toegang(
     _csrf: None = Depends(verifieer_csrf),
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder")),
     db: Session = Depends(haal_db),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     """Toggle toegang voor één route+rol combinatie."""
-    svc = SchermRechtenService(db, gebruiker.locatie_id)
+    svc = SchermRechtenService(db, actieve_locatie_id)
     try:
         waarde = toegestaan.lower() in ("true", "1", "ja")
         svc.zet_toegang(route_naam, rol, waarde)
@@ -77,9 +79,10 @@ def reset_route(
     _csrf: None = Depends(verifieer_csrf),
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder")),
     db: Session = Depends(haal_db),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     """Zet alle overrides voor een route terug naar hardcoded defaults."""
-    svc = SchermRechtenService(db, gebruiker.locatie_id)
+    svc = SchermRechtenService(db, actieve_locatie_id)
     try:
         if route_naam not in SCHERM_DEFAULTS:
             raise ValueError(f"Onbekende route: {route_naam}")

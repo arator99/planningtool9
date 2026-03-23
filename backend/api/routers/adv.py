@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
-from api.dependencies import haal_csrf_token, haal_db, verifieer_csrf, vereiste_rol
+from api.dependencies import haal_csrf_token, haal_db, verifieer_csrf, vereiste_rol, haal_actieve_locatie_id
 from services.domein.csrf_domein import genereer_csrf_token
 from api.sjablonen import sjablonen
 from i18n import maak_vertaler
@@ -58,8 +58,9 @@ def lijst(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
-    svc = AdvService(db, gebruiker.locatie_id)
+    svc = AdvService(db, actieve_locatie_id)
     filter_uid: Optional[int] = None
     filter_gebruiker = None
 
@@ -71,7 +72,7 @@ def lijst(
             pass
 
     toekenningen = svc.haal_alle(gebruiker_id=filter_uid)
-    teamleden = GebruikerService(db).haal_actieve_medewerkers(gebruiker.locatie_id)
+    teamleden = GebruikerService(db).haal_actieve_medewerkers(actieve_locatie_id)
 
     return sjablonen.TemplateResponse(
         "pages/adv/lijst.html",
@@ -101,6 +102,7 @@ def nieuw_formulier(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     voor_gebruiker = None
     if voor_uuid:
@@ -109,7 +111,7 @@ def nieuw_formulier(
         except ValueError:
             pass
 
-    teamleden = GebruikerService(db).haal_actieve_medewerkers(gebruiker.locatie_id)
+    teamleden = GebruikerService(db).haal_actieve_medewerkers(actieve_locatie_id)
     return sjablonen.TemplateResponse(
         "pages/adv/formulier.html",
         _context(
@@ -135,10 +137,11 @@ def maak_nieuw(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     try:
         voor = GebruikerService(db).haal_op_uuid(voor_gebruiker_uuid)
-        t = AdvService(db, gebruiker.locatie_id).maak(
+        t = AdvService(db, actieve_locatie_id).maak(
             gebruiker_id=voor.id,
             adv_type=adv_type,
             dag_van_week=dag_van_week,
@@ -147,7 +150,7 @@ def maak_nieuw(
             eind_datum=eind_datum,
         )
         db.commit()
-        _log(db, gebruiker.id, gebruiker.locatie_id, "adv_aangemaakt", t.id)
+        _log(db, gebruiker.id, actieve_locatie_id, "adv_aangemaakt", t.id)
         return RedirectResponse(
             f"/verlof/adv?gebruiker_uuid={voor_gebruiker_uuid}&bericht=ADV-toekenning+aangemaakt",
             status_code=303,
@@ -155,7 +158,7 @@ def maak_nieuw(
     except ValueError as fout:
         db.rollback()
         csrf_token = genereer_csrf_token(str(gebruiker.id))
-        teamleden = GebruikerService(db).haal_actieve_medewerkers(gebruiker.locatie_id)
+        teamleden = GebruikerService(db).haal_actieve_medewerkers(actieve_locatie_id)
         try:
             voor_gebruiker = GebruikerService(db).haal_op_uuid(voor_gebruiker_uuid)
         except ValueError:
@@ -187,14 +190,15 @@ def bewerken_formulier(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     try:
-        t = AdvService(db, gebruiker.locatie_id).haal_op_uuid(uuid)
+        t = AdvService(db, actieve_locatie_id).haal_op_uuid(uuid)
     except ValueError as fout:
         logger.warning("ADV ophalen mislukt (uuid=%s): %s", uuid, fout)
         return RedirectResponse("/verlof/adv?fout=fout.niet_gevonden", status_code=303)
 
-    teamleden = GebruikerService(db).haal_actieve_medewerkers(gebruiker.locatie_id)
+    teamleden = GebruikerService(db).haal_actieve_medewerkers(actieve_locatie_id)
     return sjablonen.TemplateResponse(
         "pages/adv/formulier.html",
         _context(
@@ -220,23 +224,24 @@ def bewerk_opslaan(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     try:
-        svc = AdvService(db, gebruiker.locatie_id)
+        svc = AdvService(db, actieve_locatie_id)
         t = svc.update(uuid, adv_type, dag_van_week, start_datum, eind_datum)
         db.commit()
-        _log(db, gebruiker.id, gebruiker.locatie_id, "adv_bijgewerkt", t.id)
+        _log(db, gebruiker.id, actieve_locatie_id, "adv_bijgewerkt", t.id)
         return RedirectResponse("/verlof/adv?bericht=ADV-toekenning+bijgewerkt", status_code=303)
     except ValueError as fout:
         db.rollback()
         csrf_token = genereer_csrf_token(str(gebruiker.id))
         try:
-            t = AdvService(db, gebruiker.locatie_id).haal_op_uuid(uuid)
+            t = AdvService(db, actieve_locatie_id).haal_op_uuid(uuid)
             voor_gebruiker = t.gebruiker
         except ValueError:
             t = None
             voor_gebruiker = None
-        teamleden = GebruikerService(db).haal_actieve_medewerkers(gebruiker.locatie_id)
+        teamleden = GebruikerService(db).haal_actieve_medewerkers(actieve_locatie_id)
         return sjablonen.TemplateResponse(
             "pages/adv/formulier.html",
             _context(
@@ -263,9 +268,10 @@ def deactiveer(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     try:
-        AdvService(db, gebruiker.locatie_id).deactiveer(uuid)
+        AdvService(db, actieve_locatie_id).deactiveer(uuid)
         db.commit()
         return RedirectResponse("/verlof/adv?bericht=ADV-toekenning+gedeactiveerd", status_code=303)
     except ValueError as fout:
@@ -280,9 +286,10 @@ def activeer(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     try:
-        AdvService(db, gebruiker.locatie_id).activeer(uuid)
+        AdvService(db, actieve_locatie_id).activeer(uuid)
         db.commit()
         return RedirectResponse("/verlof/adv?bericht=ADV-toekenning+geactiveerd", status_code=303)
     except ValueError as fout:
@@ -297,11 +304,12 @@ def verwijder(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     try:
-        AdvService(db, gebruiker.locatie_id).verwijder(uuid, gebruiker.id)
+        AdvService(db, actieve_locatie_id).verwijder(uuid, gebruiker.id)
         db.commit()
-        _log(db, gebruiker.id, gebruiker.locatie_id, "adv_verwijderd")
+        _log(db, gebruiker.id, actieve_locatie_id, "adv_verwijderd")
         return RedirectResponse("/verlof/adv?bericht=ADV-toekenning+verwijderd", status_code=303)
     except ValueError as fout:
         db.rollback()

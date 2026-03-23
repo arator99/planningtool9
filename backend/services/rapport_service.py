@@ -7,7 +7,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session, aliased
 
 from models.gebruiker import Gebruiker
-from models.gebruiker_rol import GebruikerRol
+from models.lidmaatschap import Lidmaatschap
 from models.planning import Planning, PlanningOverride, Shiftcode
 from models.team import Team
 from models.verlof import VerlofAanvraag
@@ -28,11 +28,11 @@ class RapportService:
 
         gebruikers = (
             self.db.query(Gebruiker)
-            .join(GebruikerRol, GebruikerRol.gebruiker_id == Gebruiker.id)
+            .join(Lidmaatschap, Lidmaatschap.gebruiker_id == Gebruiker.id)
             .filter(
-                GebruikerRol.scope_id == team_id,
-                GebruikerRol.rol.in_(["teamlid", "planner"]),
-                GebruikerRol.is_actief == True,
+                Lidmaatschap.team_id == team_id,
+                Lidmaatschap.is_actief == True,
+                Lidmaatschap.verwijderd_op == None,
                 Gebruiker.is_actief == True,
             )
             .order_by(Gebruiker.volledige_naam)
@@ -83,12 +83,17 @@ class RapportService:
         aanvragen = (
             self.db.query(VerlofAanvraag)
             .join(Gebruiker, Gebruiker.id == VerlofAanvraag.gebruiker_id)
+            .join(Lidmaatschap, Lidmaatschap.gebruiker_id == Gebruiker.id)
+            .join(Team, Team.id == Lidmaatschap.team_id)
             .filter(
-                Gebruiker.locatie_id == locatie_id,
+                Team.locatie_id == locatie_id,
+                Lidmaatschap.is_actief == True,
+                Lidmaatschap.verwijderd_op == None,
                 VerlofAanvraag.start_datum >= start,
                 VerlofAanvraag.eind_datum <= eind,
                 VerlofAanvraag.status == "goedgekeurd",
             )
+            .distinct()
             .order_by(VerlofAanvraag.gebruiker_id, VerlofAanvraag.start_datum)
             .all()
         )
@@ -140,10 +145,16 @@ class RapportService:
         return resultaat
 
     def medewerkers_overzicht(self, locatie_id: int) -> list[Gebruiker]:
-        """Alle gebruikers van de locatie (actief en inactief), gesorteerd op naam."""
+        """Alle gebruikers van de locatie via lidmaatschappen, gesorteerd op naam."""
         return (
             self.db.query(Gebruiker)
-            .filter(Gebruiker.locatie_id == locatie_id)
+            .join(Lidmaatschap, Lidmaatschap.gebruiker_id == Gebruiker.id)
+            .join(Team, Team.id == Lidmaatschap.team_id)
+            .filter(
+                Team.locatie_id == locatie_id,
+                Lidmaatschap.verwijderd_op == None,
+            )
+            .distinct()
             .order_by(Gebruiker.volledige_naam)
             .all()
         )
@@ -220,11 +231,11 @@ class RapportService:
         # Medewerkers van het team
         gebruikers = (
             self.db.query(Gebruiker)
-            .join(GebruikerRol, GebruikerRol.gebruiker_id == Gebruiker.id)
+            .join(Lidmaatschap, Lidmaatschap.gebruiker_id == Gebruiker.id)
             .filter(
-                GebruikerRol.scope_id == team_id,
-                GebruikerRol.rol.in_(["teamlid", "planner"]),
-                GebruikerRol.is_actief == True,
+                Lidmaatschap.team_id == team_id,
+                Lidmaatschap.is_actief == True,
+                Lidmaatschap.verwijderd_op == None,
                 Gebruiker.is_actief == True,
             )
             .order_by(Gebruiker.volledige_naam)
@@ -235,11 +246,11 @@ class RapportService:
         aanvragen = (
             self.db.query(VerlofAanvraag)
             .join(Gebruiker, Gebruiker.id == VerlofAanvraag.gebruiker_id)
-            .join(GebruikerRol, GebruikerRol.gebruiker_id == Gebruiker.id)
+            .join(Lidmaatschap, Lidmaatschap.gebruiker_id == Gebruiker.id)
             .filter(
-                GebruikerRol.scope_id == team_id,
-                GebruikerRol.rol.in_(["teamlid", "planner"]),
-                GebruikerRol.is_actief == True,
+                Lidmaatschap.team_id == team_id,
+                Lidmaatschap.is_actief == True,
+                Lidmaatschap.verwijderd_op == None,
                 VerlofAanvraag.start_datum <= datums[-1],
                 VerlofAanvraag.eind_datum >= datums[0],
                 VerlofAanvraag.status == "goedgekeurd",

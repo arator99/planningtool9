@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
-from api.dependencies import haal_csrf_token, haal_db, verifieer_csrf, vereiste_rol
+from api.dependencies import haal_csrf_token, haal_db, verifieer_csrf, vereiste_rol, haal_actieve_locatie_id
 from services.domein.csrf_domein import genereer_csrf_token
 from api.sjablonen import sjablonen
 from i18n import maak_vertaler
@@ -40,8 +40,9 @@ def lijst(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder")),
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
-    svc = TypetabelService(db, gebruiker.locatie_id)
+    svc = TypetabelService(db, actieve_locatie_id)
     tabellen = svc.haal_alle()
     return sjablonen.TemplateResponse(
         "pages/typetabellen/lijst.html",
@@ -80,9 +81,10 @@ def maak_nieuw(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     try:
-        svc = TypetabelService(db, gebruiker.locatie_id)
+        svc = TypetabelService(db, actieve_locatie_id)
         tt = svc.maak(naam, aantal_weken, gebruiker.id, beschrijving)
         db.commit()
         return RedirectResponse(f"/typetabellen/{tt.uuid}/grid?bericht=Typetabel+aangemaakt", status_code=303)
@@ -107,9 +109,10 @@ def bewerken_formulier(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder")),
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     try:
-        tt = TypetabelService(db, gebruiker.locatie_id).haal_op_uuid(uuid)
+        tt = TypetabelService(db, actieve_locatie_id).haal_op_uuid(uuid)
     except ValueError as fout:
         logger.warning("Typetabel niet gevonden (uuid=%s): %s", uuid, fout)
         return RedirectResponse("/typetabellen?fout=fout.niet_gevonden", status_code=303)
@@ -129,16 +132,17 @@ def bewerk_opslaan(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     try:
-        svc = TypetabelService(db, gebruiker.locatie_id)
+        svc = TypetabelService(db, actieve_locatie_id)
         tt = svc.update(uuid, naam, aantal_weken, beschrijving)
         db.commit()
         return RedirectResponse(f"/typetabellen/{tt.uuid}/grid?bericht=Wijzigingen+opgeslagen", status_code=303)
     except ValueError as fout:
         db.rollback()
         csrf_token = genereer_csrf_token(str(gebruiker.id))
-        svc2 = TypetabelService(db, gebruiker.locatie_id)
+        svc2 = TypetabelService(db, actieve_locatie_id)
         try:
             tt = svc2.haal_op_uuid(uuid)
         except ValueError:
@@ -161,9 +165,10 @@ def toon_grid(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder")),
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     try:
-        svc = TypetabelService(db, gebruiker.locatie_id)
+        svc = TypetabelService(db, actieve_locatie_id)
         tt = svc.haal_op_uuid(uuid)
     except ValueError as fout:
         logger.warning("Typetabel grid niet gevonden (uuid=%s): %s", uuid, fout)
@@ -182,7 +187,7 @@ def toon_grid(
             Shiftcode.verwijderd_op.is_(None),
         )
         .filter(
-            (Shiftcode.locatie_id == gebruiker.locatie_id) | (Shiftcode.locatie_id.is_(None))
+            (Shiftcode.locatie_id == actieve_locatie_id) | (Shiftcode.locatie_id.is_(None))
         )
         .order_by(Shiftcode.code)
         .all()
@@ -213,10 +218,11 @@ def update_cel(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     """HTMX endpoint: update één cel, retourneert alleen de bijgewerkte cel."""
     try:
-        svc = TypetabelService(db, gebruiker.locatie_id)
+        svc = TypetabelService(db, actieve_locatie_id)
         svc.update_cel(uuid, week, dag, shift_code)
         db.commit()
         code = shift_code.strip().upper() if shift_code and shift_code.strip() else ""
@@ -241,9 +247,10 @@ def activeer(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     try:
-        TypetabelService(db, gebruiker.locatie_id).stel_actief(uuid)
+        TypetabelService(db, actieve_locatie_id).stel_actief(uuid)
         db.commit()
         return RedirectResponse("/typetabellen?bericht=Typetabel+geactiveerd", status_code=303)
     except ValueError as fout:
@@ -259,9 +266,10 @@ def kopieer(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     try:
-        tt = TypetabelService(db, gebruiker.locatie_id).kopieer(uuid, nieuwe_naam, gebruiker.id)
+        tt = TypetabelService(db, actieve_locatie_id).kopieer(uuid, nieuwe_naam, gebruiker.id)
         db.commit()
         return RedirectResponse(f"/typetabellen/{tt.uuid}/grid?bericht=Kopie+aangemaakt", status_code=303)
     except ValueError as fout:
@@ -276,9 +284,10 @@ def verwijder(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     try:
-        TypetabelService(db, gebruiker.locatie_id).verwijder(uuid, gebruiker.id)
+        TypetabelService(db, actieve_locatie_id).verwijder(uuid, gebruiker.id)
         db.commit()
         return RedirectResponse("/typetabellen?bericht=Typetabel+verwijderd", status_code=303)
     except ValueError as fout:

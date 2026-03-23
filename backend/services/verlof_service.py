@@ -6,8 +6,9 @@ from datetime import date, datetime, timedelta
 from sqlalchemy.orm import Session
 
 from models.gebruiker import Gebruiker
-from models.gebruiker_rol import GebruikerRol
+from models.lidmaatschap import Lidmaatschap
 from models.planning import SpecialCode
+from models.team import Team
 from models.verlof import VerlofAanvraag
 from services.domein.verlof_domein import (
     BEHANDELAAR_ROLLEN,
@@ -31,7 +32,14 @@ class VerlofService:
         return (
             self.db.query(VerlofAanvraag)
             .join(Gebruiker, Gebruiker.id == VerlofAanvraag.gebruiker_id)
-            .filter(Gebruiker.locatie_id == locatie_id)
+            .join(Lidmaatschap, Lidmaatschap.gebruiker_id == Gebruiker.id)
+            .join(Team, Team.id == Lidmaatschap.team_id)
+            .filter(
+                Team.locatie_id == locatie_id,
+                Lidmaatschap.is_actief == True,
+                Lidmaatschap.verwijderd_op == None,
+            )
+            .distinct()
             .order_by(VerlofAanvraag.aangevraagd_op.desc())
             .all()
         )
@@ -41,11 +49,11 @@ class VerlofService:
         return (
             self.db.query(VerlofAanvraag)
             .join(Gebruiker, Gebruiker.id == VerlofAanvraag.gebruiker_id)
-            .join(GebruikerRol, GebruikerRol.gebruiker_id == Gebruiker.id)
+            .join(Lidmaatschap, Lidmaatschap.gebruiker_id == Gebruiker.id)
             .filter(
-                GebruikerRol.scope_id.in_(team_ids),
-                GebruikerRol.rol.in_(["teamlid", "planner"]),
-                GebruikerRol.is_actief == True,
+                Lidmaatschap.team_id.in_(team_ids),
+                Lidmaatschap.is_actief == True,
+                Lidmaatschap.verwijderd_op == None,
             )
             .distinct()
             .order_by(VerlofAanvraag.aangevraagd_op.desc())
@@ -65,7 +73,14 @@ class VerlofService:
         return (
             self.db.query(VerlofAanvraag)
             .join(Gebruiker, Gebruiker.id == VerlofAanvraag.gebruiker_id)
-            .filter(VerlofAanvraag.id == aanvraag_id, Gebruiker.locatie_id == locatie_id)
+            .join(Lidmaatschap, Lidmaatschap.gebruiker_id == Gebruiker.id)
+            .join(Team, Team.id == Lidmaatschap.team_id)
+            .filter(
+                VerlofAanvraag.id == aanvraag_id,
+                Team.locatie_id == locatie_id,
+                Lidmaatschap.is_actief == True,
+                Lidmaatschap.verwijderd_op == None,
+            )
             .first()
         )
 
@@ -179,11 +194,11 @@ class VerlofService:
         if team_ids is not None:
             medewerkers = (
                 self.db.query(Gebruiker)
-                .join(GebruikerRol, GebruikerRol.gebruiker_id == Gebruiker.id)
+                .join(Lidmaatschap, Lidmaatschap.gebruiker_id == Gebruiker.id)
                 .filter(
-                    GebruikerRol.scope_id.in_(team_ids),
-                    GebruikerRol.rol.in_(["teamlid", "planner"]),
-                    GebruikerRol.is_actief == True,
+                    Lidmaatschap.team_id.in_(team_ids),
+                    Lidmaatschap.is_actief == True,
+                    Lidmaatschap.verwijderd_op == None,
                     Gebruiker.is_actief == True,
                 )
                 .distinct()
@@ -193,7 +208,15 @@ class VerlofService:
         else:
             medewerkers = (
                 self.db.query(Gebruiker)
-                .filter(Gebruiker.locatie_id == locatie_id, Gebruiker.is_actief == True)
+                .join(Lidmaatschap, Lidmaatschap.gebruiker_id == Gebruiker.id)
+                .join(Team, Team.id == Lidmaatschap.team_id)
+                .filter(
+                    Team.locatie_id == locatie_id,
+                    Lidmaatschap.is_actief == True,
+                    Lidmaatschap.verwijderd_op == None,
+                    Gebruiker.is_actief == True,
+                )
+                .distinct()
                 .order_by(Gebruiker.volledige_naam)
                 .all()
             )
@@ -210,16 +233,26 @@ class VerlofService:
         if team_ids is not None:
             aanvragen_query = (
                 aanvragen_query
-                .join(GebruikerRol, GebruikerRol.gebruiker_id == Gebruiker.id)
+                .join(Lidmaatschap, Lidmaatschap.gebruiker_id == Gebruiker.id)
                 .filter(
-                    GebruikerRol.scope_id.in_(team_ids),
-                    GebruikerRol.rol.in_(["teamlid", "planner"]),
-                    GebruikerRol.is_actief == True,
+                    Lidmaatschap.team_id.in_(team_ids),
+                    Lidmaatschap.is_actief == True,
+                    Lidmaatschap.verwijderd_op == None,
                 )
                 .distinct()
             )
         else:
-            aanvragen_query = aanvragen_query.filter(Gebruiker.locatie_id == locatie_id)
+            aanvragen_query = (
+                aanvragen_query
+                .join(Lidmaatschap, Lidmaatschap.gebruiker_id == Gebruiker.id)
+                .join(Team, Team.id == Lidmaatschap.team_id)
+                .filter(
+                    Team.locatie_id == locatie_id,
+                    Lidmaatschap.is_actief == True,
+                    Lidmaatschap.verwijderd_op == None,
+                )
+                .distinct()
+            )
         aanvragen = aanvragen_query.all()
 
         verlof_per_dag: dict[int, dict[str, str]] = {}
@@ -247,16 +280,26 @@ class VerlofService:
         if team_ids is not None:
             query = (
                 query
-                .join(GebruikerRol, GebruikerRol.gebruiker_id == Gebruiker.id)
+                .join(Lidmaatschap, Lidmaatschap.gebruiker_id == Gebruiker.id)
                 .filter(
-                    GebruikerRol.scope_id.in_(team_ids),
-                    GebruikerRol.rol.in_(["teamlid", "planner"]),
-                    GebruikerRol.is_actief == True,
+                    Lidmaatschap.team_id.in_(team_ids),
+                    Lidmaatschap.is_actief == True,
+                    Lidmaatschap.verwijderd_op == None,
                 )
                 .distinct()
             )
         else:
-            query = query.filter(Gebruiker.locatie_id == locatie_id)
+            query = (
+                query
+                .join(Lidmaatschap, Lidmaatschap.gebruiker_id == Gebruiker.id)
+                .join(Team, Team.id == Lidmaatschap.team_id)
+                .filter(
+                    Team.locatie_id == locatie_id,
+                    Lidmaatschap.is_actief == True,
+                    Lidmaatschap.verwijderd_op == None,
+                )
+                .distinct()
+            )
         return query.count()
 
     # ------------------------------------------------------------------ #

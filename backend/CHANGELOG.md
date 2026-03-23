@@ -5,6 +5,36 @@ Formaat gebaseerd op [Keep a Changelog](https://keepachangelog.com/nl/1.0.0/).
 
 ---
 
+## [0.9.2] — In ontwikkeling
+
+### Nieuw
+- `Area` model: groepeert locaties voor HR-scoping (`id, uuid, naam, code, area_id op Locatie`)
+- `Lidmaatschap` model: vervangt `teamlid`- en `planner`-rollen in `GebruikerRol`
+  - `is_planner` bool (schrijfrechten op teamplanning) vervangt de aparte `planner`-rol
+  - `type` enum: `Vast | Reserve | Detachering` vervangt `GebruikerRol.is_reserve`
+  - Partial unique index: `(gebruiker_id, team_id) WHERE verwijderd_op IS NULL` — staat re-activatie toe
+  - Invariant: elke gebruiker heeft altijd minstens 1 actief lidmaatschap
+- Alembic migratie `010_lidmaatschap_area_refactor`: datamigratie van `teamlid`/`planner` GebruikerRol-records naar `lidmaatschappen`; `scope_id` gemigreerd naar getypeerde FK's
+- `haal_actieve_locatie_id()` FastAPI-dependency: multi-locatie context via cookie met server-side allowlist; vervangt `gebruiker.locatie_id` overal
+
+### Gewijzigd
+- `GebruikerRol` beperkt tot administratieve rollen: `super_beheerder | beheerder | hr`
+  - Polymorfische `scope_id` vervangen door getypeerde FK's: `scope_locatie_id` (beheerder) en `scope_area_id` (hr area-scope)
+  - `is_reserve` vlag verwijderd — zit nu in `Lidmaatschap.type`
+  - CHECK constraints op DB-niveau: scoperegels per rol afgedwongen
+- `Gebruiker.locatie_id` verwijderd — locatiecontext altijd via `Lidmaatschap → Team → locatie_id`
+- Alle routers gebruiken `haal_actieve_locatie_id()` i.p.v. `gebruiker.locatie_id`
+- `notitie_service.py`: planner-mailboxen via `Lidmaatschap.is_planner` i.p.v. `GebruikerRol.rol == 'planner'`; super_beheerder mailbox zonder scope-filter
+- `seed.py`: NAT-team aangemaakt als eerste lidmaatschap voor admin; geen `locatie_id` meer op `Gebruiker`
+- `CLAUDE.md` en `CONTRIBUTING.md` bijgewerkt: rolmodel, Lidmaatschap-invariant, JOIN-patroon voor gebruikers-per-locatie, VERBODEN/VERPLICHT voorbeelden
+
+### Verwijderd
+- `GebruikerRol.scope_id` (polymorfisch) — vervangen door getypeerde `scope_locatie_id`/`scope_area_id`
+- `GebruikerRol.is_reserve` — vervangen door `Lidmaatschap.type`
+- Rollen `teamlid` en `planner` uit `GebruikerRol` — volledig naar `Lidmaatschap` gemigreerd
+
+---
+
 ## [0.9.1] — In ontwikkeling
 
 ### Nieuw

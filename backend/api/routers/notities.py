@@ -7,10 +7,11 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from i18n import maak_vertaler
-from api.dependencies import haal_db, vereiste_login, haal_csrf_token, verifieer_csrf
+from api.dependencies import haal_db, haal_actieve_locatie_id, vereiste_login, haal_csrf_token, verifieer_csrf
 from api.sjablonen import sjablonen
 from models.gebruiker import Gebruiker
-from models.gebruiker_rol import GebruikerRol
+from models.gebruiker_rol import GebruikerRol, GebruikerRolType
+from models.lidmaatschap import Lidmaatschap
 from models.notitie import PRIORITEITEN
 from models.team import Team
 from models.locatie import Locatie
@@ -41,14 +42,21 @@ def _haal_rollen(gebruiker_id: int, db: Session) -> list[GebruikerRol]:
     )
 
 
-def _medewerkers(db: Session, locatie_id: int, eigen_id: int) -> list[Gebruiker]:
+def _medewerkers(db: Session, locatie_id: int | None, eigen_id: int) -> list[Gebruiker]:
+    if not locatie_id:
+        return []
     return (
         db.query(Gebruiker)
+        .join(Lidmaatschap, Lidmaatschap.gebruiker_id == Gebruiker.id)
+        .join(Team, Team.id == Lidmaatschap.team_id)
         .filter(
-            Gebruiker.locatie_id == locatie_id,
+            Team.locatie_id == locatie_id,
+            Lidmaatschap.is_actief == True,
+            Lidmaatschap.verwijderd_op == None,
             Gebruiker.is_actief == True,
             Gebruiker.id != eigen_id,
         )
+        .distinct()
         .order_by(Gebruiker.volledige_naam)
         .all()
     )
@@ -56,54 +64,64 @@ def _medewerkers(db: Session, locatie_id: int, eigen_id: int) -> list[Gebruiker]
 
 def _bouw_stuur_opties(
     gebruiker: Gebruiker,
-    rollen: list[GebruikerRol],
+    admin_rollen: list[GebruikerRol],
+    locatie_id: int | None,
     db: Session,
 ) -> list[dict]:
     """
     Bouw de lijst van mogelijke bestemmingen voor het stuurformulier.
     Elke optie: {'type': 'mailbox'|'gebruiker', 'label': str, 'naar_rol': str|None,
                  'naar_scope_id': int|None}
+
+    Team-rollen (teamlid/planner) worden bepaald via Lidmaatschap.
+    Admin-rollen (beheerder/hr) via GebruikerRol.
     """
     opties = []
 
-    for rol_record in rollen:
-        if not rol_record.is_actief:
-            continue
-        if rol_record.rol == "teamlid":
-            # Teamleden kunnen naar de 'planners' mailbox van hun team sturen
-            team = db.query(Team).filter(Team.id == rol_record.scope_id).first()
-            team_naam = team.naam if team else str(rol_record.scope_id)
-            opties.append({
-                "type": "mailbox",
-                "label": f"Planners — {team_naam}",
-                "naar_rol": "planners",
-                "naar_scope_id": rol_record.scope_id,
-            })
-        elif rol_record.rol == "planner":
-            # Planners kunnen naar de 'planners' mailbox van hun team sturen (ontvangen)
-            # én naar de 'beheerders' mailbox van hun locatie sturen
-            team = db.query(Team).filter(Team.id == rol_record.scope_id).first()
-            team_naam = team.naam if team else str(rol_record.scope_id)
-            opties.append({
-                "type": "mailbox",
-                "label": f"Planners — {team_naam}",
-                "naar_rol": "planners",
-                "naar_scope_id": rol_record.scope_id,
-            })
-            locatie = db.query(Locatie).filter(Locatie.id == gebruiker.locatie_id).first()
-            locatie_naam = locatie.naam if locatie else str(gebruiker.locatie_id)
+    # Team-gebaseerde opties via Lidmaatschap
+    lidmaatschappen = (
+        db.query(Lidmaatschap)
+        .filter(
+            Lidmaatschap.gebruiker_id == gebruiker.id,
+            Lidmaatschap.is_actief == True,
+            Lidmaatschap.verwijderd_op == None,
+        )
+        .all()
+    )
+    for lid in lidmaatschappen:
+        team = db.query(Team).filter(Team.id == lid.team_id).first()
+        team_naam = team.naam if team else str(lid.team_id)
+
+        # Elk lid kan naar de planners mailbox van zijn team sturen
+        opties.append({
+            "type": "mailbox",
+            "label": f"Planners — {team_naam}",
+            "naar_rol": "planners",
+            "naar_scope_id": lid.team_id,
+        })
+
+        # Planners kunnen ook naar de beheerders mailbox van hun locatie
+        if lid.is_planner and locatie_id:
+            locatie = db.query(Locatie).filter(Locatie.id == locatie_id).first()
+            locatie_naam = locatie.naam if locatie else str(locatie_id)
             opties.append({
                 "type": "mailbox",
                 "label": f"Beheerders — {locatie_naam}",
                 "naar_rol": "beheerders",
-                "naar_scope_id": gebruiker.locatie_id,
+                "naar_scope_id": locatie_id,
             })
-        elif rol_record.rol == "beheerder":
+
+    # Admin-rollen via GebruikerRol
+    for rol_record in admin_rollen:
+        if not rol_record.is_actief:
+            continue
+        rol_waarde = rol_record.rol.value if isinstance(rol_record.rol, GebruikerRolType) else str(rol_record.rol)
+        if rol_waarde == "beheerder":
             opties.append({
                 "type": "mailbox",
                 "label": "Super-beheerders",
                 "naar_rol": "super_beheerders",
-                "naar_scope_id": rol_record.scope_id,
+                "naar_scope_id": rol_record.scope_locatie_id,
             })
 
     # Dedupliceer op (naar_rol, naar_scope_id)
@@ -153,14 +171,15 @@ def inbox(
     request: Request,
     tab: str = "persoonlijk",
     gebruiker: Gebruiker = Depends(vereiste_login),
+    actieve_locatie_id: int | None = Depends(haal_actieve_locatie_id),
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
 ):
     svc = NotitieService(db)
-    rollen = _haal_rollen(gebruiker.id, db)
-    alle_inboxen = svc.haal_alle_inboxen(gebruiker.id, rollen, gebruiker.locatie_id)
+    admin_rollen = _haal_rollen(gebruiker.id, db)
+    alle_inboxen = svc.haal_alle_inboxen(gebruiker.id, admin_rollen, actieve_locatie_id)
     mailboxen = _verrijk_mailboxen(alle_inboxen["mailboxen"], db)
-    verzonden = svc.haal_verzonden(gebruiker.id, gebruiker.locatie_id)
+    verzonden = svc.haal_verzonden(gebruiker.id, actieve_locatie_id)
 
     return sjablonen.TemplateResponse(
         "pages/notities/lijst.html",
@@ -170,8 +189,8 @@ def inbox(
             persoonlijk=alle_inboxen["persoonlijk"],
             mailboxen=mailboxen,
             verzonden=verzonden,
-            medewerkers=_medewerkers(db, gebruiker.locatie_id, gebruiker.id),
-            stuur_opties=_bouw_stuur_opties(gebruiker, rollen, db),
+            medewerkers=_medewerkers(db, actieve_locatie_id, gebruiker.id),
+            stuur_opties=_bouw_stuur_opties(gebruiker, admin_rollen, actieve_locatie_id, db),
             prioriteiten=PRIORITEITEN,
             actieve_tab=tab,
             bericht=request.query_params.get("bericht"),
@@ -190,6 +209,7 @@ def stuur(
     bericht: str = Form(...),
     prioriteit: str = Form("normaal"),
     gebruiker: Gebruiker = Depends(vereiste_login),
+    actieve_locatie_id: int | None = Depends(haal_actieve_locatie_id),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
 ):
@@ -199,7 +219,7 @@ def stuur(
             svc.stuur_naar_gebruiker(
                 van_id=gebruiker.id,
                 naar_gebruiker_id=naar_gebruiker_id,
-                locatie_id=gebruiker.locatie_id,
+                locatie_id=actieve_locatie_id,
                 bericht=bericht,
                 prioriteit=prioriteit,
             )
@@ -208,7 +228,7 @@ def stuur(
                 van_id=gebruiker.id,
                 naar_rol=naar_rol,
                 naar_scope_id=naar_scope_id,
-                locatie_id=gebruiker.locatie_id,
+                locatie_id=actieve_locatie_id,
                 bericht=bericht,
                 prioriteit=prioriteit,
             )
@@ -240,7 +260,7 @@ def alles_gelezen(
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
 ):
-    NotitieService(db).markeer_alles_gelezen(gebruiker.id, gebruiker.locatie_id)
+    NotitieService(db).markeer_alles_gelezen(gebruiker.id, None)
     return RedirectResponse(url="/notities?bericht=Alles+gemarkeerd+als+gelezen", status_code=303)
 
 
@@ -250,9 +270,9 @@ def ongelezen_aantal(
     db: Session = Depends(haal_db),
 ):
     """HTMX fragment: badge met ongelezen notities of leeg."""
-    rollen = _haal_rollen(gebruiker.id, db)
+    admin_rollen = _haal_rollen(gebruiker.id, db)
     aantal = NotitieService(db).haal_ongelezen_totaal(
-        gebruiker.id, rollen, gebruiker.locatie_id
+        gebruiker.id, admin_rollen, None
     )
     if aantal > 0:
         return HTMLResponse(

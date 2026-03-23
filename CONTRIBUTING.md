@@ -26,11 +26,76 @@ Models (models/)          — SQLAlchemy ORM, geen businesslogica
 | Domein → Python stdlib | ✅ |
 | Domein → Model / Service | ❌ |
 
-## Broncode-strategie
+## Datamodel — kernconcepten
 
-- **`code_v07/src/services/`** = primaire bron voor businesslogica (port naar SQLAlchemy + FastAPI)
-- **`code_v08/backend/`** = infrastructuurreferentie (Docker, Alembic, JWT, FastAPI-patronen)
-- Zie `docs/plannen/plan_van_aanpak_v0.9.md` voor het volledige plan
+### Organisatie-laag
+
+```
+Area          → groepeert locaties (voor HR-scoping)
+Locatie       → fysieke vestiging; area_id (nullable FK → Area)
+Team          → afdeling binnen een locatie; locatie_id FK → Locatie
+Gebruiker     → geen locatie_id — context afgeleid via Lidmaatschap → Team → locatie_id
+```
+
+### Lidmaatschap (vervangt `teamlid`/`planner` rollen)
+
+```python
+class Lidmaatschap:
+    gebruiker_id  FK → Gebruiker
+    team_id       FK → Team          # echte DB-constraint, geen polymorfisme
+    is_planner    bool (default False)
+    type          enum: Vast | Reserve | Detachering
+    is_actief     bool
+    verwijderd_op, verwijderd_door_id
+```
+
+- Elke gebruiker heeft **minstens 1 actief lidmaatschap** — invariant
+- Gebruiker aanmaken zonder `team_id` → service weigert (atomische transactie)
+- Partial unique index: `(gebruiker_id, team_id) WHERE verwijderd_op IS NULL`
+
+### GebruikerRol (enkel admin-rollen)
+
+```python
+class GebruikerRol:
+    gebruiker_id     FK → Gebruiker
+    rol              # super_beheerder | beheerder | hr   (teamlid/planner niet meer hier)
+    scope_locatie_id # nullable FK → Locatie  (beheerder: verplicht)
+    scope_area_id    # nullable FK → Area     (hr area-scope: verplicht)
+    is_actief
+```
+
+Scoperegels:
+- `super_beheerder`: beide scope-velden `NULL`
+- `beheerder`: `scope_locatie_id` ingevuld, `scope_area_id = NULL`
+- `hr` (area): `scope_area_id` ingevuld
+- `hr` (nationaal): beide scope-velden `NULL`
+
+### Locatie-context ophalen
+
+**Nooit** `Gebruiker.locatie_id` lezen — dat veld bestaat niet meer.
+Gebruik altijd de `haal_actieve_locatie_id()` FastAPI-dependency:
+
+```python
+actieve_locatie_id: int = Depends(haal_actieve_locatie_id)
+```
+
+### Gebruikers in een locatie opvragen
+
+```python
+# ✅ Correct
+db.query(Gebruiker)
+  .join(Lidmaatschap, Lidmaatschap.gebruiker_id == Gebruiker.id)
+  .join(Team, Team.id == Lidmaatschap.team_id)
+  .filter(
+      Team.locatie_id == locatie_id,
+      Lidmaatschap.is_actief == True,
+      Lidmaatschap.verwijderd_op == None,
+      Gebruiker.is_actief == True,
+  ).distinct().all()
+
+# ❌ Nooit
+db.query(Gebruiker).filter(Gebruiker.locatie_id == locatie_id)
+```
 
 ## Nieuwe route checklist
 
@@ -38,7 +103,8 @@ Voor elke nieuwe route verplicht:
 
 - [ ] `vereiste_rol()` of `vereiste_login` dependency
 - [ ] CSRF token op alle POST-formulieren (`{{ csrf_token }}`)
-- [ ] `locatie_id` filter op alle queries (nooit cross-locatie data lekken)
+- [ ] `actieve_locatie_id = Depends(haal_actieve_locatie_id)` — nooit `gebruiker.locatie_id`
+- [ ] Gebruikers-in-locatie via Lidmaatschap → Team JOIN (zie patroon hierboven)
 - [ ] `team_id` filter voor planning-specifieke queries
 - [ ] Rate limiting op gevoelige endpoints (`@limiter.limit(...)`)
 - [ ] `AuditLog` entry bij elke mutatieactie

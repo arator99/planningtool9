@@ -7,11 +7,13 @@ from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
-from api.dependencies import haal_db, vereiste_beheerder_of_hoger
+from api.dependencies import haal_db, vereiste_beheerder_of_hoger, haal_actieve_locatie_id
 from api.sjablonen import sjablonen
 from i18n import maak_vertaler
 from models.audit_log import AuditLog
 from models.gebruiker import Gebruiker
+from models.lidmaatschap import Lidmaatschap
+from models.team import Team
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/logboek", tags=["logboek"])
@@ -75,10 +77,11 @@ def toon_logboek(
     filter_gebruiker_id: Optional[int] = Query(None),
     gebruiker: Gebruiker = Depends(vereiste_beheerder_of_hoger),
     db: Session = Depends(haal_db),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     offset = (pagina - 1) * _PAGINA_GROOTTE
 
-    query = db.query(AuditLog).filter(AuditLog.locatie_id == gebruiker.locatie_id)
+    query = db.query(AuditLog).filter(AuditLog.locatie_id == actieve_locatie_id)
 
     if actie and actie in _BEKENDE_ACTIES:
         query = query.filter(AuditLog.actie == actie)
@@ -115,7 +118,15 @@ def toon_logboek(
     # Dropdown: alle medewerkers van de locatie
     alle_medewerkers = (
         db.query(Gebruiker.id, Gebruiker.volledige_naam, Gebruiker.gebruikersnaam)
-        .filter(Gebruiker.locatie_id == gebruiker.locatie_id, Gebruiker.is_actief == True)
+        .join(Lidmaatschap, Lidmaatschap.gebruiker_id == Gebruiker.id)
+        .join(Team, Team.id == Lidmaatschap.team_id)
+        .filter(
+            Team.locatie_id == actieve_locatie_id,
+            Lidmaatschap.is_actief == True,
+            Lidmaatschap.verwijderd_op == None,
+            Gebruiker.is_actief == True,
+        )
+        .distinct()
         .order_by(Gebruiker.volledige_naam)
         .all()
     )

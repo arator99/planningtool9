@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from i18n import maak_vertaler
-from api.dependencies import haal_db, vereiste_login, vereiste_rol, haal_csrf_token, verifieer_csrf, heeft_rol_in_locatie, haal_planner_team_ids
+from api.dependencies import haal_db, vereiste_login, vereiste_rol, haal_csrf_token, verifieer_csrf, heeft_rol_in_locatie, haal_planner_team_ids, haal_actieve_locatie_id
 from services.planning_service import PlanningService
 from api.sjablonen import sjablonen
 from models.gebruiker import Gebruiker
@@ -37,6 +37,7 @@ def _context(request: Request, gebruiker: Gebruiker, **extra) -> dict:
 def _haal_verlof_aanvragen(
     svc: VerlofService,
     gebruiker: Gebruiker,
+    locatie_id: int | None,
     db,
 ) -> tuple[list, bool]:
     """
@@ -48,11 +49,8 @@ def _haal_verlof_aanvragen(
         - planner (team-scope): enkel aanvragen van eigen teams
         - overig: enkel eigen aanvragen
     """
-    is_locatie_behandelaar = heeft_rol_in_locatie(
-        gebruiker.id, gebruiker.locatie_id, ("beheerder", "hr"), db
-    )
-    if is_locatie_behandelaar:
-        return svc.haal_alle(gebruiker.locatie_id), True
+    if locatie_id and heeft_rol_in_locatie(gebruiker.id, locatie_id, ("beheerder", "hr", "super_beheerder"), db):
+        return svc.haal_alle(locatie_id), True
 
     team_ids = haal_planner_team_ids(gebruiker.id, db)
     if team_ids:
@@ -70,11 +68,12 @@ def toon_verlof(
     request: Request,
     status_filter: str = "alle",
     gebruiker: Gebruiker = Depends(vereiste_login),
+    actieve_locatie_id: int | None = Depends(haal_actieve_locatie_id),
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
 ):
     svc = VerlofService(db)
-    alle_aanvragen, is_behandelaar = _haal_verlof_aanvragen(svc, gebruiker, db)
+    alle_aanvragen, is_behandelaar = _haal_verlof_aanvragen(svc, gebruiker, actieve_locatie_id, db)
     verlofcodes = svc.haal_verlofcodes()
 
     if status_filter != "alle":
@@ -116,6 +115,7 @@ def toon_formulier(
     gebruiker: Gebruiker = Depends(vereiste_login),
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     svc = VerlofService(db)
     _, is_behandelaar = _haal_verlof_aanvragen(svc, gebruiker, db)
@@ -125,7 +125,7 @@ def toon_formulier(
         if team_ids:
             medewerkers = GebruikerService(db).haal_team_leden_meervoud(team_ids)
         else:
-            medewerkers = GebruikerService(db).haal_actieve_medewerkers(gebruiker.locatie_id)
+            medewerkers = GebruikerService(db).haal_actieve_medewerkers(actieve_locatie_id)
     saldo_overzicht = VerlofSaldoService(db).bereken_overzicht(
         gebruiker.id, date.today().year
     )
@@ -151,8 +151,9 @@ def verwerk_aanvraag(
     gebruiker: Gebruiker = Depends(vereiste_login),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
-    is_behandelaar = heeft_rol_in_locatie(gebruiker.id, gebruiker.locatie_id, tuple(BEHANDELAAR_ROLLEN), db)
+    is_behandelaar = heeft_rol_in_locatie(gebruiker.id, actieve_locatie_id, tuple(BEHANDELAAR_ROLLEN), db)
     doel_id = gebruiker_id if (is_behandelaar and gebruiker_id) else gebruiker.id
 
     try:
@@ -181,6 +182,7 @@ def goedkeuren(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner", "hr")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     svc = VerlofService(db)
     try:
@@ -188,11 +190,11 @@ def goedkeuren(
     except ValueError:
         return RedirectResponse(url="/verlof?fout=niet_gevonden", status_code=303)
     try:
-        svc.goedkeuren(aanvraag.id, gebruiker.locatie_id, gebruiker.id, code_term or None)
+        svc.goedkeuren(aanvraag.id, actieve_locatie_id, gebruiker.id, code_term or None)
     except ValueError as fout:
         logger.warning("Goedkeuren aanvraag %s mislukt: %s", uuid, fout)
         return RedirectResponse(url="/verlof?fout=actie_mislukt", status_code=303)
-    _log(db, gebruiker.id, gebruiker.locatie_id, "verlof.goedkeuren", aanvraag.id)
+    _log(db, gebruiker.id, actieve_locatie_id, "verlof.goedkeuren", aanvraag.id)
     return RedirectResponse(url="/verlof?bericht=Aanvraag+goedgekeurd", status_code=303)
 
 
@@ -203,6 +205,7 @@ def weigeren(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner", "hr")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     svc = VerlofService(db)
     try:
@@ -210,11 +213,11 @@ def weigeren(
     except ValueError:
         return RedirectResponse(url="/verlof?fout=niet_gevonden", status_code=303)
     try:
-        svc.weigeren(aanvraag.id, gebruiker.locatie_id, gebruiker.id, reden)
+        svc.weigeren(aanvraag.id, actieve_locatie_id, gebruiker.id, reden)
     except ValueError as fout:
         logger.warning("Weigeren aanvraag %s mislukt: %s", uuid, fout)
         return RedirectResponse(url="/verlof?fout=actie_mislukt", status_code=303)
-    _log(db, gebruiker.id, gebruiker.locatie_id, "verlof.weigeren", aanvraag.id)
+    _log(db, gebruiker.id, actieve_locatie_id, "verlof.weigeren", aanvraag.id)
     return RedirectResponse(url="/verlof?bericht=Aanvraag+geweigerd", status_code=303)
 
 
@@ -249,12 +252,13 @@ def bulk_goedkeuren(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner", "hr")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     svc = VerlofService(db)
     goedgekeurd = 0
     for aanvraag_id in aanvraag_ids:
         try:
-            svc.goedkeuren(aanvraag_id, gebruiker.locatie_id, gebruiker.id)
+            svc.goedkeuren(aanvraag_id, actieve_locatie_id, gebruiker.id)
             goedgekeurd += 1
         except ValueError:
             pass
@@ -275,15 +279,16 @@ def toon_overzicht(
     maand: Optional[int] = None,
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner", "hr")),
     db: Session = Depends(haal_db),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     huidig = date.today()
     jaar = jaar or huidig.year
     maand = maand or huidig.month
 
     team_ids = haal_planner_team_ids(gebruiker.id, db)
-    locatie_behandelaar = heeft_rol_in_locatie(gebruiker.id, gebruiker.locatie_id, ("beheerder", "hr"), db)
+    locatie_behandelaar = heeft_rol_in_locatie(gebruiker.id, actieve_locatie_id, ("beheerder", "hr"), db)
     data = VerlofService(db).haal_maand_overzicht(
-        gebruiker.locatie_id, jaar, maand,
+        actieve_locatie_id, jaar, maand,
         team_ids=None if locatie_behandelaar else (team_ids or None),
     )
     navigatie = PlanningService(db).haal_maand_navigatie(jaar, maand)
@@ -311,10 +316,11 @@ def toon_saldo_beheer(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner", "hr")),
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     huidig_jaar = date.today().year
     jaar = jaar or huidig_jaar
-    saldi = VerlofSaldoService(db).haal_alle_saldi(gebruiker.locatie_id, jaar)
+    saldi = VerlofSaldoService(db).haal_alle_saldi(actieve_locatie_id, jaar)
     bericht = request.query_params.get("bericht")
     fout = maak_vertaler(gebruiker.taal)(request.query_params.get("fout", "")) or None
 
@@ -342,6 +348,7 @@ def pas_saldo_aan(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner", "hr")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     try:
         VerlofSaldoService(db).pas_saldo_aan(
@@ -355,7 +362,7 @@ def pas_saldo_aan(
     except ValueError as fout:
         logger.warning("Saldo aanpassen mislukt: %s", fout)
         return RedirectResponse(url=f"/verlof/saldo?jaar={jaar}&fout=saldo_mislukt", status_code=303)
-    _log(db, gebruiker.id, gebruiker.locatie_id, "verlof.saldo.aanpassen", doel_type="VerlofSaldo")
+    _log(db, gebruiker.id, actieve_locatie_id, "verlof.saldo.aanpassen", doel_type="VerlofSaldo")
     return RedirectResponse(url=f"/verlof/saldo?jaar={jaar}&bericht=Saldo+aangepast", status_code=303)
 
 
@@ -366,9 +373,10 @@ def jaar_overdracht(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     stats = VerlofSaldoService(db).voer_jaar_overdracht_uit(
-        locatie_id=gebruiker.locatie_id,
+        locatie_id=actieve_locatie_id,
         van_jaar=van_jaar,
         naar_jaar=naar_jaar,
         uitgevoerd_door_id=gebruiker.id,
@@ -377,7 +385,7 @@ def jaar_overdracht(
     if fouten:
         return RedirectResponse(url=f"/verlof/saldo?jaar={naar_jaar}&fout=fout.jaar_overdracht_deels_mislukt", status_code=303)
 
-    _log(db, gebruiker.id, gebruiker.locatie_id, "verlof.jaar_overdracht", doel_type="VerlofSaldo")
+    _log(db, gebruiker.id, actieve_locatie_id, "verlof.jaar_overdracht", doel_type="VerlofSaldo")
     bericht = (
         f"Overdracht {van_jaar}→{naar_jaar}: "
         f"{stats['aantal_gebruikers']} medewerkers, "
@@ -391,14 +399,15 @@ def jaar_overdracht(
 def pending_aantal(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
     db: Session = Depends(haal_db),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     """HTMX fragment: badge met openstaande verlofaanvragen of leeg."""
-    if not gebruiker.locatie_id:
+    if not actieve_locatie_id:
         return HTMLResponse("")
     team_ids = haal_planner_team_ids(gebruiker.id, db)
-    locatie_behandelaar = heeft_rol_in_locatie(gebruiker.id, gebruiker.locatie_id, ("beheerder", "hr"), db)
+    locatie_behandelaar = heeft_rol_in_locatie(gebruiker.id, actieve_locatie_id, ("beheerder", "hr"), db)
     aantal = VerlofService(db).haal_pending_count(
-        gebruiker.locatie_id,
+        actieve_locatie_id,
         team_ids=None if locatie_behandelaar else (team_ids or None),
     )
     if aantal > 0:
@@ -415,8 +424,9 @@ def verval_1_mei(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
-    aantal = VerlofSaldoService(db).verwerk_1_mei_verval(gebruiker.locatie_id, jaar, gebruiker.id)
-    _log(db, gebruiker.id, gebruiker.locatie_id, "verlof.1_mei_verval", doel_type="VerlofSaldo")
+    aantal = VerlofSaldoService(db).verwerk_1_mei_verval(actieve_locatie_id, jaar, gebruiker.id)
+    _log(db, gebruiker.id, actieve_locatie_id, "verlof.1_mei_verval", doel_type="VerlofSaldo")
     bericht = f"1-mei verval verwerkt: {aantal} medewerkers met vervallen overgedragen dagen"
     return RedirectResponse(url=f"/verlof/saldo?jaar={jaar}&bericht={bericht}", status_code=303)

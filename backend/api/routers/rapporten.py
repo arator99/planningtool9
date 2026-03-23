@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from i18n import maak_vertaler
-from api.dependencies import haal_db, vereiste_rol, haal_csrf_token, haal_primaire_team_id
+from api.dependencies import haal_db, vereiste_rol, haal_csrf_token, haal_primaire_team_id, haal_actieve_locatie_id
 from api.sjablonen import sjablonen
 from models.gebruiker import Gebruiker
 from services.rapport_service import RapportService
@@ -36,12 +36,13 @@ def overzicht(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner", "hr")),
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     jaar, maand = _huidig_jaar_maand()
     team_id = haal_primaire_team_id(gebruiker.id, db)
     svc = RapportService(db)
     planning_data = svc.maandplanning_overzicht(team_id, jaar, maand) if team_id else {}
-    verlof_data = svc.verlof_overzicht(gebruiker.locatie_id, jaar)
+    verlof_data = svc.verlof_overzicht(actieve_locatie_id, jaar)
 
     jaren = list(range(date.today().year - 2, date.today().year + 2))
 
@@ -71,6 +72,7 @@ def maandplanning(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner", "hr")),
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     if not jaar or not maand:
         hj, hm = _huidig_jaar_maand()
@@ -80,7 +82,7 @@ def maandplanning(
     team_id = haal_primaire_team_id(gebruiker.id, db)
     svc = RapportService(db)
     planning_data = svc.maandplanning_overzicht(team_id, jaar, maand) if team_id else {}
-    verlof_data = svc.verlof_overzicht(gebruiker.locatie_id, jaar)
+    verlof_data = svc.verlof_overzicht(actieve_locatie_id, jaar)
     jaren = list(range(date.today().year - 2, date.today().year + 2))
 
     return sjablonen.TemplateResponse(
@@ -162,6 +164,7 @@ def maandplanning_excel(
     team_id: Optional[int] = Query(None, description="Filter op team-ID; None = primair team"),
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner", "hr")),
     db: Session = Depends(haal_db),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     if not jaar or not maand:
         hj, hm = _huidig_jaar_maand()
@@ -172,7 +175,7 @@ def maandplanning_excel(
     if not effectief_team_id:
         return Response(status_code=403)
     try:
-        fouten = ValidatieService(db).valideer_maand(effectief_team_id, gebruiker.locatie_id, jaar, maand)
+        fouten = ValidatieService(db).valideer_maand(effectief_team_id, actieve_locatie_id, jaar, maand)
         excel_bytes = ExcelExportService(db).genereer_excel(
             effectief_team_id, jaar, maand, fouten=fouten
         )
@@ -197,6 +200,7 @@ def compliance_rapport(
     maand: int = None,
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner", "hr")),
     db: Session = Depends(haal_db),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     if not jaar or not maand:
         hj, hm = _huidig_jaar_maand()
@@ -204,7 +208,7 @@ def compliance_rapport(
         maand = maand or hm
 
     team_id = haal_primaire_team_id(gebruiker.id, db)
-    fouten = ValidatieService(db).valideer_maand(team_id, gebruiker.locatie_id, jaar, maand) if team_id else []
+    fouten = ValidatieService(db).valideer_maand(team_id, actieve_locatie_id, jaar, maand) if team_id else []
     jaren = list(range(date.today().year - 2, date.today().year + 2))
 
     return sjablonen.TemplateResponse(
@@ -255,8 +259,9 @@ def medewerkers_overzicht(
     request: Request,
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner", "hr")),
     db: Session = Depends(haal_db),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
-    medewerkers = RapportService(db).medewerkers_overzicht(gebruiker.locatie_id)
+    medewerkers = RapportService(db).medewerkers_overzicht(actieve_locatie_id)
 
     return sjablonen.TemplateResponse(
         "pages/rapporten/medewerkers.html",
@@ -271,6 +276,7 @@ def uren_rapport(
     maand: int = None,
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner", "hr")),
     db: Session = Depends(haal_db),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     if not jaar or not maand:
         hj, hm = _huidig_jaar_maand()
@@ -278,7 +284,7 @@ def uren_rapport(
         maand = maand or hm
 
     jaren = list(range(date.today().year - 2, date.today().year + 2))
-    data = RapportService(db).uren_rapport(gebruiker.locatie_id, jaar, maand)
+    data = RapportService(db).uren_rapport(actieve_locatie_id, jaar, maand)
 
     return sjablonen.TemplateResponse(
         "pages/rapporten/uren.html",

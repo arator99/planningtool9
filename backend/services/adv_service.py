@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 
 from models.adv import AdvToekenning
 from models.gebruiker import Gebruiker
+from models.lidmaatschap import Lidmaatschap
+from models.team import Team
 from services.domein.adv_domein import (
     AdvInfo,
     genereer_adv_dagen,
@@ -36,8 +38,12 @@ class AdvService:
         q = (
             self.db.query(AdvToekenning)
             .join(Gebruiker, Gebruiker.id == AdvToekenning.gebruiker_id)
+            .join(Lidmaatschap, Lidmaatschap.gebruiker_id == Gebruiker.id)
+            .join(Team, Team.id == Lidmaatschap.team_id)
             .filter(
-                Gebruiker.locatie_id == self.locatie_id,
+                Team.locatie_id == self.locatie_id,
+                Lidmaatschap.is_actief == True,
+                Lidmaatschap.verwijderd_op == None,
                 AdvToekenning.verwijderd_op.is_(None),
             )
         )
@@ -54,9 +60,13 @@ class AdvService:
         t = (
             self.db.query(AdvToekenning)
             .join(Gebruiker, Gebruiker.id == AdvToekenning.gebruiker_id)
+            .join(Lidmaatschap, Lidmaatschap.gebruiker_id == Gebruiker.id)
+            .join(Team, Team.id == Lidmaatschap.team_id)
             .filter(
                 AdvToekenning.uuid == uuid,
-                Gebruiker.locatie_id == self.locatie_id,
+                Team.locatie_id == self.locatie_id,
+                Lidmaatschap.is_actief == True,
+                Lidmaatschap.verwijderd_op == None,
                 AdvToekenning.verwijderd_op.is_(None),
             )
             .first()
@@ -177,9 +187,17 @@ class AdvService:
     # ------------------------------------------------------------------ #
 
     def _check_gebruiker_in_locatie(self, gebruiker_id: int) -> None:
-        g = self.db.query(Gebruiker).filter(
-            Gebruiker.id == gebruiker_id,
-            Gebruiker.locatie_id == self.locatie_id,
-        ).first()
+        g = (
+            self.db.query(Gebruiker)
+            .join(Lidmaatschap, Lidmaatschap.gebruiker_id == Gebruiker.id)
+            .join(Team, Team.id == Lidmaatschap.team_id)
+            .filter(
+                Gebruiker.id == gebruiker_id,
+                Team.locatie_id == self.locatie_id,
+                Lidmaatschap.is_actief == True,
+                Lidmaatschap.verwijderd_op == None,
+            )
+            .first()
+        )
         if not g:
             raise ValueError("Gebruiker niet gevonden in deze locatie.")

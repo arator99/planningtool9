@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 
 from models.gebruiker import Gebruiker
 from models.hr import NationaleHRRegel, LocatieHROverride
+from models.lidmaatschap import Lidmaatschap
+from models.team import Team
 from models.planning import Planning, PlanningOverride, RodeLijnConfig, Shiftcode, SpecialCode
 from services.domein.validatie_domein import (
     ValidatieFout,
@@ -47,7 +49,15 @@ class ValidatieService:
         gebruikers: dict[int, Gebruiker] = {
             g.id: g
             for g in self.db.query(Gebruiker)
-            .filter(Gebruiker.locatie_id == locatie_id, Gebruiker.is_actief == True)
+            .join(Lidmaatschap, Lidmaatschap.gebruiker_id == Gebruiker.id)
+            .join(Team, Team.id == Lidmaatschap.team_id)
+            .filter(
+                Team.locatie_id == locatie_id,
+                Lidmaatschap.is_actief == True,
+                Lidmaatschap.verwijderd_op == None,
+                Gebruiker.is_actief == True,
+            )
+            .distinct()
             .all()
         }
 

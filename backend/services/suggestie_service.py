@@ -13,7 +13,9 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from models.gebruiker import Gebruiker
+from models.lidmaatschap import Lidmaatschap
 from models.planning import Planning, Shiftcode
+from models.team import Team
 from models.verlof import VerlofAanvraag
 from services.domein.suggestie_domein import (
     HISTORIEK_LOOKBACK_DAGEN,
@@ -66,11 +68,19 @@ class SuggestieService:
         - gebruiker al een shift heeft op die datum
         - gebruiker goedgekeurd verlof heeft op die datum
         """
-        geb = self.db.query(Gebruiker).filter(
-            Gebruiker.id == gebruiker_id,
-            Gebruiker.locatie_id == locatie_id,
-            Gebruiker.is_actief == True,
-        ).first()
+        geb = (
+            self.db.query(Gebruiker)
+            .join(Lidmaatschap, Lidmaatschap.gebruiker_id == Gebruiker.id)
+            .join(Team, Team.id == Lidmaatschap.team_id)
+            .filter(
+                Gebruiker.id == gebruiker_id,
+                Team.locatie_id == locatie_id,
+                Lidmaatschap.is_actief == True,
+                Lidmaatschap.verwijderd_op == None,
+                Gebruiker.is_actief == True,
+            )
+            .first()
+        )
         if not geb:
             return []
 
@@ -174,7 +184,7 @@ class SuggestieService:
         Returns:
             Aantal ingevulde cellen.
         """
-        from models.gebruiker_rol import GebruikerRol
+        from models.lidmaatschap import Lidmaatschap
 
         _, aantal_dagen = monthrange(jaar, maand)
         start = date(jaar, maand, 1)
@@ -182,11 +192,11 @@ class SuggestieService:
 
         gebruikers = (
             self.db.query(Gebruiker)
-            .join(GebruikerRol, GebruikerRol.gebruiker_id == Gebruiker.id)
+            .join(Lidmaatschap, Lidmaatschap.gebruiker_id == Gebruiker.id)
             .filter(
-                GebruikerRol.scope_id == team_id,
-                GebruikerRol.rol.in_(["teamlid", "planner"]),
-                GebruikerRol.is_actief == True,
+                Lidmaatschap.team_id == team_id,
+                Lidmaatschap.is_actief == True,
+                Lidmaatschap.verwijderd_op == None,
                 Gebruiker.is_actief == True,
             )
             .all()

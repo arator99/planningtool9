@@ -34,7 +34,6 @@ def _haal_of_maak_nat_locatie(db) -> Locatie:
             uuid=str(uuid.uuid4()),
             naam="Nationaal",
             code="NAT",
-            area_label=None,
             is_actief=True,
         )
         db.add(nat)
@@ -61,10 +60,10 @@ def promoveer(gebruikersnaam: str) -> None:
         nat = _haal_of_maak_nat_locatie(db)
 
         # Controleer of super_beheerder rol al bestaat
+        from models.gebruiker_rol import GebruikerRolType
         bestaand = db.query(GebruikerRol).filter(
             GebruikerRol.gebruiker_id == gebruiker.id,
-            GebruikerRol.rol == "super_beheerder",
-            GebruikerRol.scope_id == nat.id,
+            GebruikerRol.rol == GebruikerRolType.super_beheerder,
         ).first()
 
         if bestaand:
@@ -72,12 +71,12 @@ def promoveer(gebruikersnaam: str) -> None:
         else:
             db.add(GebruikerRol(
                 gebruiker_id=gebruiker.id,
-                rol="super_beheerder",
-                scope_id=nat.id,
-                is_reserve=False,
+                rol=GebruikerRolType.super_beheerder,
+                scope_locatie_id=None,
+                scope_area_id=None,
                 is_actief=True,
             ))
-            print(f"  GebruikerRol super_beheerder aangemaakt (scope=NAT id={nat.id})")
+            print(f"  GebruikerRol super_beheerder aangemaakt")
 
         # Denormaliseer rol op Gebruiker record
         gebruiker.rol = "super_beheerder"

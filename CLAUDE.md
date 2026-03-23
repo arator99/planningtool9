@@ -130,17 +130,16 @@ Elk nieuw model hoort in precies één domein:
 ```
 ORGANISATIE        AUTORISATIE       OPERATIES
 ───────────        ───────────       ─────────
-Locatie            GebruikerRol      Planning + PlanningWijziging
-Team                                 Verlof + VerlofTeamStatus
-Gebruiker                            Notitie
-                                     NationaleHRRegel + LocatieHROverride
+Area               GebruikerRol      Planning + PlanningWijziging
+Locatie            Lidmaatschap      Verlof + VerlofTeamStatus
+Team                                 Notitie
+Gebruiker                            NationaleHRRegel + LocatieHROverride
                                      Shiftcode
-                                     NationaleHRRegel + LocatieHROverride
                                      RodeLijnConfig (nationaal, exact 1 record)
                                      AuditLog
 ```
 
-**Regel:** Operationele modellen verwijzen naar Organisatie, nooit naar GebruikerRol. Permissies horen in de service/router, niet in de data.
+**Regel:** Operationele modellen verwijzen naar Organisatie, nooit naar GebruikerRol of Lidmaatschap. Permissies horen in de service/router, niet in de data.
 
 ---
 
@@ -148,33 +147,70 @@ Gebruiker                            Notitie
 
 Rollen zijn **niet hiërarchisch** — één gebruiker kan meerdere rollen hebben met verschillende scopes.
 
+### GebruikerRol — uitsluitend administratieve rollen
+
 ```python
 class GebruikerRol:
-    gebruiker_id → Gebruiker
-    rol          # super_beheerder | beheerder | hr | planner | teamlid
-    scope_id     # team_id (teamlid/planner) | locatie_id (beheerder/hr)
-                 # NOOIT None — super_beheerder krijgt scope_id van Locatie(code='NAT')
-    is_reserve   # bool — enkel relevant bij rol=teamlid; True = uitfilterbaar in grid
+    gebruiker_id      → Gebruiker
+    rol               # super_beheerder | beheerder | hr
+    scope_locatie_id  # FK → Locatie (beheerder verplicht, rest NULL)
+    scope_area_id     # FK → Area (hr area-scope, rest NULL)
     is_actief
+
+# Scope-regels (afgedwongen via CHECK constraint):
+# super_beheerder  → beide NULL
+# beheerder        → scope_locatie_id verplicht, scope_area_id NULL
+# hr (area)        → scope_area_id ingevuld, scope_locatie_id NULL
+# hr (nationaal)   → beide NULL
 ```
 
-**scope_id is polymorfisch** (team_id OF locatie_id afhankelijk van rol) — de DB kan dit niet afdwingen.
+### Lidmaatschap — team-gebaseerde rechten
+
+```python
+class Lidmaatschap:
+    gebruiker_id  → Gebruiker
+    team_id       → Team
+    is_planner    # bool — schrijfrechten op de planning van dit team
+    type          # LidmaatschapType: vast | reserve | detachering
+    is_actief
+
+# Invariant: elke gebruiker heeft altijd minstens 1 actief lidmaatschap
+```
+
+**Planner = `Lidmaatschap.is_planner=True`** — geen GebruikerRol meer.
+**Reserve = `Lidmaatschap.type == LidmaatschapType.reserve`** — geen `is_reserve` vlag meer.
 
 ### VERBODEN:
 ```python
-# ❌ Nooit rechtstreeks op scope_id filteren
-db.query(GebruikerRol).filter(GebruikerRol.scope_id == x)
+# ❌ GebruikerRol voor teamlid/planner opvragen — bestaat niet meer
+db.query(GebruikerRol).filter(GebruikerRol.rol.in_(["teamlid", "planner"]))
+
+# ❌ Gebruiker.locatie_id — veld bestaat niet meer
+gebruiker.locatie_id
 ```
 
 ### VERPLICHT:
 ```python
-# ✅ Altijd via helpers
-heeft_rol(gebruiker_id, ["planner"], scope_id=team_id)
-heeft_rol_in_locatie(gebruiker_id, ["teamlid", "planner"], locatie_id=locatie_id)
-interpreteer_scope(rol, scope_id)  # → ('team', obj) of ('locatie', obj)
+# ✅ Team-lidmaatschap via Lidmaatschap
+heeft_rol_in_team(gebruiker_id, team_id, ["planner"], db)
+
+# ✅ Locatie-scope via getypeerde FK
+heeft_rol_in_locatie(gebruiker_id, locatie_id, ["beheerder", "super_beheerder"], db)
+
+# ✅ Locatiecontext altijd via dependency
+actieve_locatie_id: int = Depends(haal_actieve_locatie_id)
+
+# ✅ Gebruikers in locatie altijd via Lidmaatschap JOIN Team
+db.query(Gebruiker)
+  .join(Lidmaatschap, Lidmaatschap.gebruiker_id == Gebruiker.id)
+  .join(Team, Team.id == Lidmaatschap.team_id)
+  .filter(Team.locatie_id == locatie_id,
+          Lidmaatschap.is_actief == True,
+          Lidmaatschap.verwijderd_op == None)
+  .distinct()
 ```
 
-**Vaste systeemlocatie:** `Locatie(code='NAT', naam='Nationaal')` — aangemaakt bij init, nooit verwijderbaar. scope_id van super_beheerder wijst altijd naar dit record.
+**Vaste systeemlocatie:** `Locatie(code='NAT', naam='Nationaal')` — aangemaakt bij init, nooit verwijderbaar.
 
 ---
 
@@ -410,10 +446,12 @@ Bij elke nieuwe route + service:
 ## Wat NIET te doen
 
 - Geen `Groep`/`groep` meer — hernoemd naar `Team`/`team` overal
-- Geen `Gebruiker.rol` veld — rollen zitten in `GebruikerRol`
-- Geen `GebruikerGroep` — vervangen door `GebruikerRol` met `is_reserve` vlag
+- Geen `Gebruiker.locatie_id` — locatiecontext altijd via `haal_actieve_locatie_id()` of Lidmaatschap → Team → locatie_id
+- Geen `GebruikerRol` met rol `teamlid` of `planner` — dat zit nu in `Lidmaatschap`
+- Geen `GebruikerRol.scope_id` — vervangen door getypeerde `scope_locatie_id` / `scope_area_id`
+- Geen `GebruikerRol.is_reserve` — vervangen door `Lidmaatschap.type == LidmaatschapType.reserve`
+- Geen gebruiker aanmaken zonder `team_id` — `GebruikerService.maak_aan()` vereist `team_id` (invariant: altijd min. 1 lidmaatschap)
 - Geen `passlib` importeren
-- Geen directe `WHERE scope_id = X` queries
 - Geen hardcoded tekst in templates
 - Geen hardcoded Tailwind-kleurcodes (`bg-white`, `text-gray-900`, ...)
 - Geen secrets in code of git
@@ -434,6 +472,7 @@ Bij elke nieuwe route + service:
 | `code_v08/backend/` | Infrastructuurreferentie: Docker, Alembic, FastAPI-patronen, JWT-auth |
 | `backend/services/repository.py` | BaseRepository (tenant-filter) |
 | `backend/api/dependencies.py` | heeft_rol, heeft_rol_in_locatie, interpreteer_scope |
+| `docs/referentie/autorisatie_model.md` | Autorisatiemodel: Lidmaatschap vs GebruikerRol, rollen, locatie-context |
 | `backend/static/css/theme.css` | CSS custom properties light/dark |
 | `backend/templates/components/` | Herbruikbare UI-componenten |
 | `backend/locales/` | Vertalingen nl/fr/en |

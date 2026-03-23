@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from models.gebruiker import Gebruiker
-from models.gebruiker_rol import GebruikerRol
+from models.lidmaatschap import Lidmaatschap, LidmaatschapType
 from models.team import Team
 
 logger = logging.getLogger(__name__)
@@ -75,87 +75,126 @@ class TeamService:
         self.db.commit()
         return team
 
-    def haal_leden(self, team_id: int) -> tuple[list[GebruikerRol], dict[int, GebruikerRol]]:
+    def haal_leden(self, team_id: int) -> tuple[list[Lidmaatschap], dict[int, Lidmaatschap]]:
         """
-        Geef alle GebruikerRol-records voor een team terug.
+        Geef alle actieve Lidmaatschap-records voor een team terug.
 
         Returns:
-            (rollen_lijst, {gebruiker_id: GebruikerRol}) tuple voor template-gebruik.
+            (lidmaatschappen_lijst, {gebruiker_id: Lidmaatschap}) tuple voor template-gebruik.
         """
-        rollen = (
-            self.db.query(GebruikerRol)
+        lidmaatschappen = (
+            self.db.query(Lidmaatschap)
             .filter(
-                GebruikerRol.scope_id == team_id,
-                GebruikerRol.rol.in_(["teamlid", "planner"]),
-                GebruikerRol.is_actief == True,
+                Lidmaatschap.team_id == team_id,
+                Lidmaatschap.is_actief == True,
+                Lidmaatschap.verwijderd_op == None,
             )
             .all()
         )
-        return rollen, {r.gebruiker_id: r for r in rollen}
+        return lidmaatschappen, {l.gebruiker_id: l for l in lidmaatschappen}
 
     def haal_gebruikers_voor_locatie(self, locatie_id: int) -> list[Gebruiker]:
-        """Geef alle actieve gebruikers van een locatie, gesorteerd op naam."""
+        """Geef alle actieve gebruikers van een locatie via hun lidmaatschappen, gesorteerd op naam."""
         return (
             self.db.query(Gebruiker)
-            .filter(Gebruiker.locatie_id == locatie_id, Gebruiker.is_actief == True)
+            .join(Lidmaatschap, Lidmaatschap.gebruiker_id == Gebruiker.id)
+            .join(Team, Team.id == Lidmaatschap.team_id)
+            .filter(
+                Team.locatie_id == locatie_id,
+                Lidmaatschap.is_actief == True,
+                Lidmaatschap.verwijderd_op == None,
+                Gebruiker.is_actief == True,
+            )
+            .distinct()
             .order_by(Gebruiker.volledige_naam)
             .all()
         )
 
-    def voeg_lid_toe(self, team_id: int, gebruiker_id: int, is_reserve: bool) -> None:
-        """Voeg een gebruiker als teamlid toe. Heractiveer bij eerder verwijderd lidmaatschap."""
+    def voeg_lid_toe(
+        self,
+        team_id: int,
+        gebruiker_id: int,
+        lid_type: LidmaatschapType = LidmaatschapType.vast,
+        is_planner: bool = False,
+    ) -> None:
+        """
+        Voeg een gebruiker als teamlid toe. Heractiveer bij eerder verwijderd lidmaatschap.
+
+        Args:
+            team_id: Het doelteam.
+            gebruiker_id: De toe te voegen gebruiker.
+            lid_type: Vast, Reserve of Detachering.
+            is_planner: True om plannerrechten toe te kennen voor dit team.
+        """
         bestaand = (
-            self.db.query(GebruikerRol)
+            self.db.query(Lidmaatschap)
             .filter(
-                GebruikerRol.gebruiker_id == gebruiker_id,
-                GebruikerRol.scope_id == team_id,
-                GebruikerRol.rol.in_(["teamlid", "planner"]),
+                Lidmaatschap.gebruiker_id == gebruiker_id,
+                Lidmaatschap.team_id == team_id,
             )
             .first()
         )
         if bestaand:
-            bestaand.is_reserve = is_reserve
+            bestaand.type = lid_type
+            bestaand.is_planner = is_planner
             bestaand.is_actief = True
             bestaand.verwijderd_op = None
             bestaand.verwijderd_door_id = None
         else:
-            self.db.add(GebruikerRol(
+            self.db.add(Lidmaatschap(
                 gebruiker_id=gebruiker_id,
-                rol="teamlid",
-                scope_id=team_id,
-                is_reserve=is_reserve,
+                team_id=team_id,
+                type=lid_type,
+                is_planner=is_planner,
                 is_actief=True,
             ))
         self.db.commit()
-        logger.info("Lid %d toegevoegd aan team %d (reserve=%s)", gebruiker_id, team_id, is_reserve)
+        logger.info("Lid %d toegevoegd aan team %d (type=%s, planner=%s)", gebruiker_id, team_id, lid_type, is_planner)
 
     def verwijder_lid(self, team_id: int, gebruiker_id: int, verwijderd_door_id: int | None = None) -> None:
-        """Deactiveer een teamlid-koppeling (soft delete). Behoudt historische shifts zichtbaarheid."""
+        """Deactiveer een teamlidmaatschap (soft delete). Behoudt historische shifts zichtbaarheid.
+
+        Raises ValueError als dit het laatste actieve lidmaatschap van de gebruiker is
+        (invariant: elke gebruiker heeft altijd minstens 1 actief lidmaatschap).
+        """
         koppeling = (
-            self.db.query(GebruikerRol)
+            self.db.query(Lidmaatschap)
             .filter(
-                GebruikerRol.gebruiker_id == gebruiker_id,
-                GebruikerRol.scope_id == team_id,
-                GebruikerRol.rol.in_(["teamlid", "planner"]),
-                GebruikerRol.is_actief == True,
+                Lidmaatschap.gebruiker_id == gebruiker_id,
+                Lidmaatschap.team_id == team_id,
+                Lidmaatschap.is_actief == True,
+                Lidmaatschap.verwijderd_op == None,
             )
             .first()
         )
-        if koppeling:
-            koppeling.is_actief = False
-            koppeling.verwijderd_op = datetime.utcnow()
-            koppeling.verwijderd_door_id = verwijderd_door_id
-            self.db.commit()
-            logger.info("Lid %d gedeactiveerd uit team %d", gebruiker_id, team_id)
+        if not koppeling:
+            return
 
-    def haal_ex_leden(self, team_id: int) -> list[GebruikerRol]:
-        """Geeft inactieve GebruikerRol-records voor dit team (voormalige leden)."""
-        return (
-            self.db.query(GebruikerRol)
+        aantal_actief = (
+            self.db.query(Lidmaatschap)
             .filter(
-                GebruikerRol.scope_id == team_id,
-                GebruikerRol.rol.in_(["teamlid", "planner"]),
-                GebruikerRol.is_actief == False,
+                Lidmaatschap.gebruiker_id == gebruiker_id,
+                Lidmaatschap.is_actief == True,
+                Lidmaatschap.verwijderd_op == None,
+            )
+            .count()
+        )
+        if aantal_actief <= 1:
+            raise ValueError("Kan het laatste lidmaatschap van een gebruiker niet verwijderen.")
+
+        koppeling.is_actief = False
+        koppeling.verwijderd_op = datetime.utcnow()
+        koppeling.verwijderd_door_id = verwijderd_door_id
+        self.db.commit()
+        logger.info("Lid %d gedeactiveerd uit team %d", gebruiker_id, team_id)
+
+    def haal_ex_leden(self, team_id: int) -> list[Lidmaatschap]:
+        """Geeft inactieve Lidmaatschap-records voor dit team (voormalige leden)."""
+        return (
+            self.db.query(Lidmaatschap)
+            .filter(
+                Lidmaatschap.team_id == team_id,
+                Lidmaatschap.is_actief == False,
             )
             .all()
         )

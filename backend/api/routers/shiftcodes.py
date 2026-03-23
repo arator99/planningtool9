@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from i18n import maak_vertaler
-from api.dependencies import haal_db, vereiste_rol, haal_csrf_token, verifieer_csrf
+from api.dependencies import haal_db, vereiste_rol, haal_csrf_token, verifieer_csrf, haal_actieve_locatie_id
 from api.sjablonen import sjablonen
 from models.gebruiker import Gebruiker
 from services.shiftcode_service import ShiftcodeService, SHIFT_TYPES, DAG_TYPES
@@ -26,10 +26,11 @@ def lijst(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     svc = ShiftcodeService(db)
-    shiftcodes = svc.haal_alle(gebruiker.locatie_id)
-    werkposten = svc.haal_werkposten(gebruiker.locatie_id)
+    shiftcodes = svc.haal_alle(actieve_locatie_id)
+    werkposten = svc.haal_werkposten(actieve_locatie_id)
 
     # Groepeer per shift_type voor overzicht
     gegroepeerd: dict[str, list] = {}
@@ -60,13 +61,14 @@ def nieuw_formulier(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     svc = ShiftcodeService(db)
     return sjablonen.TemplateResponse(
         "pages/shiftcodes/formulier.html",
         _context(request, gebruiker,
                  sc=None,
-                 werkposten=svc.haal_werkposten(gebruiker.locatie_id),
+                 werkposten=svc.haal_werkposten(actieve_locatie_id),
                  shift_types=SHIFT_TYPES,
                  dag_types=DAG_TYPES,
                  csrf_token=csrf_token),
@@ -85,10 +87,11 @@ def maak_aan(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     try:
         ShiftcodeService(db).maak_aan(
-            locatie_id=gebruiker.locatie_id,
+            locatie_id=actieve_locatie_id,
             code=code,
             shift_type=shift_type,
             dag_type=dag_type,
@@ -110,6 +113,7 @@ def bewerk_formulier(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
     db: Session = Depends(haal_db),
     csrf_token: str = Depends(haal_csrf_token),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     svc = ShiftcodeService(db)
     try:
@@ -120,7 +124,7 @@ def bewerk_formulier(
         "pages/shiftcodes/formulier.html",
         _context(request, gebruiker,
                  sc=sc,
-                 werkposten=svc.haal_werkposten(gebruiker.locatie_id),
+                 werkposten=svc.haal_werkposten(actieve_locatie_id),
                  shift_types=SHIFT_TYPES,
                  dag_types=DAG_TYPES,
                  csrf_token=csrf_token),
@@ -139,6 +143,7 @@ def sla_bewerking_op(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder", "planner")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     svc = ShiftcodeService(db)
     try:
@@ -148,7 +153,7 @@ def sla_bewerking_op(
     try:
         svc.bewerk(
             shiftcode_id=sc.id,
-            locatie_id=gebruiker.locatie_id,
+            locatie_id=actieve_locatie_id,
             shift_type=shift_type,
             dag_type=dag_type,
             start_uur=start_uur,
@@ -168,11 +173,12 @@ def verwijder(
     gebruiker: Gebruiker = Depends(vereiste_rol("beheerder")),
     db: Session = Depends(haal_db),
     _csrf: None = Depends(verifieer_csrf),
+    actieve_locatie_id: int = Depends(haal_actieve_locatie_id),
 ):
     svc = ShiftcodeService(db)
     try:
         sc = svc.haal_op_uuid(uuid)
-        svc.verwijder(sc.id, gebruiker.locatie_id)
+        svc.verwijder(sc.id, actieve_locatie_id)
     except ValueError as fout:
         logger.warning("Shiftcode verwijderen mislukt (uuid=%s): %s", uuid, fout)
         return RedirectResponse(url="/shiftcodes?fout=fout.actie_mislukt", status_code=303)
